@@ -6,14 +6,19 @@ import { AuthGuard } from '@nestjs/passport';
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  @Post('register')
+  async register(@Body() body: Record<string, any>) {
+    return this.authService.signUp(body.full_name, body.email, body.password);
+  }
+
   @HttpCode(HttpStatus.OK)
   @Post('login')
   signIn(@Body() signInDto: Record<string, any>) {
     // Nhận username và password từ body request
-    return this.authService.signIn(signInDto.username, signInDto.password);
+    return this.authService.signIn(signInDto.email, signInDto.password);
   }
   
-  @UseGuards(AuthGuard('jwt')) // <--- "Ổ khóa": Bắt buộc phải có Token
+  @UseGuards(AuthGuard('jwt'))
   @Get('profile')
   getProfile(@Request() req) {
     // Trả về thông tin user lấy được từ token
