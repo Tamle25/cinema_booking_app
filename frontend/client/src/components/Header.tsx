@@ -1,17 +1,23 @@
+'use client';
+
 import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
+
 
 const Header = () => {
+  const { user, logout } = useAuth();
+
   return (
     <header className="fixed top-0 left-0 right-0 h-16 bg-white shadow-md z-50 flex items-center">
       <div className="max-w-6xl mx-auto w-full px-4 flex justify-between items-center">
         {/* 1. LOGO */}
         <Link href="/" className="flex items-center gap-2">
-          {/* Bạn có thể thay bằng thẻ <img> logo của bạn sau này */}
+          {/* có thể thay bằng thẻ <img> logo sau này */}
           <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white font-bold">
             C
           </div>
           <span className="text-xl font-bold text-red-600 tracking-tighter">
-            CINEMA<span className="text-gray-800">BOOKING</span>
+            CINE<span className="text-gray-800">MAX</span>
           </span>
         </Link>
 
@@ -56,18 +62,34 @@ const Header = () => {
             />
           </div>
 
-          <Link
-            href="/login"
-            className="text-gray-600 font-medium hover:text-red-600"
-          >
-            Đăng Nhập
-          </Link>
-          <Link
-            href="/register"
-            className="bg-red-600 text-white px-4 py-1.5 rounded-full font-bold hover:bg-red-700 transition text-sm"
-          >
-            Đăng Ký
-          </Link>
+          {/* Kiểm tra: Nếu có User thì hiện tên, chưa có thì hiện nút Đăng nhập */}
+          {user ? (
+            <div className="flex items-center gap-3">
+              <span className="text-gray-700 text-sm">
+                Xin chào, <span className="font-bold text-red-600">{user.full_name}</span>
+              </span>
+              <button 
+                onClick={logout}
+                className="text-sm font-semibold text-red-600 hover:text-white border border-red-200 hover:bg-red-600 px-3 py-1.5 rounded-md transition-all duration-200"
+              >
+                Đăng xuất
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Phần hiển thị đăng ký đăng nhập */}
+              
+              <Link href="/login"
+              className="bg-gray-100 text-gray-700 px-5 py-2 rounded-full font-bold hover:bg-gray-200 hover:text-gray-900 transition text-sm"
+              >
+                Đăng Nhập
+              </Link>
+              <Link href="/register" 
+              className="bg-red-600 text-white px-4 py-1.5 rounded-full font-bold hover:bg-red-700 transition text-sm">
+                Đăng Ký
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>
