@@ -19,3 +19,12 @@ export class User {
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
+
+UserSchema.set('toJSON', {
+  flattenObjectIds: true, // Chuyển _id (Object) thành id (String) cho đẹp
+  versionKey: false,      // Bỏ field __v (version key của Mongoose)
+  transform: (doc, ret: any) => {
+    delete ret.password;  // <--- Quan trọng nhất: Xóa mật khẩu
+    return ret;
+  },
+});
