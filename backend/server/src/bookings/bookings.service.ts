@@ -66,8 +66,16 @@ export class BookingsService {
   async findAll(): Promise<Booking[]> {
     return this.bookingModel
       .find()
-      .populate('showtime')
+      .populate({
+        path: 'showtime',
+        populate: [
+          { path: 'movie' },
+          { path: 'cinema' },
+          { path: 'room' }
+        ]
+      })
       .populate('user', '-password')
+      .sort({ createdAt: -1 })
       .exec();
   }
 }

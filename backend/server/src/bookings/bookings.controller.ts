@@ -6,6 +6,12 @@ import { AuthGuard } from '@nestjs/passport';
 export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
 
+  // Lấy tất cả bookings (cho admin)
+  @Get()
+  async findAll() {
+    return this.bookingsService.findAll();
+  }
+
   // Yêu cầu đăng nhập mới được đặt vé
   @UseGuards(AuthGuard('jwt'))
   @Post()

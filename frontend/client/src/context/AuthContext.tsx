@@ -63,7 +63,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.setItem('access_token', token);
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
-    router.push('/'); 
+    
+    // Điều hướng theo role
+    if (userData.role === 'admin') {
+      router.push('/admin/dashboard');
+    } else {
+      router.push('/');
+    }
   };
 
   const logout = () => {

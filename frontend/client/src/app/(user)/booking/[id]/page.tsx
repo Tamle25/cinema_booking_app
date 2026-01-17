@@ -59,21 +59,11 @@ export default function BookingPage() {
       return;
     }
 
-    // --- QUAN TRỌNG: LẤY USER ID ---
-    // Ở đây bạn cần lấy ID từ localStorage (nếu đã lưu khi login)
-    // Ví dụ giả định bạn lưu user object trong localStorage key 'user'
-    const userStr = localStorage.getItem('user'); // Hoặc lấy từ Context
-    if (!userStr) {
+    // Kiểm tra đăng nhập qua token
+    const token = localStorage.getItem('access_token');
+    if (!token) {
       alert("Bạn cần đăng nhập để đặt vé!");
-      router.push('/login'); // Chuyển hướng trang login
-      return;
-    }
-    const user = JSON.parse(userStr);
-
-    const userId = user._id || user.id || user.userId;
-
-    if (!userId) {
-      alert("Lỗi: Không tìm thấy ID người dùng. Vui lòng đăng nhập lại.");
+      router.push('/login');
       return;
     }
     
@@ -82,10 +72,12 @@ export default function BookingPage() {
     try {
       const res = await fetch('http://localhost:4000/bookings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           showtime_id: showtimeId,
-          user_id: user._id || user.id, // Đảm bảo lấy đúng field ID
           seats: selectedSeats
         })
       });

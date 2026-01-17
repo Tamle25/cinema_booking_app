@@ -14,7 +14,7 @@ export interface ICinema {
   slug: string;
   address: string;
   city: string;
-  cinema_system: ICinemaSystem;
+  cinema_system: ICinemaSystem | string;
   map_url?: string;
 }
 

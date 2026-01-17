@@ -47,12 +47,8 @@ export default function LoginPage() {
         // Nếu lỗi lấy profile, ta tạm thời dùng email làm tên để không bị crash
         userData = { full_name: 'Người dùng', email: formData.email };
       }
-      // Lưu trực tiếp vào Local Storage để trang Booking đọc được ngay lập tức
-      localStorage.setItem('accessToken', data.access_token);
-      localStorage.setItem('user', JSON.stringify(userData));
-      console.log("Đã lưu user vào LocalStorage:", userData);
-      // --------------------------------------
-      // BƯỚC 3: CẬP NHẬT CONTEXT
+      
+      // BƯỚC 3: CẬP NHẬT CONTEXT (Context sẽ tự lưu vào localStorage)
       // Truyền cả token và thông tin user vừa lấy được vào hàm login
       if (login) {
          login(data.access_token, userData);
