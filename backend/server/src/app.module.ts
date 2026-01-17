@@ -7,7 +7,9 @@ import { MoviesModule } from './movies/movies.module';
 import { ShowtimesModule } from './showtimes/showtimes.module';
 import { CinemasModule } from './cinemas/cinemas.module';
 import { BookingsModule } from './bookings/bookings.module';
+import { CinemaSystemsModule } from './cinema-systems/cinema-systems.module';
 import { AuthModule } from './auth/auth.module';
+import { RoomsModule } from './rooms/rooms.module';
 
 @Module({
   imports: [
@@ -27,8 +29,10 @@ import { AuthModule } from './auth/auth.module';
     MoviesModule,
     ShowtimesModule,
     CinemasModule,
+    CinemaSystemsModule,
     BookingsModule,
     AuthModule,
+    RoomsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

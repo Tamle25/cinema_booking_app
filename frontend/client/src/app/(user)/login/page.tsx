@@ -30,7 +30,7 @@ export default function LoginPage() {
 
       const data = await res.json();
 
-      if (!res.ok) throw new Error('Email hoặc mật khẩu không đúng');
+      if (!res.ok) throw new Error(data.message || 'Email hoặc mật khẩu không đúng');
 
       // BƯỚC 2: GỌI TIẾP API PROFILE ĐỂ LẤY TÊN USER (QUAN TRỌNG)
       // Vì API login chưa trả về tên, ta phải dùng token vừa có để hỏi server "Tôi là ai?"
@@ -47,10 +47,16 @@ export default function LoginPage() {
         // Nếu lỗi lấy profile, ta tạm thời dùng email làm tên để không bị crash
         userData = { full_name: 'Người dùng', email: formData.email };
       }
-
+      // Lưu trực tiếp vào Local Storage để trang Booking đọc được ngay lập tức
+      localStorage.setItem('accessToken', data.access_token);
+      localStorage.setItem('user', JSON.stringify(userData));
+      console.log("Đã lưu user vào LocalStorage:", userData);
+      // --------------------------------------
       // BƯỚC 3: CẬP NHẬT CONTEXT
       // Truyền cả token và thông tin user vừa lấy được vào hàm login
-      login(data.access_token, userData);
+      if (login) {
+         login(data.access_token, userData);
+      }
       
     } catch (err: any) {
       setError(err.message);

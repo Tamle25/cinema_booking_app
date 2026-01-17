@@ -1,191 +1,238 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import axios from "axios";
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { IShowtime } from '@/types';
 
-// Giả lập danh sách ghế: 6 hàng (A-F), mỗi hàng 8 ghế
-const ROWS = ["A", "B", "C", "D", "E", "F"];
-const SEATS_PER_ROW = 8;
+// Hàm chuyển đổi số thành chữ (0 -> A, 1 -> B...)
+const getRowLabel = (index: number) => {
+  return String.fromCharCode(65 + index);
+};
 
 export default function BookingPage() {
   const params = useParams();
-  const showtimeId = params.id;
   const router = useRouter();
+  const showtimeId = params.id;
 
-  const [showtime, setShowtime] = useState<any>(null);
-  const [selectedSeats, setSelectedSeats] = useState<string[]>([]); // Danh sách ghế đang chọn
+  const [showtime, setShowtime] = useState<IShowtime | null>(null);
+  const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false); // Trạng thái đang bấm nút Đặt vé
 
-  // 1. Lấy thông tin suất chiếu từ Backend
+  // 1. Lấy dữ liệu suất chiếu
   useEffect(() => {
     const fetchShowtime = async () => {
       try {
-        const res = await axios.get(
-          `http://localhost:4000/showtimes/${showtimeId}`
-        );
-        setShowtime(res.data);
+        const res = await fetch(`http://localhost:4000/showtimes/${showtimeId}`);
+        const data = await res.json();
+        setShowtime(data);
       } catch (error) {
-        console.error("Lỗi tải lịch chiếu:", error);
+        console.error("Lỗi tải suất chiếu:", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchShowtime();
+    if (showtimeId) fetchShowtime();
   }, [showtimeId]);
 
-  // 2. Xử lý khi bấm vào ghế
-  const handleSeatClick = (seatId: string) => {
-    // Nếu ghế đã có người đặt (có trong database) -> Không làm gì
-    if (showtime.booked_seats.includes(seatId)) return;
+  // 2. Xử lý chọn ghế
+  const handleSeatClick = (seatName: string, isBooked: boolean) => {
+    if (isBooked) return; // Ghế đã đặt thì bỏ qua
 
-    // Logic chọn/bỏ chọn
-    if (selectedSeats.includes(seatId)) {
-      setSelectedSeats(selectedSeats.filter((s) => s !== seatId)); // Bỏ chọn
+    if (selectedSeats.includes(seatName)) {
+      // Nếu đã chọn -> Bỏ chọn
+      setSelectedSeats(prev => prev.filter(s => s !== seatName));
     } else {
-      setSelectedSeats([...selectedSeats, seatId]); // Chọn thêm
+      // Nếu chưa chọn -> Thêm vào (Giới hạn tối đa 8 ghế)
+      if (selectedSeats.length >= 8) {
+        alert("Bạn chỉ được chọn tối đa 8 ghế!");
+        return;
+      }
+      setSelectedSeats(prev => [...prev, seatName]);
     }
   };
 
-  if (loading)
-    return <div className="text-center py-20">Đang tải sơ đồ ghế...</div>;
-  if (!showtime)
-    return <div className="text-center py-20">Không tìm thấy suất chiếu!</div>;
-
-  // Tính tổng tiền
-  const totalPrice = selectedSeats.length * showtime.price;
-  // --- THÊM HÀM XỬ LÝ ĐẶT VÉ ---
+  // 3. Xử lý Đặt vé (Gọi API)
   const handleBooking = async () => {
-    try {
-      if (
-        !confirm(`Bạn có chắc muốn đặt ${selectedSeats.length} vé này không?`)
-      )
-        return;
+    if (selectedSeats.length === 0) {
+      alert("Vui lòng chọn ít nhất 1 ghế!");
+      return;
+    }
 
-      // Gọi API Backend chúng ta vừa viết
-      await axios.post("http://localhost:4000/bookings", {
-        showtimeId: showtimeId,
-        seats: selectedSeats,
-        price: selectedSeats.length * showtime.price, // Tính lại tổng tiền gửi lên
+    // --- QUAN TRỌNG: LẤY USER ID ---
+    // Ở đây bạn cần lấy ID từ localStorage (nếu đã lưu khi login)
+    // Ví dụ giả định bạn lưu user object trong localStorage key 'user'
+    const userStr = localStorage.getItem('user'); // Hoặc lấy từ Context
+    if (!userStr) {
+      alert("Bạn cần đăng nhập để đặt vé!");
+      router.push('/login'); // Chuyển hướng trang login
+      return;
+    }
+    const user = JSON.parse(userStr);
+
+    const userId = user._id || user.id || user.userId;
+
+    if (!userId) {
+      alert("Lỗi: Không tìm thấy ID người dùng. Vui lòng đăng nhập lại.");
+      return;
+    }
+    
+    // Bắt đầu gọi API
+    setProcessing(true);
+    try {
+      const res = await fetch('http://localhost:4000/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          showtime_id: showtimeId,
+          user_id: user._id || user.id, // Đảm bảo lấy đúng field ID
+          seats: selectedSeats
+        })
       });
 
-      alert("🎉 Đặt vé thành công! Chúc bạn xem phim vui vẻ.");
-      router.push("/"); // Chuyển hướng về trang chủ
-    } catch (error: any) {
-      // Nếu lỗi (ví dụ ghế vừa bị ai đó nhanh tay đặt mất)
-      alert("Lỗi: " + (error.response?.data?.message || "Có lỗi xảy ra"));
+      const data = await res.json();
 
-      // Tải lại trang để cập nhật tình trạng ghế mới nhất
-      window.location.reload();
+      if (res.ok) {
+        alert("🎉 Đặt vé thành công!");
+        router.push('/'); // Hoặc chuyển sang trang Vé Của Tôi
+      } else {
+        alert(`Lỗi: ${data.message}`);
+      }
+    } catch (error) {
+      console.error("Lỗi đặt vé:", error);
+      alert("Có lỗi xảy ra, vui lòng thử lại.");
+    } finally {
+      setProcessing(false);
     }
   };
+
+  if (loading) return <div className="text-center py-20 text-white">Đang tải sơ đồ ghế...</div>;
+  if (!showtime) return <div className="text-center py-20 text-white">Không tìm thấy suất chiếu</div>;
+
+  // --- THÊM ĐOẠN KIỂM TRA NÀY ---
+  if (!showtime.room) {
+    return (
+      <div className="text-center py-20 text-red-500">
+        Lỗi dữ liệu: Suất chiếu này đang gắn với một Phòng không tồn tại (ID Phòng bị sai).
+        <br/>Vui lòng kiểm tra lại Database.
+      </div>
+    );
+  }
+  // ------------------------------
+
+  const { room, price, booked_seats } = showtime;
+
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-8">
-      <div className="max-w-4xl mx-auto flex flex-col md:flex-row gap-8">
-        {/* CỘT TRÁI: SƠ ĐỒ GHẾ */}
-        <div className="flex-1">
-          <h2 className="text-2xl font-bold mb-6 text-center">
-            Màn Hình Chiếu
-          </h2>
-          {/* Thanh màn hình giả lập */}
-          <div className="h-2 bg-white shadow-[0_10px_20px_rgba(255,255,255,0.2)] mb-12 rounded-full mx-10"></div>
+    <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center py-10">
+      
+      {/* Header Info */}
+      <div className="text-center mb-8">
+        <h1 className="text-2xl font-bold text-yellow-500 mb-2">{showtime.movie?.title || "Tên Phim"}</h1>
+        <p className="text-gray-400">
+          {showtime.cinema?.name} • {room?.name} • {new Date(showtime.start_time).toLocaleString('vi-VN')}
+        </p>
+      </div>
 
-          <div className="flex flex-col gap-4 items-center">
-            {ROWS.map((row) => (
-              <div key={row} className="flex gap-4">
-                {Array.from({ length: SEATS_PER_ROW }, (_, i) => {
-                  const seatNumber = i + 1;
-                  const seatId = `${row}${seatNumber}`; // Ví dụ: A1, A2
-                  const isBooked = showtime.booked_seats.includes(seatId);
-                  const isSelected = selectedSeats.includes(seatId);
+      {/* MÀN HÌNH (SCREEN) */}
+      <div className="w-full max-w-3xl mb-10 px-4">
+        <div className="w-full h-2 bg-white shadow-[0_10px_30px_rgba(255,255,255,0.3)] rounded-full mb-2"></div>
+        <p className="text-center text-gray-500 text-sm uppercase tracking-widest">Màn hình</p>
+      </div>
 
-                  return (
-                    <button
-                      key={seatId}
-                      disabled={isBooked}
-                      onClick={() => handleSeatClick(seatId)}
-                      className={`
-                        w-10 h-10 rounded-t-lg text-xs font-bold transition-all
-                        ${
-                          isBooked
-                            ? "bg-gray-600 cursor-not-allowed text-gray-400" // Ghế đã đặt
-                            : isSelected
-                            ? "bg-red-600 text-white scale-110 shadow-lg" // Ghế đang chọn
-                            : "bg-gray-200 text-gray-800 hover:bg-white" // Ghế trống
-                        }
-                      `}
-                    >
-                      {seatId}
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
+      {/* SƠ ĐỒ GHẾ (SEAT GRID) */}
+      <div className="flex flex-col gap-2 mb-10 overflow-x-auto max-w-full px-4">
+        {Array.from({ length: room.rows }).map((_, rowIndex) => {
+          const rowLabel = getRowLabel(rowIndex);
+          
+          return (
+            <div key={rowIndex} className="flex gap-2 justify-center min-w-max">
+              {/* Cột số ghế */}
+              {Array.from({ length: room.columns }).map((_, colIndex) => {
+                const seatNumber = colIndex + 1;
+                const seatName = `${rowLabel}${seatNumber}`; // VD: A1, A2
+                
+                // Kiểm tra trạng thái
+                const isBooked = booked_seats.includes(seatName);
+                const isSelected = selectedSeats.includes(seatName);
 
-          {/* Chú thích màu ghế */}
-          <div className="flex justify-center gap-6 mt-10 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-gray-200 rounded"></div> Ghế trống
+                return (
+                  <button
+                    key={seatName}
+                    disabled={isBooked}
+                    onClick={() => handleSeatClick(seatName, isBooked)}
+                    className={`
+                      w-10 h-10 rounded-t-lg text-xs font-bold transition
+                      flex items-center justify-center
+                      ${isBooked 
+                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed' // Đã đặt (Xám đậm/Đỏ)
+                        : isSelected
+                          ? 'bg-green-500 text-white shadow-[0_0_10px_#22c55e] transform scale-110' // Đang chọn
+                          : 'bg-gray-200 text-gray-900 hover:bg-white' // Trống
+                      }
+                    `}
+                  >
+                    {isBooked ? 'X' : seatName}
+                  </button>
+                );
+              })}
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-red-600 rounded"></div> Đang chọn
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-gray-600 rounded"></div> Đã đặt
-            </div>
-          </div>
+          );
+        })}
+      </div>
+
+      {/* CHÚ THÍCH (LEGEND) */}
+      <div className="flex gap-6 mb-8 text-sm">
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 bg-gray-200 rounded"></div>
+          <span className="text-gray-400">Ghế trống</span>
         </div>
-
-        {/* CỘT PHẢI: THÔNG TIN VÉ */}
-        <div className="w-full md:w-80 bg-white text-gray-900 p-6 rounded-lg shadow-lg h-fit">
-          <img
-            src={showtime.movie.poster_url}
-            alt="poster"
-            className="w-32 rounded mb-4 shadow-md mx-auto"
-          />
-          <h3 className="text-xl font-bold mb-2 text-center">
-            {showtime.movie.title}
-          </h3>
-          <p className="text-gray-600 text-sm text-center mb-6">
-            {showtime.cinema.name} - {showtime.room}
-          </p>
-
-          <div className="border-t pt-4 space-y-2">
-            <div className="flex justify-between">
-              <span>Suất chiếu:</span>
-              <span className="font-bold">
-                {new Date(showtime.start_time).toLocaleTimeString("vi-VN", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>Ghế chọn:</span>
-              <span className="font-bold text-red-600 break-words w-1/2 text-right">
-                {selectedSeats.length > 0
-                  ? selectedSeats.join(", ")
-                  : "Chưa chọn"}
-              </span>
-            </div>
-            <div className="flex justify-between text-xl font-bold border-t pt-4 mt-4">
-              <span>Tổng tiền:</span>
-              <span className="text-red-600">
-                {totalPrice.toLocaleString()} đ
-              </span>
-            </div>
-          </div>
-
-          <button
-            disabled={selectedSeats.length === 0}
-            className="w-full mt-6 bg-red-600 text-white py-3 rounded-lg font-bold hover:bg-red-700 disabled:bg-gray-400 transition"
-            onClick={handleBooking}
-          >
-            ĐẶT VÉ NGAY
-          </button>
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 bg-green-500 rounded shadow-[0_0_5px_#22c55e]"></div>
+          <span className="text-gray-400">Đang chọn</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 bg-gray-700 rounded flex items-center justify-center font-bold text-xs">X</div>
+          <span className="text-gray-400">Đã bán</span>
         </div>
       </div>
+
+      {/* FOOTER THANH TOÁN (STICKY) */}
+      <div className="fixed bottom-0 left-0 w-full bg-gray-800 border-t border-gray-700 p-4">
+        <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+          
+          <div>
+            <p className="text-gray-400 text-sm">Ghế đang chọn:</p>
+            <p className="text-white font-bold text-lg">
+              {selectedSeats.length > 0 ? selectedSeats.join(', ') : 'Chưa chọn'}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <div className="text-right">
+              <p className="text-gray-400 text-sm">Tổng tiền:</p>
+              <p className="text-2xl font-bold text-green-400">
+                {(selectedSeats.length * price).toLocaleString()}đ
+              </p>
+            </div>
+            
+            <button
+              onClick={handleBooking}
+              disabled={processing || selectedSeats.length === 0}
+              className={`
+                px-8 py-3 rounded-lg font-bold text-lg transition
+                ${processing || selectedSeats.length === 0 
+                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  : 'bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-red-500/50'
+                }
+              `}
+            >
+              {processing ? 'Đang xử lý...' : 'ĐẶT VÉ NGAY'}
+            </button>
+          </div>
+
+        </div>
+      </div>
+
     </div>
   );
 }

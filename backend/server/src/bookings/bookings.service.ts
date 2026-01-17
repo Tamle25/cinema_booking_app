@@ -1,7 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common'; // <-- Thêm NotFoundException
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Booking } from './schemas/booking.schema';
+import { CreateBookingDto } from './dto/create-booking.dto';
 import { Showtime } from '../showtimes/schemas/showtime.schema';
 
 @Injectable()
@@ -11,37 +12,62 @@ export class BookingsService {
     @InjectModel(Showtime.name) private showtimeModel: Model<Showtime>,
   ) {}
 
-  async createBooking(body: { showtimeId: string; seats: string[]; price: number }) {
-    // 1. Tìm suất chiếu
-    const showtime = await this.showtimeModel.findById(body.showtimeId);
-
-    // --- SỬA LỖI TẠI ĐÂY ---
-    // Kiểm tra nếu không tìm thấy suất chiếu (null)
-    if (!showtime) {
-      throw new NotFoundException('Không tìm thấy suất chiếu này!');
-    }
-    // -----------------------
-
-    // 2. Kiểm tra xem ghế đã bị ai đặt trước chưa
-    const isSeatTaken = body.seats.some((seat) => showtime.booked_seats.includes(seat));
+  async createBooking(createDto: CreateBookingDto): Promise<Booking> {
+    const { showtime_id, seats, user_id } = createDto;
     
-    if (isSeatTaken) {
-      throw new BadRequestException('Ghế này vừa có người đặt rồi! Vui lòng chọn ghế khác.');
+    // 1. Kiểm tra user_id
+    if (!user_id) {
+      throw new BadRequestException('Bạn cần đăng nhập để đặt vé!');
     }
 
-    // 3. Tạo vé mới
+    // 2. Kiểm tra suất chiếu
+    const showtime = await this.showtimeModel.findById(showtime_id);
+    if (!showtime) throw new NotFoundException('Suất chiếu không tồn tại');
+
+    // 3. Kiểm tra ghế trống
+    const isSeatTaken = seats.some((seat) => showtime.booked_seats.includes(seat));
+    if (isSeatTaken) {
+      throw new BadRequestException('Ghế đã có người đặt!');
+    }
+
+    // 4. Tạo Booking
     const newBooking = new this.bookingModel({
-      showtime: body.showtimeId,
-      seats: body.seats,
-      total_price: body.price,
-    });
-    await newBooking.save();
-
-    // 4. Cập nhật trạng thái ghế vào suất chiếu
-    await this.showtimeModel.findByIdAndUpdate(body.showtimeId, {
-      $push: { booked_seats: { $each: body.seats } },
+      showtime: showtime_id,
+      user: user_id,
+      seats: seats,
+      total_price: showtime.price * seats.length
     });
 
-    return newBooking;
+    // 5. Update ghế đã đặt
+    await this.showtimeModel.findByIdAndUpdate(showtime_id, {
+      $push: { booked_seats: { $each: seats } },
+    });
+
+    return newBooking.save();
+  }
+
+  // Lấy danh sách vé của một user
+  async findByUser(userId: string): Promise<Booking[]> {
+    return this.bookingModel
+      .find({ user: userId })
+      .populate({
+        path: 'showtime',
+        populate: [
+          { path: 'movie' },
+          { path: 'cinema' },
+          { path: 'room' }
+        ]
+      })
+      .sort({ createdAt: -1 })
+      .exec();
+  }
+
+  // Lấy tất cả booking (Admin)
+  async findAll(): Promise<Booking[]> {
+    return this.bookingModel
+      .find()
+      .populate('showtime')
+      .populate('user', '-password')
+      .exec();
   }
 }

@@ -4,6 +4,8 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface User {
+  _id?: string;      // ID từ MongoDB
+  id?: string;       // Alias của _id
   full_name: string;
   email: string;
   role?: string;
@@ -41,9 +43,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (res.ok) {
             const userData = await res.json();
             setUser(userData);
+            // Lưu user vào localStorage để các trang khác có thể đọc
+            localStorage.setItem('user', JSON.stringify(userData));
           } else {
             // Token hết hạn hoặc không hợp lệ
             localStorage.removeItem('access_token');
+            localStorage.removeItem('user');
           }
         } catch (error) {
           console.error('Lỗi xác thực:', error);
@@ -56,12 +61,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const login = (token: string, userData: User) => {
     localStorage.setItem('access_token', token);
+    localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
     router.push('/'); 
   };
 
   const logout = () => {
     localStorage.removeItem('access_token');
+    localStorage.removeItem('user');
     setUser(null);
     router.push('/login');
   };

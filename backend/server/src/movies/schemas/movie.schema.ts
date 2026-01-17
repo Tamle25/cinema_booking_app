@@ -1,14 +1,15 @@
+// File: src/movies/schemas/movie.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 
 export type MovieDocument = HydratedDocument<Movie>;
 
-@Schema({ timestamps: true }) // Tự động tạo created_at và updated_at
+@Schema({ timestamps: true })
 export class Movie {
   @Prop({ required: true })
   title: string;
-
-  @Prop()
+  
+  @Prop({ required: true, unique: true })
   slug: string;
 
   @Prop()
@@ -17,23 +18,26 @@ export class Movie {
   @Prop()
   poster_url: string;
 
-  @Prop()
+  @Prop({ default: "" })
   banner_url: string;
 
-  @Prop()
+  @Prop({ default: "" })
   trailer_url: string;
+
+  @Prop({ default: 0 })
+  rating: number;
+
+  @Prop({ default: true })
+  is_active: boolean;
+
+  @Prop()
+  genre: string;
 
   @Prop()
   duration: number;
 
-  @Prop()
+  @Prop({ required: true })
   release_date: Date;
-
-  @Prop()
-  status: string; // 'now_showing' | 'coming_soon'
-
-  @Prop()
-  rating: number;
 }
 
 export const MovieSchema = SchemaFactory.createForClass(Movie);
