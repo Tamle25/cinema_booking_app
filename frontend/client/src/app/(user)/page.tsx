@@ -16,7 +16,7 @@ interface Movie {
 
 export default function HomePage() {
   const [movies, setMovies] = useState<Movie[]>([]);
-  
+
   // Now Showing scroll state
   const [currentPageNowShowing, setCurrentPageNowShowing] = useState(0);
   const scrollContainerNowShowingRef = useRef<HTMLDivElement>(null);
@@ -60,9 +60,10 @@ export default function HomePage() {
 
   // Gọi API lấy danh sách phim
   useEffect(() => {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
     const fetchMovies = async () => {
       try {
-        const res = await axios.get("http://localhost:4000/movies");
+        const res = await axios.get(`${API_URL}/movies`);
         setMovies(res.data);
       } catch (error) {
         console.error("Lỗi tải phim:", error);
@@ -209,7 +210,7 @@ export default function HomePage() {
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
           }} />
         </div>
-        
+
         {/* Content */}
         <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-4">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4">
@@ -219,14 +220,14 @@ export default function HomePage() {
             Đặt vé xem phim trực tuyến nhanh chóng, tiện lợi tại hơn 500 rạp trên toàn quốc
           </p>
           <div className="flex gap-4">
-            <a 
-              href="/booking" 
+            <a
+              href="/booking"
               className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-full font-semibold transition-colors shadow-lg hover:shadow-red-600/30"
             >
               Đặt Vé Ngay
             </a>
-            <a 
-              href="#now-showing" 
+            <a
+              href="#now-showing"
               className="bg-white/10 hover:bg-white/20 text-white px-8 py-3 rounded-full font-semibold transition-colors backdrop-blur-sm border border-white/20"
             >
               Xem Phim
@@ -253,7 +254,7 @@ export default function HomePage() {
               </p>
             </div>
           </div>
-          
+
           {/* Navigation Arrows */}
           <div className="flex items-center gap-3">
             <button
@@ -274,8 +275,8 @@ export default function HomePage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
-            <a 
-              href="#" 
+            <a
+              href="/movies?status=now_showing"
               className="ml-2 text-red-600 hover:text-red-700 font-medium flex items-center gap-1 transition-colors"
             >
               Xem tất cả
@@ -291,7 +292,7 @@ export default function HomePage() {
           {/* Gradient Overlays for visual scroll hint */}
           <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-gray-100 to-transparent z-10 pointer-events-none" />
           <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-gray-100 to-transparent z-10 pointer-events-none" />
-          
+
           {/* Scrollable Container */}
           <div
             ref={scrollContainerNowShowingRef}
@@ -301,7 +302,7 @@ export default function HomePage() {
             onMouseLeave={handleMouseLeaveNowShowing}
             onScroll={handleScrollNowShowing}
             className="flex gap-5 overflow-x-auto pb-4 scroll-smooth scrollbar-hide select-none"
-            style={{ 
+            style={{
               cursor: 'grab',
               scrollbarWidth: 'none',
               msOverflowStyle: 'none',
@@ -309,8 +310,8 @@ export default function HomePage() {
           >
             {nowShowingMovies.length > 0 ? (
               nowShowingMovies.map((movie) => (
-                <div 
-                  key={movie._id} 
+                <div
+                  key={movie._id}
                   className="flex-shrink-0 w-[calc((100%-100px)/6)]"
                   style={{ minWidth: '180px', maxWidth: '220px' }}
                 >
@@ -320,8 +321,8 @@ export default function HomePage() {
             ) : (
               // Skeleton Loading
               Array.from({ length: 6 }).map((_, index) => (
-                <div 
-                  key={index} 
+                <div
+                  key={index}
                   className="flex-shrink-0 w-[calc((100%-100px)/6)] min-w-[180px] max-w-[220px]"
                 >
                   <div className="bg-white rounded-xl shadow-md overflow-hidden animate-pulse">
@@ -344,11 +345,10 @@ export default function HomePage() {
               <button
                 key={index}
                 onClick={() => goToPageNowShowing(index)}
-                className={`transition-all duration-300 rounded-full ${
-                  currentPageNowShowing === index 
-                    ? 'w-8 h-2.5 bg-red-600' 
-                    : 'w-2.5 h-2.5 bg-gray-300 hover:bg-gray-400'
-                }`}
+                className={`transition-all duration-300 rounded-full ${currentPageNowShowing === index
+                  ? 'w-8 h-2.5 bg-red-600'
+                  : 'w-2.5 h-2.5 bg-gray-300 hover:bg-gray-400'
+                  }`}
                 aria-label={`Trang ${index + 1}`}
               />
             ))}
@@ -384,7 +384,7 @@ export default function HomePage() {
                 </p>
               </div>
             </div>
-            
+
             {/* Navigation Arrows */}
             <div className="flex items-center gap-3">
               <button
@@ -405,8 +405,8 @@ export default function HomePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </button>
-              <a 
-                href="#" 
+              <a
+                href="/movies?status=coming_soon"
                 className="ml-2 text-yellow-600 hover:text-yellow-700 font-medium flex items-center gap-1 transition-colors"
               >
                 Xem tất cả
@@ -422,7 +422,7 @@ export default function HomePage() {
             {/* Gradient Overlays for visual scroll hint */}
             <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-gray-100 to-transparent z-10 pointer-events-none" />
             <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-gray-100 to-transparent z-10 pointer-events-none" />
-            
+
             {/* Scrollable Container */}
             <div
               ref={scrollContainerComingSoonRef}
@@ -432,15 +432,15 @@ export default function HomePage() {
               onMouseLeave={handleMouseLeaveComingSoon}
               onScroll={handleScrollComingSoon}
               className="flex gap-5 overflow-x-auto pb-4 scroll-smooth scrollbar-hide select-none"
-              style={{ 
+              style={{
                 cursor: 'grab',
                 scrollbarWidth: 'none',
                 msOverflowStyle: 'none',
               }}
             >
               {comingSoonMovies.map((movie) => (
-                <div 
-                  key={movie._id} 
+                <div
+                  key={movie._id}
                   className="flex-shrink-0 w-[calc((100%-100px)/6)]"
                   style={{ minWidth: '180px', maxWidth: '220px' }}
                 >
@@ -453,7 +453,7 @@ export default function HomePage() {
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                         draggable={false}
                       />
-                      
+
                       {/* Coming Soon Badge */}
                       <div className="absolute top-2 right-2 bg-yellow-500 text-black text-xs font-bold px-2.5 py-1 rounded-lg shadow-md">
                         SẮP CHIẾU
@@ -497,11 +497,10 @@ export default function HomePage() {
                 <button
                   key={index}
                   onClick={() => goToPageComingSoon(index)}
-                  className={`transition-all duration-300 rounded-full ${
-                    currentPageComingSoon === index 
-                      ? 'w-8 h-2.5 bg-yellow-500' 
-                      : 'w-2.5 h-2.5 bg-gray-300 hover:bg-gray-400'
-                  }`}
+                  className={`transition-all duration-300 rounded-full ${currentPageComingSoon === index
+                    ? 'w-8 h-2.5 bg-yellow-500'
+                    : 'w-2.5 h-2.5 bg-gray-300 hover:bg-gray-400'
+                    }`}
                   aria-label={`Trang ${index + 1}`}
                 />
               ))}

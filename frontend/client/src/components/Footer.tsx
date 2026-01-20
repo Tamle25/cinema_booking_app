@@ -213,11 +213,8 @@ const Footer = () => {
                     <path d="M25 8a10 10 0 000 16 10 10 0 000-16z" fill="#FF5F00"/>
                   </svg>
                 </div>
-                <div className="w-10 h-6 bg-gradient-to-r from-blue-600 to-blue-400 rounded flex items-center justify-center text-white text-xs font-bold">
+                <div className="w-10 h-6 bg-gradient-to-r from-pink-500 to-pink-600 rounded flex items-center justify-center text-white text-xs font-bold">
                   MOMO
-                </div>
-                <div className="w-10 h-6 bg-blue-500 rounded flex items-center justify-center text-white text-xs font-bold">
-                  VNPAY
                 </div>
               </div>
             </div>

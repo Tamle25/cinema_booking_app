@@ -10,6 +10,7 @@ export default function EditMoviePage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
   const [formData, setFormData] = useState({
     title: '',
     slug: '',
@@ -28,14 +29,14 @@ export default function EditMoviePage() {
   useEffect(() => {
     const fetchMovie = async () => {
       try {
-        const res = await fetch(`http://localhost:4000/movies/${movieId}`);
+        const res = await fetch(`${API_URL}/movies/${movieId}`);
         if (res.ok) {
           const movie = await res.json();
           // Format lại ngày để hiển thị trong input[type="date"]
-          const releaseDate = movie.release_date 
-            ? new Date(movie.release_date).toISOString().split('T')[0] 
+          const releaseDate = movie.release_date
+            ? new Date(movie.release_date).toISOString().split('T')[0]
             : '';
-          
+
           setFormData({
             title: movie.title || '',
             slug: movie.slug || '',
@@ -77,7 +78,7 @@ export default function EditMoviePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate trước khi gửi
     if (!formData.title.trim()) {
       alert('❌ Vui lòng nhập tên phim!');
@@ -101,9 +102,9 @@ export default function EditMoviePage() {
     }
 
     setIsSubmitting(true);
-    
+
     try {
-      const res = await fetch(`http://localhost:4000/movies/${movieId}`, {
+      const res = await fetch(`${API_URL}/movies/${movieId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -144,31 +145,31 @@ export default function EditMoviePage() {
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-6 text-gray-800">Sửa Thông Tin Phim</h1>
-      
+
       <form onSubmit={handleSubmit} className="bg-white p-8 rounded-lg shadow-md space-y-6">
-        
+
         {/* Hàng 1: Tên phim & Slug */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Tên phim</label>
-            <input 
-              name="title" 
-              required 
+            <input
+              name="title"
+              required
               value={formData.title}
-              onChange={handleChange} 
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none text-gray-900 placeholder:text-gray-400" 
-              placeholder="Ví dụ: Đào, Phở và Piano" 
+              onChange={handleChange}
+              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none text-gray-900 placeholder:text-gray-400"
+              placeholder="Ví dụ: Đào, Phở và Piano"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Slug (URL)</label>
-            <input 
-              name="slug" 
-              required 
+            <input
+              name="slug"
+              required
               value={formData.slug}
-              onChange={handleChange} 
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none text-gray-900 placeholder:text-gray-400" 
-              placeholder="dao-pho-va-piano" 
+              onChange={handleChange}
+              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none text-gray-900 placeholder:text-gray-400"
+              placeholder="dao-pho-va-piano"
             />
           </div>
         </div>
@@ -177,23 +178,23 @@ export default function EditMoviePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Poster URL</label>
-            <input 
-              name="poster_url" 
-              required 
+            <input
+              name="poster_url"
+              required
               value={formData.poster_url}
-              onChange={handleChange} 
-              className="w-full border border-gray-300 p-2 rounded text-gray-900 placeholder:text-gray-400" 
-              placeholder="https://..." 
+              onChange={handleChange}
+              className="w-full border border-gray-300 p-2 rounded text-gray-900 placeholder:text-gray-400"
+              placeholder="https://..."
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Banner URL</label>
-            <input 
-              name="banner_url" 
+            <input
+              name="banner_url"
               value={formData.banner_url}
-              onChange={handleChange} 
-              className="w-full border border-gray-300 p-2 rounded text-gray-900 placeholder:text-gray-400" 
-              placeholder="https://..." 
+              onChange={handleChange}
+              className="w-full border border-gray-300 p-2 rounded text-gray-900 placeholder:text-gray-400"
+              placeholder="https://..."
             />
           </div>
         </div>
@@ -202,37 +203,37 @@ export default function EditMoviePage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Thể loại</label>
-            <input 
-              name="genre" 
-              required 
+            <input
+              name="genre"
+              required
               value={formData.genre}
-              onChange={handleChange} 
-              className="w-full border border-gray-300 p-2 rounded text-gray-900 placeholder:text-gray-400" 
-              placeholder="Hành động, Tình cảm" 
+              onChange={handleChange}
+              className="w-full border border-gray-300 p-2 rounded text-gray-900 placeholder:text-gray-400"
+              placeholder="Hành động, Tình cảm"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Thời lượng (phút)</label>
-            <input 
-              type="number" 
-              name="duration" 
-              required 
+            <input
+              type="number"
+              name="duration"
+              required
               value={formData.duration || ''}
-              onChange={handleChange} 
-              className="w-full border border-gray-300 p-2 rounded text-gray-900 placeholder:text-gray-400" 
-              placeholder="120" 
+              onChange={handleChange}
+              className="w-full border border-gray-300 p-2 rounded text-gray-900 placeholder:text-gray-400"
+              placeholder="120"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Điểm (Rating)</label>
-            <input 
-              type="number" 
-              step="0.1" 
-              name="rating" 
+            <input
+              type="number"
+              step="0.1"
+              name="rating"
               value={formData.rating || ''}
-              onChange={handleChange} 
-              className="w-full border border-gray-300 p-2 rounded bg-yellow-50 text-gray-900 placeholder:text-gray-400" 
-              placeholder="0.0" 
+              onChange={handleChange}
+              className="w-full border border-gray-300 p-2 rounded bg-yellow-50 text-gray-900 placeholder:text-gray-400"
+              placeholder="0.0"
             />
           </div>
         </div>
@@ -241,23 +242,23 @@ export default function EditMoviePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Ngày công chiếu</label>
-            <input 
-              type="date" 
-              name="release_date" 
-              required 
+            <input
+              type="date"
+              name="release_date"
+              required
               value={formData.release_date}
-              onChange={handleChange} 
-              className="w-full border border-gray-300 p-2 rounded text-gray-900" 
+              onChange={handleChange}
+              className="w-full border border-gray-300 p-2 rounded text-gray-900"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Trailer URL (Youtube)</label>
-            <input 
-              name="trailer_url" 
+            <input
+              name="trailer_url"
               value={formData.trailer_url}
-              onChange={handleChange} 
-              className="w-full border border-gray-300 p-2 rounded text-gray-900 placeholder:text-gray-400" 
-              placeholder="https://youtube.com/watch?v=..." 
+              onChange={handleChange}
+              className="w-full border border-gray-300 p-2 rounded text-gray-900 placeholder:text-gray-400"
+              placeholder="https://youtube.com/watch?v=..."
             />
           </div>
         </div>
@@ -265,33 +266,32 @@ export default function EditMoviePage() {
         {/* Mô tả */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả phim</label>
-          <textarea 
-            name="description" 
-            rows={4} 
+          <textarea
+            name="description"
+            rows={4}
             value={formData.description}
-            onChange={handleChange} 
-            className="w-full border border-gray-300 p-2 rounded text-gray-900 placeholder:text-gray-400" 
+            onChange={handleChange}
+            className="w-full border border-gray-300 p-2 rounded text-gray-900 placeholder:text-gray-400"
             placeholder="Nhập mô tả nội dung phim..."
           ></textarea>
         </div>
 
         {/* Nút Submit */}
         <div className="flex justify-end gap-4 pt-4">
-          <button 
+          <button
             type="button"
             onClick={() => router.push('/admin/movies')}
             className="font-bold py-3 px-8 rounded transition border border-gray-300 bg-white hover:bg-gray-50 text-gray-700"
           >
             Hủy
           </button>
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={isSubmitting}
-            className={`font-bold py-3 px-8 rounded transition shadow-lg ${
-              isSubmitting 
-                ? 'bg-gray-400 cursor-not-allowed' 
+            className={`font-bold py-3 px-8 rounded transition shadow-lg ${isSubmitting
+                ? 'bg-gray-400 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700'
-            } text-white`}
+              } text-white`}
           >
             {isSubmitting ? 'Đang lưu...' : 'Cập nhật Phim'}
           </button>

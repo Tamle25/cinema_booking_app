@@ -80,12 +80,11 @@ const StatusBadge = ({ status }: { status: string }) => {
 // Ticket Card Component
 const TicketCard = ({ booking, onViewDetail }: { booking: IBooking; onViewDetail: (booking: IBooking) => void }) => {
   const isPast = new Date(booking.showtime?.start_time) < new Date();
-  
+
   return (
-    <div 
-      className={`bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300 ${
-        isPast ? 'opacity-75' : ''
-      }`}
+    <div
+      className={`bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300 ${isPast ? 'opacity-75' : ''
+        }`}
     >
       <div className="flex flex-col md:flex-row">
         {/* Poster */}
@@ -118,11 +117,11 @@ const TicketCard = ({ booking, onViewDetail }: { booking: IBooking; onViewDetail
                 <StatusBadge status={booking.status || 'confirmed'} />
                 {isPast && <span className="text-xs text-gray-500">• Đã chiếu</span>}
               </div>
-              
+
               <h3 className="text-xl font-bold text-gray-900 mb-2">
                 {booking.showtime?.movie?.title || 'Không rõ'}
               </h3>
-              
+
               <div className="space-y-2 text-sm text-gray-600">
                 {/* Cinema */}
                 <div className="flex items-center gap-2">
@@ -161,7 +160,7 @@ const TicketCard = ({ booking, onViewDetail }: { booking: IBooking; onViewDetail
                 <p className="text-sm text-gray-500">Tổng tiền</p>
                 <p className="text-xl font-bold text-red-600">{formatCurrency(booking.total_price)}</p>
               </div>
-              
+
               <button
                 onClick={() => onViewDetail(booking)}
                 className="px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition flex items-center gap-2"
@@ -184,12 +183,12 @@ const TicketCard = ({ booking, onViewDetail }: { booking: IBooking; onViewDetail
 const TicketDetailModal = ({ booking, onClose }: { booking: IBooking; onClose: () => void }) => {
   // Generate simple QR code placeholder (in production, use a QR library)
   const ticketCode = booking._id.slice(-8).toUpperCase();
-  
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      
+
       {/* Modal */}
       <div className="relative bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
         {/* Close button */}
@@ -214,7 +213,7 @@ const TicketDetailModal = ({ booking, onClose }: { booking: IBooking; onClose: (
             <div className="w-full h-full bg-gradient-to-br from-red-500 to-red-700" />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-          
+
           <div className="absolute bottom-4 left-4 right-4 text-white">
             <StatusBadge status={booking.status || 'confirmed'} />
             <h2 className="text-2xl font-bold mt-2">{booking.showtime?.movie?.title}</h2>
@@ -327,6 +326,8 @@ export default function MyTicketsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedBooking, setSelectedBooking] = useState<IBooking | null>(null);
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -373,11 +374,21 @@ export default function MyTicketsPage() {
   const filteredBookings = bookings.filter(booking => {
     const showtime = new Date(booking.showtime?.start_time);
     const now = new Date();
-    
+
     if (filter === 'upcoming') return showtime >= now;
     if (filter === 'past') return showtime < now;
     return true;
   });
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredBookings.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedBookings = filteredBookings.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  // Reset page when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter]);
 
   // Stats
   const upcomingCount = bookings.filter(b => new Date(b.showtime?.start_time) >= new Date()).length;
@@ -425,47 +436,98 @@ export default function MyTicketsPage() {
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
           <button
             onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-full text-sm font-semibold transition whitespace-nowrap ${
-              filter === 'all'
-                ? 'bg-red-600 text-white'
-                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-            }`}
+            className={`px-4 py-2 rounded-full text-sm font-semibold transition whitespace-nowrap ${filter === 'all'
+              ? 'bg-red-600 text-white'
+              : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+              }`}
           >
             Tất cả ({bookings.length})
           </button>
           <button
             onClick={() => setFilter('upcoming')}
-            className={`px-4 py-2 rounded-full text-sm font-semibold transition whitespace-nowrap ${
-              filter === 'upcoming'
-                ? 'bg-red-600 text-white'
-                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-            }`}
+            className={`px-4 py-2 rounded-full text-sm font-semibold transition whitespace-nowrap ${filter === 'upcoming'
+              ? 'bg-red-600 text-white'
+              : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+              }`}
           >
             Sắp chiếu ({upcomingCount})
           </button>
           <button
             onClick={() => setFilter('past')}
-            className={`px-4 py-2 rounded-full text-sm font-semibold transition whitespace-nowrap ${
-              filter === 'past'
-                ? 'bg-red-600 text-white'
-                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-            }`}
+            className={`px-4 py-2 rounded-full text-sm font-semibold transition whitespace-nowrap ${filter === 'past'
+              ? 'bg-red-600 text-white'
+              : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+              }`}
           >
             Đã chiếu ({pastCount})
           </button>
         </div>
 
         {/* Ticket List */}
-        {filteredBookings.length > 0 ? (
-          <div className="space-y-4">
-            {filteredBookings.map((booking) => (
-              <TicketCard
-                key={booking._id}
-                booking={booking}
-                onViewDetail={setSelectedBooking}
-              />
-            ))}
-          </div>
+        {paginatedBookings.length > 0 ? (
+          <>
+            <div className="space-y-4">
+              {paginatedBookings.map((booking) => (
+                <TicketCard
+                  key={booking._id}
+                  booking={booking}
+                  onViewDetail={setSelectedBooking}
+                />
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-8">
+                {/* Previous Button */}
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className={`px-4 py-2 rounded-lg font-medium transition ${currentPage === 1
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                    }`}
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+
+                {/* Page Numbers */}
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-10 h-10 rounded-lg font-semibold transition ${currentPage === page
+                      ? 'bg-red-600 text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                      }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+
+                {/* Next Button */}
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className={`px-4 py-2 rounded-lg font-medium transition ${currentPage === totalPages
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                    }`}
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            )}
+
+            {/* Page Info */}
+            <p className="text-center text-sm text-gray-500 mt-4">
+              Hiển thị {startIndex + 1} - {Math.min(startIndex + ITEMS_PER_PAGE, filteredBookings.length)} trong tổng số {filteredBookings.length} vé
+            </p>
+          </>
         ) : (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
             <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -480,8 +542,8 @@ export default function MyTicketsPage() {
               {filter === 'all'
                 ? 'Bạn chưa đặt vé xem phim nào. Hãy khám phá các phim đang chiếu!'
                 : filter === 'upcoming'
-                ? 'Bạn không có suất chiếu nào sắp tới.'
-                : 'Bạn chưa có lịch sử xem phim.'}
+                  ? 'Bạn không có suất chiếu nào sắp tới.'
+                  : 'Bạn chưa có lịch sử xem phim.'}
             </p>
             <Link
               href="/"
@@ -497,12 +559,14 @@ export default function MyTicketsPage() {
       </div>
 
       {/* Detail Modal */}
-      {selectedBooking && (
-        <TicketDetailModal
-          booking={selectedBooking}
-          onClose={() => setSelectedBooking(null)}
-        />
-      )}
-    </div>
+      {
+        selectedBooking && (
+          <TicketDetailModal
+            booking={selectedBooking}
+            onClose={() => setSelectedBooking(null)}
+          />
+        )
+      }
+    </div >
   );
 }

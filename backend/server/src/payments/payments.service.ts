@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { MomoService, MomoCallbackParams } from './momo.service';
+import { MomoService, MomoCallbackParams, MomoPaymentType } from './momo.service';
 import { Booking } from '../bookings/schemas/booking.schema';
 import { Showtime } from '../showtimes/schemas/showtime.schema';
 
@@ -9,6 +9,7 @@ export interface CreatePaymentDto {
   showtime_id: string;
   seats: string[];
   user_id: string;
+  payment_type?: MomoPaymentType; // Thêm option chọn phương thức: captureWallet | payWithATM | payWithCC
 }
 
 export interface PaymentResult {
@@ -26,7 +27,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     @InjectModel(Booking.name) private bookingModel: Model<Booking>,
     @InjectModel(Showtime.name) private showtimeModel: Model<Showtime>,
     private readonly momoService: MomoService,
-  ) {}
+  ) { }
 
   /**
    * Khởi động scheduled job khi module load
@@ -46,7 +47,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
           console.error('[Scheduler] Lỗi khi hủy booking hết hạn:', err);
         });
     }, 5 * 60 * 1000);
-    
+
     // Chạy lần đầu ngay khi khởi động
     this.cancelExpiredPendingBookings()
       .then((count) => console.log(`[Init] Đã hủy ${count} booking pending hết hạn`))
@@ -124,6 +125,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       amount: totalPrice,
       orderInfo: `Thanh toan ve xem phim - ${seats.length} ghe`,
       extraData: extraData,
+      paymentType: createDto.payment_type || 'captureWallet', // Sử dụng payment_type từ request
     });
 
     console.log('=== CREATE MOMO PAYMENT ===');

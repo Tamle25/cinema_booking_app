@@ -17,11 +17,15 @@ export interface MomoConfig {
   ipnUrl: string;
 }
 
+// Các phương thức thanh toán MoMo hỗ trợ
+export type MomoPaymentType = 'captureWallet' | 'payWithATM' | 'payWithCC';
+
 export interface CreateMomoPaymentParams {
   orderId: string;
   amount: number;
   orderInfo: string;
   extraData?: string;
+  paymentType?: MomoPaymentType; // Thêm option chọn phương thức
 }
 
 export interface MomoPaymentResponse {
@@ -111,16 +115,16 @@ export class MomoService {
 
   /**
    * Tạo URL thanh toán MoMo
-   * Sử dụng phương thức captureWallet (thanh toán qua ví MoMo)
+   * Hỗ trợ các phương thức: captureWallet (QR), payWithATM (thẻ ATM), payWithCC (thẻ quốc tế)
    */
   async createPaymentUrl(params: CreateMomoPaymentParams): Promise<MomoPaymentResponse> {
-    const { orderId, amount, orderInfo, extraData = '' } = params;
+    const { orderId, amount, orderInfo, extraData = '', paymentType = 'captureWallet' } = params;
 
     const requestId = this.generateRequestId();
-    const requestType = 'captureWallet'; // Thanh toán qua ví MoMo
+    const requestType = paymentType; // Sử dụng phương thức thanh toán từ params
 
     // Tạo rawSignature theo thứ tự alphabet (theo tài liệu MoMo)
-    const rawSignature = 
+    const rawSignature =
       `accessKey=${this.config.accessKey}` +
       `&amount=${amount}` +
       `&extraData=${extraData}` +
@@ -170,7 +174,7 @@ export class MomoService {
       });
 
       const result = await response.json() as MomoPaymentResponse;
-      
+
       console.log('=== MOMO API RESPONSE ===');
       console.log('Response:', JSON.stringify(result, null, 2));
       console.log('=========================');

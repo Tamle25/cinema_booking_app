@@ -19,12 +19,14 @@ export default function BookingPage() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPaymentType, setSelectedPaymentType] = useState<'captureWallet' | 'payWithATM' | 'payWithCC'>('captureWallet');
 
   // 1. Lấy dữ liệu suất chiếu
   useEffect(() => {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
     const fetchShowtime = async () => {
       try {
-        const res = await fetch(`http://localhost:4000/showtimes/${showtimeId}`);
+        const res = await fetch(`${API_URL}/showtimes/${showtimeId}`);
         const data = await res.json();
         setShowtime(data);
       } catch (error) {
@@ -70,20 +72,22 @@ export default function BookingPage() {
 
   // 4. Xử lý thanh toán MoMo
   const handleMomoPayment = async () => {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
     const token = localStorage.getItem('access_token');
     setProcessing(true);
     setShowPaymentModal(false);
 
     try {
-      const res = await fetch('http://localhost:4000/payments/create-momo', {
+      const res = await fetch(`${API_URL}/payments/create-momo`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           showtime_id: showtimeId,
-          seats: selectedSeats
+          seats: selectedSeats,
+          payment_type: selectedPaymentType
         })
       });
 
@@ -111,7 +115,7 @@ export default function BookingPage() {
     return (
       <div className="text-center py-20 text-red-500">
         Lỗi dữ liệu: Suất chiếu này đang gắn với một Phòng không tồn tại (ID Phòng bị sai).
-        <br/>Vui lòng kiểm tra lại Database.
+        <br />Vui lòng kiểm tra lại Database.
       </div>
     );
   }
@@ -121,7 +125,7 @@ export default function BookingPage() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center py-10">
-      
+
       {/* Header Info */}
       <div className="text-center mb-8">
         <h1 className="text-2xl font-bold text-yellow-500 mb-2">{showtime.movie?.title || "Tên Phim"}</h1>
@@ -140,14 +144,14 @@ export default function BookingPage() {
       <div className="flex flex-col gap-2 mb-10 overflow-x-auto max-w-full px-4">
         {Array.from({ length: room.rows }).map((_, rowIndex) => {
           const rowLabel = getRowLabel(rowIndex);
-          
+
           return (
             <div key={rowIndex} className="flex gap-2 justify-center min-w-max">
               {/* Cột số ghế */}
               {Array.from({ length: room.columns }).map((_, colIndex) => {
                 const seatNumber = colIndex + 1;
                 const seatName = `${rowLabel}${seatNumber}`; // VD: A1, A2
-                
+
                 // Kiểm tra trạng thái
                 const isBooked = booked_seats.includes(seatName);
                 const isSelected = selectedSeats.includes(seatName);
@@ -160,7 +164,7 @@ export default function BookingPage() {
                     className={`
                       w-10 h-10 rounded-t-lg text-xs font-bold transition
                       flex items-center justify-center
-                      ${isBooked 
+                      ${isBooked
                         ? 'bg-gray-700 text-gray-500 cursor-not-allowed' // Đã đặt (Xám đậm/Đỏ)
                         : isSelected
                           ? 'bg-green-500 text-white shadow-[0_0_10px_#22c55e] transform scale-110' // Đang chọn
@@ -196,7 +200,7 @@ export default function BookingPage() {
       {/* FOOTER THANH TOÁN (STICKY) */}
       <div className="fixed bottom-0 left-0 w-full bg-gray-800 border-t border-gray-700 p-4">
         <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-          
+
           <div>
             <p className="text-gray-400 text-sm">Ghế đang chọn:</p>
             <p className="text-white font-bold text-lg">
@@ -211,13 +215,13 @@ export default function BookingPage() {
                 {(selectedSeats.length * price).toLocaleString()}đ
               </p>
             </div>
-            
+
             <button
               onClick={handleProceedToPayment}
               disabled={processing || selectedSeats.length === 0}
               className={`
                 px-8 py-3 rounded-lg font-bold text-lg transition
-                ${processing || selectedSeats.length === 0 
+                ${processing || selectedSeats.length === 0
                   ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                   : 'bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-red-500/50'
                 }
@@ -275,32 +279,97 @@ export default function BookingPage() {
                 </div>
               </div>
 
-              {/* MoMo Info */}
-              <div className="flex items-center gap-4 p-4 border-2 border-pink-500 bg-pink-50 rounded-xl mb-4">
-                <div className="w-12 h-12 bg-pink-600 rounded-xl flex items-center justify-center text-white font-bold text-sm">
-                  MoMo
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-900">Thanh toán qua Ví MoMo</p>
-                  <p className="text-xs text-gray-500">Quét QR hoặc mở app MoMo để thanh toán</p>
-                </div>
-                <svg className="w-6 h-6 text-pink-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
+              {/* Payment Methods Selection */}
+              <div className="space-y-3 mb-4">
+                <h3 className="text-sm font-semibold text-gray-700">Chọn phương thức thanh toán</h3>
+
+                {/* Option 1: QR / Ví MoMo */}
+                <label
+                  className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedPaymentType === 'captureWallet'
+                    ? 'border-pink-500 bg-pink-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                >
+                  <input
+                    type="radio"
+                    name="paymentType"
+                    value="captureWallet"
+                    checked={selectedPaymentType === 'captureWallet'}
+                    onChange={() => setSelectedPaymentType('captureWallet')}
+                    className="w-5 h-5 text-pink-600"
+                  />
+                  <div className="w-12 h-12 bg-pink-600 rounded-xl flex items-center justify-center text-white font-bold text-sm">
+                    MoMo
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-900">Ví MoMo / QR Code</p>
+                    <p className="text-xs text-gray-500">Quét QR hoặc mở app MoMo</p>
+                  </div>
+                </label>
+
+                {/* Option 2: Thẻ ATM nội địa */}
+                <label
+                  className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedPaymentType === 'payWithATM'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                >
+                  <input
+                    type="radio"
+                    name="paymentType"
+                    value="payWithATM"
+                    checked={selectedPaymentType === 'payWithATM'}
+                    onChange={() => setSelectedPaymentType('payWithATM')}
+                    className="w-5 h-5 text-blue-600"
+                  />
+                  <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xs">
+                    ATM
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-900">Thẻ ATM nội địa</p>
+                    <p className="text-xs text-gray-500">Vietcombank, BIDV, Techcombank...</p>
+                  </div>
+                </label>
+
+                {/* Option 3: Thẻ quốc tế */}
+                <label
+                  className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedPaymentType === 'payWithCC'
+                    ? 'border-purple-500 bg-purple-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                >
+                  <input
+                    type="radio"
+                    name="paymentType"
+                    value="payWithCC"
+                    checked={selectedPaymentType === 'payWithCC'}
+                    onChange={() => setSelectedPaymentType('payWithCC')}
+                    className="w-5 h-5 text-purple-600"
+                  />
+                  <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl flex items-center justify-center">
+                    <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-900">Thẻ quốc tế</p>
+                    <p className="text-xs text-gray-500">Visa, Mastercard, JCB</p>
+                  </div>
+                </label>
               </div>
 
-              {/* Notice */}
-              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-xs text-yellow-800">
-                  <strong>⚠️ Lưu ý:</strong> Vé sẽ được xác nhận sau khi thanh toán thành công. 
-                  Ghế đã chọn sẽ được giữ trong 15 phút.
-                </p>
-              </div>
-
-              {/* Test Account Info */}
-              <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+              {/* Test Account Info - Dynamic based on selection */}
+              <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
                 <p className="text-xs text-gray-600">
-                  <strong>🧪 Tài khoản test MoMo:</strong> SĐT: 0900000000 - 0900000009 | OTP: 000000
+                  {selectedPaymentType === 'captureWallet' && (
+                    <><strong>🧪 Test MoMo:</strong> SĐT: 0900000000-9 | OTP: 000000</>
+                  )}
+                  {selectedPaymentType === 'payWithATM' && (
+                    <><strong>🧪 Test ATM (NCB):</strong> Số thẻ: 9704198526191432198 | Tên: NGUYEN VAN A | Ngày: 07/15 | OTP: 123456</>
+                  )}
+                  {selectedPaymentType === 'payWithCC' && (
+                    <><strong>🧪 Test Visa:</strong> Số thẻ: 4111111111111111 | Tên: NGUYEN VAN A | Hết hạn: 01/28 | CVV: 100</>
+                  )}
                 </p>
               </div>
             </div>
@@ -321,8 +390,8 @@ export default function BookingPage() {
                 {processing ? (
                   <>
                     <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
                     Đang xử lý...
                   </>

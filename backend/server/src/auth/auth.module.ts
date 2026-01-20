@@ -12,13 +12,13 @@ import { JwtStrategy } from './jwt.strategy';
   imports: [
     UsersModule,
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
-    
+
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
         global: true,
         secret: configService.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '5m' },
+        signOptions: { expiresIn: '30m' }, // 30 phút
       }),
       inject: [ConfigService],
     }),
@@ -26,4 +26,4 @@ import { JwtStrategy } from './jwt.strategy';
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],
 })
-export class AuthModule {}
+export class AuthModule { }

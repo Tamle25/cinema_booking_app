@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 export default function CreateMoviePage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
   const [formData, setFormData] = useState({
     title: '',
     slug: '',
@@ -31,7 +32,7 @@ export default function CreateMoviePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate trước khi gửi
     if (!formData.title.trim()) {
       alert('❌ Vui lòng nhập tên phim!');
@@ -55,9 +56,9 @@ export default function CreateMoviePage() {
     }
 
     setIsSubmitting(true);
-    
+
     try {
-      const res = await fetch('http://localhost:4000/movies', {
+      const res = await fetch(`${API_URL}/movies`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -88,9 +89,9 @@ export default function CreateMoviePage() {
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-6 text-gray-800">Thêm Phim Mới</h1>
-      
+
       <form onSubmit={handleSubmit} className="bg-white p-8 rounded-lg shadow-md space-y-6">
-        
+
         {/* Hàng 1: Tên phim & Slug */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
@@ -151,14 +152,13 @@ export default function CreateMoviePage() {
 
         {/* Nút Submit */}
         <div className="flex justify-end pt-4">
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={isSubmitting}
-            className={`font-bold py-3 px-8 rounded transition shadow-lg ${
-              isSubmitting 
-                ? 'bg-gray-400 cursor-not-allowed' 
+            className={`font-bold py-3 px-8 rounded transition shadow-lg ${isSubmitting
+                ? 'bg-gray-400 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700'
-            } text-white`}
+              } text-white`}
           >
             {isSubmitting ? 'Đang lưu...' : 'Lưu Phim'}
           </button>

@@ -10,18 +10,19 @@ export class PaymentsController {
   constructor(
     private readonly paymentsService: PaymentsService,
     private readonly momoService: MomoService,
-  ) {}
+  ) { }
 
   /**
    * API: Tạo đơn thanh toán MoMo
    * POST /payments/create-momo
-   * Body: { showtime_id, seats }
+   * Body: { showtime_id, seats, payment_type? }
+   * payment_type: 'captureWallet' (QR/Ví) | 'payWithATM' (Thẻ ATM) | 'payWithCC' (Thẻ quốc tế)
    * Response: { payUrl, bookingId, orderId }
    */
   @UseGuards(AuthGuard('jwt'))
   @Post('create-momo')
   async createMomoPayment(
-    @Body() body: { showtime_id: string; seats: string[] },
+    @Body() body: { showtime_id: string; seats: string[]; payment_type?: string },
     @Req() req: Request & { user: any },
   ) {
     const userId = req.user._id || req.user.id;
@@ -30,6 +31,7 @@ export class PaymentsController {
       showtime_id: body.showtime_id,
       seats: body.seats,
       user_id: userId,
+      payment_type: (body.payment_type as any) || 'captureWallet',
     };
 
     return this.paymentsService.createMomoPayment(createDto);
@@ -44,9 +46,9 @@ export class PaymentsController {
   async momoReturn(@Query() query: Record<string, string>) {
     console.log('=== MOMO RETURN URL CALLED ===');
     console.log('Query params:', JSON.stringify(query, null, 2));
-    
+
     const result = await this.paymentsService.handleMomoReturn(query as unknown as MomoCallbackParams);
-    
+
     // Trả về kết quả (Frontend sẽ xử lý hiển thị)
     return result;
   }
@@ -60,7 +62,7 @@ export class PaymentsController {
   async momoIPN(@Body() body: MomoCallbackParams) {
     console.log('=== MOMO IPN CALLED ===');
     console.log('Body:', JSON.stringify(body, null, 2));
-    
+
     return this.paymentsService.handleMomoIPN(body);
   }
 
