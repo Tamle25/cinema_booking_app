@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Cinema } from './schemas/cinema.schema';
 import { CreateCinemaDto } from './dto/create-cinema.dto';
+import { UpdateCinemaDto } from './dto/update-cinema.dto';
 
 @Injectable()
 export class CinemasService {
@@ -46,5 +47,43 @@ export class CinemasService {
     }
     
     return this.cinemaModel.find(filter).populate('cinema_system').exec();
+  }
+
+  // Lấy chi tiết 1 rạp theo ID
+  async findOne(id: string): Promise<Cinema> {
+    const cinema = await this.cinemaModel.findById(id).populate('cinema_system').exec();
+    if (!cinema) {
+      throw new NotFoundException(`Không tìm thấy rạp với ID: ${id}`);
+    }
+    return cinema;
+  }
+
+  // Cập nhật thông tin rạp
+  async update(id: string, updateDto: UpdateCinemaDto): Promise<Cinema> {
+    const { cinema_system_id, ...rest } = updateDto;
+    
+    const updateData: any = { ...rest };
+    if (cinema_system_id) {
+      updateData.cinema_system = cinema_system_id;
+    }
+    
+    const updated = await this.cinemaModel
+      .findByIdAndUpdate(id, updateData, { new: true })
+      .populate('cinema_system')
+      .exec();
+    
+    if (!updated) {
+      throw new NotFoundException(`Không tìm thấy rạp với ID: ${id}`);
+    }
+    return updated;
+  }
+
+  // Xóa rạp
+  async delete(id: string): Promise<{ message: string }> {
+    const result = await this.cinemaModel.findByIdAndDelete(id).exec();
+    if (!result) {
+      throw new NotFoundException(`Không tìm thấy rạp với ID: ${id}`);
+    }
+    return { message: 'Xóa rạp thành công' };
   }
 }

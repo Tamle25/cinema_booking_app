@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/common';
 import { CinemasService } from './cinemas.service';
 import { CreateCinemaDto } from './dto/create-cinema.dto';
+import { UpdateCinemaDto } from './dto/update-cinema.dto';
 
 @Controller('cinemas')
 export class CinemasController {
@@ -35,5 +36,23 @@ export class CinemasController {
     @Query('city') city?: string,
   ) {
     return this.cinemasService.filterCinemas(systemId, city);
+  }
+
+  // API lấy chi tiết 1 rạp
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.cinemasService.findOne(id);
+  }
+
+  // API cập nhật thông tin rạp
+  @Put(':id')
+  update(@Param('id') id: string, @Body() updateDto: UpdateCinemaDto) {
+    return this.cinemasService.update(id, updateDto);
+  }
+
+  // API xóa rạp
+  @Delete(':id')
+  delete(@Param('id') id: string) {
+    return this.cinemasService.delete(id);
   }
 }

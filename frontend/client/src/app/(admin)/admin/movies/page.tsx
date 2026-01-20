@@ -219,7 +219,7 @@ export default function MovieListPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-2">
                         <Link
-                          href={`/admin/movies/${movie._id}/edit`}
+                          href={`/admin/movies/edit/${movie._id}`}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
                           title="Sửa"
                         >
