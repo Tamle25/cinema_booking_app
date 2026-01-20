@@ -40,10 +40,4 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-#database setup scripts
-!check-data.js
-!check-db.js
-!create-admin.js
-!seed-data.js
-!seed-db.js
-!seed-data-v2.js
+

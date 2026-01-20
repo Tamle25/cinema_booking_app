@@ -25,9 +25,21 @@ const CinemaIcon = () => (
   </svg>
 );
 
+const RoomIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+  </svg>
+);
+
 const MovieIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+  </svg>
+);
+
+const ShowtimeIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
   </svg>
 );
 
@@ -45,9 +57,11 @@ const LogoutIcon = () => (
 
 const menuItems = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: DashboardIcon },
-  { href: '/admin/cinema-systems', label: 'Hãng phim', icon: CinemaSystemIcon },
+  { href: '/admin/cinema-systems', label: 'Hệ thống rạp', icon: CinemaSystemIcon },
   { href: '/admin/cinemas', label: 'Rạp chiếu', icon: CinemaIcon },
+  { href: '/admin/rooms', label: 'Phòng chiếu', icon: RoomIcon },
   { href: '/admin/movies', label: 'Quản lý Phim', icon: MovieIcon },
+  { href: '/admin/showtimes', label: 'Suất chiếu', icon: ShowtimeIcon },
   { href: '/admin/transactions', label: 'Giao dịch', icon: TransactionIcon },
 ];
 
@@ -70,7 +84,7 @@ export default function AdminLayout({
     // Check if user is admin
     const checkAdmin = () => {
       const token = localStorage.getItem('access_token');
-      
+
       // Kiểm tra token và user
       if (!token) {
         router.push('/login');
@@ -103,7 +117,7 @@ export default function AdminLayout({
 
       setIsLoading(false);
     };
-    
+
     checkAdmin();
   }, [user, router, authLoading]);
 
@@ -151,11 +165,10 @@ export default function AdminLayout({
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                  isActive
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${isActive
                     ? 'bg-blue-600 text-white shadow-lg'
                     : 'text-slate-300 hover:bg-slate-700 hover:text-white'
-                }`}
+                  }`}
               >
                 <Icon />
                 <span className="font-medium">{item.label}</span>
@@ -175,7 +188,7 @@ export default function AdminLayout({
               <p className="text-xs text-slate-400 truncate">{user?.email || 'admin@cinema.vn'}</p>
             </div>
           </div>
-          <button 
+          <button
             onClick={handleLogout}
             className="flex items-center gap-3 w-full px-4 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition"
           >

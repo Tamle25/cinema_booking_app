@@ -22,6 +22,14 @@ const getDayName = (date: Date, index: number) => {
   return dayNames[date.getDay()];
 };
 
+// Helper: Format date thành YYYY-MM-DD theo LOCAL timezone (tránh lệch ngày do UTC)
+const formatLocalDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function MovieDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -46,7 +54,8 @@ export default function MovieDetailPage() {
   // Initialize dates
   useEffect(() => {
     setDays(getNext14Days());
-    const today = new Date().toISOString().split('T')[0];
+    // FIX: Dùng local date thay vì UTC
+    const today = formatLocalDate(new Date());
     setSelectedDate(today);
   }, []);
 
@@ -109,7 +118,9 @@ export default function MovieDetailPage() {
   const filteredShowtimes = useMemo(() => {
     const filteredCinemaIds = filteredCinemas.map(c => c._id);
     return showtimes.filter(show => {
-      const showDate = new Date(show.start_time).toISOString().split('T')[0];
+      // FIX: Dùng local date thay vì UTC để tránh lệch ngày do timezone
+      const showDateTime = new Date(show.start_time);
+      const showDate = `${showDateTime.getFullYear()}-${String(showDateTime.getMonth() + 1).padStart(2, '0')}-${String(showDateTime.getDate()).padStart(2, '0')}`;
       const cinemaId = typeof show.cinema === 'object' ? show.cinema._id : show.cinema;
       return showDate === selectedDate && filteredCinemaIds.includes(cinemaId);
     });
@@ -263,15 +274,15 @@ export default function MovieDetailPage() {
           {/* Date Picker - Horizontal scroll */}
           <div className="flex gap-2 overflow-x-auto pb-4 mb-6 scrollbar-hide">
             {days.map((date, index) => {
-              const dateStr = date.toISOString().split('T')[0];
+              const dateStr = formatLocalDate(date);
               const isActive = selectedDate === dateStr;
               return (
                 <button
                   key={index}
                   onClick={() => setSelectedDate(dateStr)}
                   className={`flex-shrink-0 min-w-[70px] px-3 py-2 rounded-lg flex flex-col items-center transition border ${isActive
-                      ? 'bg-pink-500 border-pink-500 text-white'
-                      : 'bg-gray-100 border-gray-200 text-gray-600 hover:border-pink-300 hover:bg-pink-50'
+                    ? 'bg-pink-500 border-pink-500 text-white'
+                    : 'bg-gray-100 border-gray-200 text-gray-600 hover:border-pink-300 hover:bg-pink-50'
                     }`}
                 >
                   <span className="text-2xl font-bold">{date.getDate()}</span>
@@ -290,8 +301,8 @@ export default function MovieDetailPage() {
               <button
                 onClick={() => setSelectedBrand(null)}
                 className={`flex-shrink-0 flex flex-col items-center justify-center w-[70px] h-[70px] rounded-lg border-2 transition ${selectedBrand === null
-                    ? 'border-yellow-500 bg-yellow-50'
-                    : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+                  ? 'border-yellow-500 bg-yellow-50'
+                  : 'border-gray-200 bg-gray-50 hover:border-gray-300'
                   }`}
               >
                 <span className="text-2xl">⭐</span>
@@ -303,8 +314,8 @@ export default function MovieDetailPage() {
                   key={system._id}
                   onClick={() => setSelectedBrand(system._id)}
                   className={`flex-shrink-0 flex flex-col items-center justify-center w-[70px] h-[70px] rounded-lg border-2 transition overflow-hidden ${selectedBrand === system._id
-                      ? 'border-pink-500 bg-pink-50'
-                      : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+                    ? 'border-pink-500 bg-pink-50'
+                    : 'border-gray-200 bg-gray-50 hover:border-gray-300'
                     }`}
                 >
                   {system.logo_url ? (

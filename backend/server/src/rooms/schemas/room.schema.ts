@@ -11,7 +11,7 @@ export class Room {
 
   // Liên kết: Phòng này thuộc Rạp nào?
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Cinema', required: true })
-  cinema: Cinema; 
+  cinema: Cinema;
 
   @Prop({ required: true })
   type: string; // VD: "2D", "3D", "4DX"
@@ -25,7 +25,11 @@ export class Room {
 
   // Tự động tính: rows * columns
   @Prop()
-  total_seats: number; 
+  total_seats: number;
+
+  // Trạng thái phòng: true = hoạt động, false = bảo trì
+  @Prop({ default: true })
+  is_active: boolean;
 }
 
 export const RoomSchema = SchemaFactory.createForClass(Room);
