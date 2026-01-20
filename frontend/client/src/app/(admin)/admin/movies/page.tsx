@@ -1,8 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { IMovie } from '@/types/index';
+import Pagination from '@/components/Pagination';
+
+const ITEMS_PER_PAGE = 10;
 
 export default function MovieListPage() {
   const [movies, setMovies] = useState<IMovie[]>([]);
@@ -10,6 +13,7 @@ export default function MovieListPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGenre, setFilterGenre] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -60,6 +64,18 @@ export default function MovieListPage() {
       (filterStatus === 'inactive' && !movie.is_active);
     return matchSearch && matchGenre && matchStatus;
   });
+
+  // Reset về trang 1 khi filter thay đổi
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterGenre, filterStatus]);
+
+  // Phân trang: tính toán dữ liệu hiển thị
+  const totalPages = Math.ceil(filteredMovies.length / ITEMS_PER_PAGE);
+  const paginatedMovies = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredMovies.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredMovies, currentPage]);
 
   // Get movie status
   const getMovieStatus = (movie: IMovie) => {
@@ -137,7 +153,7 @@ export default function MovieListPage() {
             <option value="active">Đang hoạt động</option>
             <option value="inactive">Ngưng hoạt động</option>
           </select>
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-gray-500 min-w-[120px] text-right whitespace-nowrap">
             Tổng: <strong>{filteredMovies.length}</strong> phim
           </span>
         </div>
@@ -145,26 +161,27 @@ export default function MovieListPage() {
 
       {/* Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-100">
-            <tr>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Phim</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Thể loại</th>
-              <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Thời lượng</th>
-              <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Đánh giá</th>
-              <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Trạng thái</th>
-              <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
-            </tr>
-          </thead>
+        <div className="overflow-x-auto">
+          <table className="w-full table-fixed min-w-[900px]">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>
+                <th className="w-[30%] px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Phim</th>
+                <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Thể loại</th>
+                <th className="w-[12%] px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Thời lượng</th>
+                <th className="w-[12%] px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Đánh giá</th>
+                <th className="w-[15%] px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                <th className="w-[16%] px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
+              </tr>
+            </thead>
           <tbody className="divide-y divide-gray-100">
-            {filteredMovies.length === 0 ? (
+            {paginatedMovies.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                   {searchTerm || filterGenre || filterStatus ? 'Không tìm thấy phim phù hợp' : 'Chưa có phim nào'}
                 </td>
               </tr>
             ) : (
-              filteredMovies.map((movie) => {
+              paginatedMovies.map((movie) => {
                 const status = getMovieStatus(movie);
                 return (
                   <tr key={movie._id} className="hover:bg-gray-50 transition">
@@ -226,7 +243,17 @@ export default function MovieListPage() {
               })
             )}
           </tbody>
-        </table>
+          </table>
+        </div>
+        
+        {/* Pagination */}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={filteredMovies.length}
+          itemsPerPage={ITEMS_PER_PAGE}
+        />
       </div>
     </div>
   );

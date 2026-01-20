@@ -1,6 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import Pagination from '@/components/Pagination';
+
+const ITEMS_PER_PAGE = 10;
 
 interface ITransaction {
   _id: string;
@@ -38,6 +41,7 @@ export default function TransactionsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDate, setFilterDate] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -103,6 +107,18 @@ export default function TransactionsPage() {
     
     return matchSearch && matchStatus && matchDate;
   });
+
+  // Reset về trang 1 khi filter thay đổi
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterStatus, filterDate]);
+
+  // Phân trang: tính toán dữ liệu hiển thị
+  const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
+  const paginatedTransactions = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredTransactions.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredTransactions, currentPage]);
 
   // Calculate total revenue
   const totalRevenue = filteredTransactions.reduce((sum, t) => sum + (t.total_price || 0), 0);
@@ -186,15 +202,7 @@ export default function TransactionsPage() {
             onChange={(e) => setFilterDate(e.target.value)}
             className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
           />
-          {(filterStatus || filterDate) && (
-            <button
-              onClick={() => { setFilterStatus(''); setFilterDate(''); }}
-              className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700"
-            >
-              Xóa bộ lọc
-            </button>
-          )}
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-gray-500 min-w-[160px] text-right whitespace-nowrap">
             Hiển thị: <strong>{filteredTransactions.length}</strong> giao dịch
           </span>
         </div>
@@ -203,20 +211,20 @@ export default function TransactionsPage() {
       {/* Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full table-fixed min-w-[1000px]">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã GD</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Khách hàng</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Phim / Rạp</th>
-                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Ghế</th>
-                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Số tiền</th>
-                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                <th className="w-[10%] px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã GD</th>
+                <th className="w-[18%] px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Khách hàng</th>
+                <th className="w-[25%] px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Phim / Rạp</th>
+                <th className="w-[10%] px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Ghế</th>
+                <th className="w-[12%] px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Số tiền</th>
+                <th className="w-[10%] px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Trạng thái</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Thời gian</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredTransactions.length === 0 ? (
+              {paginatedTransactions.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                     {searchTerm || filterStatus || filterDate 
@@ -225,7 +233,7 @@ export default function TransactionsPage() {
                   </td>
                 </tr>
               ) : (
-                filteredTransactions.map((trans) => {
+                paginatedTransactions.map((trans) => {
                   const status = getStatusBadge(trans.status);
                   return (
                     <tr key={trans._id} className="hover:bg-gray-50 transition">
@@ -298,6 +306,15 @@ export default function TransactionsPage() {
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination */}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={filteredTransactions.length}
+          itemsPerPage={ITEMS_PER_PAGE}
+        />
       </div>
     </div>
   );

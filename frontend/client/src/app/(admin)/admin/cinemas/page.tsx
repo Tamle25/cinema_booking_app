@@ -1,7 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { ICinemaSystem, ICinema } from '@/types';
+import Pagination from '@/components/Pagination';
+
+const ITEMS_PER_PAGE = 10;
 
 export default function CinemasPage() {
   const [cinemas, setCinemas] = useState<ICinema[]>([]);
@@ -20,6 +23,7 @@ export default function CinemasPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSystem, setFilterSystem] = useState('');
   const [filterCity, setFilterCity] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -168,6 +172,18 @@ export default function CinemasPage() {
     return matchSearch && matchSystem && matchCity;
   });
 
+  // Reset về trang 1 khi filter thay đổi
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterSystem, filterCity]);
+
+  // Phân trang: tính toán dữ liệu hiển thị
+  const totalPages = Math.ceil(filteredCinemas.length / ITEMS_PER_PAGE);
+  const paginatedCinemas = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredCinemas.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredCinemas, currentPage]);
+
   // Get system info
   const getSystemInfo = (cinema: ICinema) => {
     if (typeof cinema.cinema_system === 'object') {
@@ -238,7 +254,7 @@ export default function CinemasPage() {
               <option key={city} value={city}>{city}</option>
             ))}
           </select>
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-gray-500 min-w-[120px] text-right whitespace-nowrap">
             Tổng: <strong>{filteredCinemas.length}</strong> rạp
           </span>
         </div>
@@ -246,24 +262,25 @@ export default function CinemasPage() {
 
       {/* Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-100">
-            <tr>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Rạp chiếu</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hãng</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Khu vực</th>
-              <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
-            </tr>
-          </thead>
+        <div className="overflow-x-auto">
+          <table className="w-full table-fixed min-w-[700px]">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>
+                <th className="w-[40%] px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Rạp chiếu</th>
+                <th className="w-[25%] px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hãng</th>
+                <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Khu vực</th>
+                <th className="w-[20%] px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
+              </tr>
+            </thead>
           <tbody className="divide-y divide-gray-100">
-            {filteredCinemas.length === 0 ? (
+            {paginatedCinemas.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
                   {searchTerm || filterSystem || filterCity ? 'Không tìm thấy rạp chiếu phù hợp' : 'Chưa có rạp chiếu nào'}
                 </td>
               </tr>
             ) : (
-              filteredCinemas.map((cinema) => {
+              paginatedCinemas.map((cinema) => {
                 const system = getSystemInfo(cinema);
                 return (
                   <tr key={cinema._id} className="hover:bg-gray-50 transition">
@@ -322,7 +339,17 @@ export default function CinemasPage() {
               })
             )}
           </tbody>
-        </table>
+          </table>
+        </div>
+        
+        {/* Pagination */}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={filteredCinemas.length}
+          itemsPerPage={ITEMS_PER_PAGE}
+        />
       </div>
 
       {/* Modal */}

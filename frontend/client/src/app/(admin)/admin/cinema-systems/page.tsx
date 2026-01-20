@@ -1,7 +1,36 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { ICinemaSystem } from '@/types';
+import Pagination from '@/components/Pagination';
+
+const ITEMS_PER_PAGE = 10;
+
+// Danh sách màu được định nghĩa sẵn với tên và mã hex
+const COLOR_OPTIONS = [
+  { name: 'Xanh dương', value: 'blue', hex: '#3B82F6' },
+  { name: 'Đỏ', value: 'red', hex: '#EF4444' },
+  { name: 'Xanh lá', value: 'green', hex: '#22C55E' },
+  { name: 'Vàng', value: 'yellow', hex: '#EAB308' },
+  { name: 'Cam', value: 'orange', hex: '#F97316' },
+  { name: 'Tím', value: 'purple', hex: '#A855F7' },
+  { name: 'Hồng', value: 'pink', hex: '#EC4899' },
+  { name: 'Xám', value: 'gray', hex: '#6B7280' },
+  { name: 'Xanh ngọc', value: 'teal', hex: '#14B8A6' },
+  { name: 'Chàm', value: 'indigo', hex: '#6366F1' },
+];
+
+// Helper function: Lấy mã hex từ tên màu
+const getHexFromColor = (colorValue: string): string => {
+  const color = COLOR_OPTIONS.find(c => c.value === colorValue);
+  return color?.hex || colorValue; // Trả về hex nếu tìm thấy, không thì giữ nguyên giá trị
+};
+
+// Helper function: Lấy tên màu từ hex (hoặc giữ nguyên nếu đã là tên)
+const getColorFromHex = (hex: string): string => {
+  const color = COLOR_OPTIONS.find(c => c.hex === hex || c.value === hex);
+  return color?.value || 'blue'; // Default là blue
+};
 
 export default function CinemaSystemsPage() {
   const [systems, setSystems] = useState<ICinemaSystem[]>([]);
@@ -12,10 +41,11 @@ export default function CinemaSystemsPage() {
     name: '',
     slug: '',
     logo_url: '',
-    color_code: '#3B82F6',
+    color_code: 'blue',
   });
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -67,11 +97,11 @@ export default function CinemaSystemsPage() {
         name: system.name,
         slug: system.slug,
         logo_url: system.logo_url || '',
-        color_code: system.color_code || '#3B82F6',
+        color_code: getColorFromHex(system.color_code || 'blue'),
       });
     } else {
       setEditingSystem(null);
-      setFormData({ name: '', slug: '', logo_url: '', color_code: '#3B82F6' });
+      setFormData({ name: '', slug: '', logo_url: '', color_code: 'blue' });
     }
     setShowModal(true);
   };
@@ -80,7 +110,7 @@ export default function CinemaSystemsPage() {
   const closeModal = () => {
     setShowModal(false);
     setEditingSystem(null);
-    setFormData({ name: '', slug: '', logo_url: '', color_code: '#3B82F6' });
+    setFormData({ name: '', slug: '', logo_url: '', color_code: 'blue' });
   };
 
   // Save (create or update)
@@ -145,6 +175,18 @@ export default function CinemaSystemsPage() {
     system.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Reset về trang 1 khi search thay đổi
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  // Phân trang: tính toán dữ liệu hiển thị
+  const totalPages = Math.ceil(filteredSystems.length / ITEMS_PER_PAGE);
+  const paginatedSystems = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredSystems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredSystems, currentPage]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -187,7 +229,7 @@ export default function CinemaSystemsPage() {
               className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
             />
           </div>
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-gray-500 min-w-[120px] text-right whitespace-nowrap">
             Tổng: <strong>{filteredSystems.length}</strong> hãng
           </span>
         </div>
@@ -195,24 +237,25 @@ export default function CinemaSystemsPage() {
 
       {/* Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-100">
-            <tr>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hãng phim</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Slug</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Màu</th>
-              <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
-            </tr>
-          </thead>
+        <div className="overflow-x-auto">
+          <table className="w-full table-fixed min-w-[600px]">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>
+                <th className="w-[40%] px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hãng phim</th>
+                <th className="w-[25%] px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Slug</th>
+                <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Màu</th>
+                <th className="w-[20%] px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
+              </tr>
+            </thead>
           <tbody className="divide-y divide-gray-100">
-            {filteredSystems.length === 0 ? (
+            {paginatedSystems.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
                   {searchTerm ? 'Không tìm thấy hãng phim phù hợp' : 'Chưa có hãng phim nào'}
                 </td>
               </tr>
             ) : (
-              filteredSystems.map((system) => (
+              paginatedSystems.map((system) => (
                 <tr key={system._id} className="hover:bg-gray-50 transition">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
@@ -241,9 +284,9 @@ export default function CinemaSystemsPage() {
                     <div className="flex items-center gap-2">
                       <div 
                         className="w-6 h-6 rounded border border-gray-200"
-                        style={{ backgroundColor: system.color_code || '#3B82F6' }}
+                        style={{ backgroundColor: getHexFromColor(system.color_code || 'blue') }}
                       ></div>
-                      <span className="text-sm text-gray-600">{system.color_code || '#3B82F6'}</span>
+                      <span className="text-sm text-gray-600 capitalize">{system.color_code || 'blue'}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -272,7 +315,17 @@ export default function CinemaSystemsPage() {
               ))
             )}
           </tbody>
-        </table>
+          </table>
+        </div>
+        
+        {/* Pagination */}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={filteredSystems.length}
+          itemsPerPage={ITEMS_PER_PAGE}
+        />
       </div>
 
       {/* Modal */}
@@ -323,20 +376,22 @@ export default function CinemaSystemsPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Màu đại diện</label>
                 <div className="flex items-center gap-3">
-                  <input
-                    type="color"
+                  <div 
+                    className="w-12 h-10 rounded border border-gray-200"
+                    style={{ backgroundColor: getHexFromColor(formData.color_code) }}
+                  ></div>
+                  <select
                     name="color_code"
                     value={formData.color_code}
-                    onChange={handleInputChange}
-                    className="w-12 h-10 rounded cursor-pointer border border-gray-200"
-                  />
-                  <input
-                    type="text"
-                    name="color_code"
-                    value={formData.color_code}
-                    onChange={handleInputChange}
-                    className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder:text-gray-400"
-                  />
+                    onChange={(e) => setFormData(prev => ({ ...prev, color_code: e.target.value }))}
+                    className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  >
+                    {COLOR_OPTIONS.map(color => (
+                      <option key={color.value} value={color.value}>
+                        {color.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
               
@@ -347,7 +402,7 @@ export default function CinemaSystemsPage() {
                   <div className="flex items-center gap-3">
                     <div 
                       className="w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold"
-                      style={{ backgroundColor: formData.color_code }}
+                      style={{ backgroundColor: getHexFromColor(formData.color_code) }}
                     >
                       {formData.logo_url ? (
                         <img src={formData.logo_url} alt="" className="w-10 h-10 object-contain" />

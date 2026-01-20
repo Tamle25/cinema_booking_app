@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config'; // <-- Import thêm cái này
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -10,6 +10,7 @@ import { BookingsModule } from './bookings/bookings.module';
 import { CinemaSystemsModule } from './cinema-systems/cinema-systems.module';
 import { AuthModule } from './auth/auth.module';
 import { RoomsModule } from './rooms/rooms.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { RoomsModule } from './rooms/rooms.module';
     BookingsModule,
     AuthModule,
     RoomsModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

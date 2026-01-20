@@ -66,9 +66,7 @@ const CircularProgress = ({ percentage, color, size = 80 }: { percentage: number
           cy={size / 2}
         />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-gray-700">
-        {percentage}%
-      </span>
+      {/* Text content is rendered externally to avoid duplication */}
     </div>
   );
 };
