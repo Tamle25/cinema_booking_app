@@ -4,7 +4,11 @@ import { HydratedDocument } from 'mongoose';
 
 export type MovieDocument = HydratedDocument<Movie>;
 
-@Schema({ timestamps: true })
+@Schema({
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+})
 export class Movie {
   @Prop({ required: true })
   title: string;
@@ -41,3 +45,13 @@ export class Movie {
 }
 
 export const MovieSchema = SchemaFactory.createForClass(Movie);
+
+MovieSchema.virtual('status').get(function (this: MovieDocument) {
+  if (!this.release_date) return 'Sắp chiếu';
+  
+  const now = new Date();
+  const releaseDate = new Date(this.release_date);
+
+  // So sánh: Nếu ngày phát hành <= hiện tại -> Đang chiếu
+  return releaseDate <= now ? 'Đang chiếu' : 'Sắp chiếu';
+});

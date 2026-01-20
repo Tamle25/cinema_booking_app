@@ -53,6 +53,7 @@ export interface IMovie {
   release_date: string;
   is_active: boolean;
   createdAt: string;
+  status?: string;
 }
 
 export interface IBooking {

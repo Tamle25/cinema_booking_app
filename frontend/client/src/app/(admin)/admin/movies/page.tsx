@@ -22,7 +22,9 @@ export default function MovieListPage() {
     try {
       const res = await fetch(`${API_URL}/movies`);
       if (!res.ok) throw new Error('Không tải được phim');
-      const data = await res.json();
+      
+      // Backend (đã thêm Virtuals) sẽ trả về field 'status' trong JSON
+      const data = await res.json(); 
       setMovies(data);
     } catch (error) {
       console.error(error);
@@ -70,27 +72,39 @@ export default function MovieListPage() {
     setCurrentPage(1);
   }, [searchTerm, filterGenre, filterStatus]);
 
-  // Phân trang: tính toán dữ liệu hiển thị
+  // Phân trang
   const totalPages = Math.ceil(filteredMovies.length / ITEMS_PER_PAGE);
   const paginatedMovies = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     return filteredMovies.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [filteredMovies, currentPage]);
 
-  // Get movie status
+  // --- HÀM QUAN TRỌNG ĐÃ ĐƯỢC SỬA ---
   const getMovieStatus = (movie: IMovie) => {
-    const releaseDate = new Date(movie.release_date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
     if (!movie.is_active) {
       return { label: 'Ngưng chiếu', color: 'bg-gray-100 text-gray-600' };
     }
-    if (releaseDate > today) {
+
+    // ƯU TIÊN 1: Dùng status từ Backend gửi về (Chính xác nhất)
+    if (movie.status) {
+        if (movie.status === 'Đang chiếu') {
+            return { label: 'Đang chiếu', color: 'bg-green-100 text-green-700' };
+        }
+        if (movie.status === 'Sắp chiếu') {
+            return { label: 'Sắp chiếu', color: 'bg-yellow-100 text-yellow-700' };
+        }
+    }
+
+    // ƯU TIÊN 2: Fallback (Phòng hờ backend chưa update, tính theo giờ trình duyệt)
+    const releaseDate = new Date(movie.release_date);
+    const now = new Date(); // Dùng full time, không setHours để chính xác từng phút
+    
+    if (releaseDate > now) {
       return { label: 'Sắp chiếu', color: 'bg-yellow-100 text-yellow-700' };
     }
     return { label: 'Đang chiếu', color: 'bg-green-100 text-green-700' };
   };
+  // -----------------------------------
 
   if (loading) {
     return (
@@ -212,6 +226,7 @@ export default function MovieListPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-center">
+                      {/* Badge trạng thái */}
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${status.color}`}>
                         {status.label}
                       </span>
