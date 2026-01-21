@@ -84,7 +84,44 @@ export class RoomsService {
     return room;
   }
 
+  // Lấy tất cả (không phân trang - dùng cho dropdown)
   async findAll(): Promise<Room[]> {
     return this.roomModel.find().populate('cinema').exec();
+  }
+
+  // Lấy danh sách có phân trang (dùng cho Admin)
+  async findAllPaginated(query?: {
+    page?: number;
+    limit?: number;
+    cinema_id?: string;
+  }): Promise<{ data: Room[]; total: number; page: number; totalPages: number }> {
+    const page = query?.page || 1;
+    const limit = query?.limit || 10;
+    const skip = (page - 1) * limit;
+
+    // Chỉ lấy phòng đang hoạt động
+    const filter: any = { is_active: true };
+
+    if (query?.cinema_id) {
+      filter.cinema = query.cinema_id;
+    }
+
+    const [data, total] = await Promise.all([
+      this.roomModel
+        .find(filter)
+        .populate('cinema')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.roomModel.countDocuments(filter),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 }

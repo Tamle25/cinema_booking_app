@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/common';
 import { RoomsService } from './rooms.service';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
@@ -12,6 +12,21 @@ export class RoomsController {
     return this.roomsService.create(createDto);
   }
 
+  // API có phân trang (dùng cho Admin List)
+  @Get('paginated')
+  findAllPaginated(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('cinema_id') cinema_id?: string,
+  ) {
+    return this.roomsService.findAllPaginated({
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 10,
+      cinema_id,
+    });
+  }
+
+  // API không phân trang (dùng cho dropdown)
   @Get()
   findAll() {
     return this.roomsService.findAll();

@@ -30,27 +30,57 @@ export default function AdminRoomsPage() {
     const [loading, setLoading] = useState(true);
     const [filterCinema, setFilterCinema] = useState('');
 
+    // Pagination states
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [total, setTotal] = useState(0);
+    const ITEMS_PER_PAGE = 10;
+
+    // Fetch cinemas (for filter dropdown)
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchCinemas = async () => {
             try {
-                const [roomsRes, cinemasRes] = await Promise.all([
-                    fetch(`${API_URL}/rooms`),
-                    fetch(`${API_URL}/cinemas`)
-                ]);
-                setRooms(await roomsRes.json());
-                setCinemas(await cinemasRes.json());
+                const res = await fetch(`${API_URL}/cinemas`);
+                setCinemas(await res.json());
+            } catch (error) {
+                console.error('Lỗi tải danh sách rạp:', error);
+            }
+        };
+        fetchCinemas();
+    }, [API_URL]);
+
+    // Fetch rooms with pagination
+    useEffect(() => {
+        const fetchRooms = async () => {
+            setLoading(true);
+            try {
+                const params = new URLSearchParams({
+                    page: currentPage.toString(),
+                    limit: ITEMS_PER_PAGE.toString(),
+                });
+                if (filterCinema) {
+                    params.append('cinema_id', filterCinema);
+                }
+
+                const res = await fetch(`${API_URL}/rooms/paginated?${params.toString()}`);
+                const data = await res.json();
+
+                setRooms(data.data || []);
+                setTotalPages(data.totalPages || 1);
+                setTotal(data.total || 0);
             } catch (error) {
                 console.error('Lỗi tải dữ liệu:', error);
             } finally {
                 setLoading(false);
             }
         };
-        fetchData();
-    }, [API_URL]);
+        fetchRooms();
+    }, [API_URL, currentPage, filterCinema]);
 
-    const filteredRooms = filterCinema
-        ? rooms.filter(r => r.cinema?._id === filterCinema)
-        : rooms;
+    // Reset page when filter changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filterCinema]);
 
     const handleDelete = async (id: string, name: string) => {
         if (!confirm(`Bạn có chắc muốn xóa phòng "${name}"?`)) return;
@@ -59,7 +89,9 @@ export default function AdminRoomsPage() {
             const res = await fetch(`${API_URL}/rooms/${id}`, { method: 'DELETE' });
             if (res.ok) {
                 alert('✅ Đã xóa phòng chiếu!');
-                setRooms(prev => prev.map(r => r._id === id ? { ...r, is_active: false } : r));
+                // Xóa khỏi danh sách UI
+                setRooms(prev => prev.filter(r => r._id !== id));
+                setTotal(prev => prev - 1);
             } else {
                 alert('❌ Không thể xóa phòng!');
             }
@@ -73,7 +105,7 @@ export default function AdminRoomsPage() {
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-800">Quản Lý Phòng Chiếu</h1>
-                    <p className="text-gray-500 mt-1">Tổng cộng {rooms.length} phòng</p>
+                    <p className="text-gray-500 mt-1">Tổng cộng {total} phòng</p>
                 </div>
                 <Link
                     href="/admin/rooms/create"
@@ -107,7 +139,7 @@ export default function AdminRoomsPage() {
                     <div className="flex items-center justify-center h-64">
                         <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                     </div>
-                ) : filteredRooms.length === 0 ? (
+                ) : rooms.length === 0 ? (
                     <div className="text-center py-16 text-gray-500">
                         <p className="text-lg font-medium">Không có phòng chiếu nào</p>
                     </div>
@@ -125,7 +157,7 @@ export default function AdminRoomsPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {filteredRooms.map((room) => (
+                            {rooms.map((room) => (
                                 <tr key={room._id} className="hover:bg-gray-50">
                                     <td className="px-4 py-3 font-medium text-gray-900">{room.name}</td>
                                     <td className="px-4 py-3 text-gray-700">{room.cinema?.name || 'N/A'}</td>
@@ -137,7 +169,7 @@ export default function AdminRoomsPage() {
                                     <td className="px-4 py-3 text-gray-700">{room.rows} x {room.columns}</td>
                                     <td className="px-4 py-3 text-gray-700">{room.total_seats} ghế</td>
                                     <td className="px-4 py-3">
-                                        {room.is_active ? (
+                                        {room.is_active !== false ? (
                                             <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-medium">
                                                 Hoạt động
                                             </span>
@@ -175,6 +207,38 @@ export default function AdminRoomsPage() {
                     </table>
                 )}
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-6">
+                    <button
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className={`px-4 py-2 rounded-lg font-medium transition ${currentPage === 1
+                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                            }`}
+                    >
+                        ← Trước
+                    </button>
+
+                    <span className="px-4 py-2 text-gray-600">
+                        Trang {currentPage} / {totalPages}
+                    </span>
+
+                    <button
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                        className={`px-4 py-2 rounded-lg font-medium transition ${currentPage === totalPages
+                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                            }`}
+                    >
+                        Sau →
+                    </button>
+                </div>
+            )}
         </div>
     );
 }
+
