@@ -4,8 +4,6 @@ import { useEffect, useState, useMemo } from 'react';
 import { ICinemaSystem, ICinema } from '@/types';
 import Pagination from '@/components/Pagination';
 
-const ITEMS_PER_PAGE = 10;
-
 export default function CinemasPage() {
   const [cinemas, setCinemas] = useState<ICinema[]>([]);
   const [cinemaSystems, setCinemaSystems] = useState<ICinemaSystem[]>([]);
@@ -24,6 +22,7 @@ export default function CinemasPage() {
   const [filterSystem, setFilterSystem] = useState('');
   const [filterCity, setFilterCity] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -178,11 +177,11 @@ export default function CinemasPage() {
   }, [searchTerm, filterSystem, filterCity]);
 
   // Phân trang: tính toán dữ liệu hiển thị
-  const totalPages = Math.ceil(filteredCinemas.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredCinemas.length / itemsPerPage);
   const paginatedCinemas = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredCinemas.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredCinemas, currentPage]);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredCinemas.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredCinemas, currentPage, itemsPerPage]);
 
   // Get system info
   const getSystemInfo = (cinema: ICinema) => {
@@ -348,7 +347,11 @@ export default function CinemasPage() {
           totalPages={totalPages}
           onPageChange={setCurrentPage}
           totalItems={filteredCinemas.length}
-          itemsPerPage={ITEMS_PER_PAGE}
+          itemsPerPage={itemsPerPage}
+          onLimitChange={(limit) => {
+            setItemsPerPage(limit);
+            setCurrentPage(1);
+          }}
         />
       </div>
 

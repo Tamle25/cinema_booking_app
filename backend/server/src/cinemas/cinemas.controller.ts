@@ -2,6 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/
 import { CinemasService } from './cinemas.service';
 import { CreateCinemaDto } from './dto/create-cinema.dto';
 import { UpdateCinemaDto } from './dto/update-cinema.dto';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 @Controller('cinemas')
 export class CinemasController {
@@ -15,6 +16,13 @@ export class CinemasController {
   @Get()
   findAll() {
     return this.cinemasService.findAll();
+  }
+
+  @Get('admin/list')
+  findAllPaginated(@Query() query: PaginationQueryDto) {
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 10;
+    return this.cinemasService.findAllPaginated(page, limit);
   }
 
   // API lấy danh sách khu vực (thành phố) có rạp chiếu

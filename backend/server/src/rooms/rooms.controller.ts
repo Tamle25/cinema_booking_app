@@ -12,8 +12,7 @@ export class RoomsController {
     return this.roomsService.create(createDto);
   }
 
-  // API có phân trang (dùng cho Admin List)
-  @Get('paginated')
+  @Get('admin/list')
   findAllPaginated(
     @Query('page') page?: string,
     @Query('limit') limit?: string,

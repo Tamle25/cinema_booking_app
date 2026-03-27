@@ -94,7 +94,7 @@ export class RoomsService {
     page?: number;
     limit?: number;
     cinema_id?: string;
-  }): Promise<{ data: Room[]; total: number; page: number; totalPages: number }> {
+  }): Promise<any> {
     const page = query?.page || 1;
     const limit = query?.limit || 10;
     const skip = (page - 1) * limit;
@@ -106,7 +106,7 @@ export class RoomsService {
       filter.cinema = query.cinema_id;
     }
 
-    const [data, total] = await Promise.all([
+    const [data, totalItems] = await Promise.all([
       this.roomModel
         .find(filter)
         .populate('cinema')
@@ -116,12 +116,20 @@ export class RoomsService {
         .exec(),
       this.roomModel.countDocuments(filter),
     ]);
+    
+    const totalPages = Math.ceil(totalItems / limit);
 
     return {
+      message: "Lấy danh sách phòng chiếu thành công",
       data,
-      total,
-      page,
-      totalPages: Math.ceil(total / limit),
+      meta: {
+        currentPage: page,
+        itemsPerPage: limit,
+        totalItems,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      }
     };
   }
 }

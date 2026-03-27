@@ -23,6 +23,35 @@ export class CinemasService {
     // .populate('cinema_system') giúp lấy luôn Logo, Tên hãng rạp kèm theo
     return this.cinemaModel.find().populate('cinema_system').exec();
   }
+
+  // Lấy danh sách rạp phân trang cho Admin
+  async findAllPaginated(page: number, limit: number): Promise<any> {
+    const skip = (page - 1) * limit;
+
+    const totalItems = await this.cinemaModel.countDocuments().exec();
+
+    const data = await this.cinemaModel
+      .find()
+      .populate('cinema_system')
+      .skip(skip)
+      .limit(limit)
+      .exec();
+
+    const totalPages = Math.ceil(totalItems / limit);
+
+    return {
+      message: "Lấy danh sách rạp thành công",
+      data,
+      meta: {
+        currentPage: page,
+        itemsPerPage: limit,
+        totalItems,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      }
+    };
+  }
   
   // Lấy rạp theo ID hệ thống (VD: Lấy tất cả rạp Beta)
   async findBySystem(systemId: string): Promise<Cinema[]> {

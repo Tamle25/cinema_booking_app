@@ -10,9 +10,40 @@ import { UpdateMovieDto } from './dto/update-movie.dto';
 export class MoviesService {
   constructor(@InjectModel(Movie.name) private movieModel: Model<Movie>) {}
 
-  // 1. Lấy tất cả phim (Mới nhất lên đầu)
+  // 1. Lấy tất cả phim (Mới nhất lên đầu) - Dùng cho Client
   async findAll(): Promise<Movie[]> {
     return this.movieModel.find().sort({ release_date: -1 }).exec();
+  }
+
+  // 1b. Lấy phim phân trang cho Admin
+  async findAllPaginated(page: number, limit: number): Promise<any> {
+    const skip = (page - 1) * limit;
+    
+    // Đếm tổng số document
+    const totalItems = await this.movieModel.countDocuments().exec();
+    
+    // Lấy data phân trang
+    const data = await this.movieModel
+      .find()
+      .sort({ release_date: -1 })
+      .skip(skip)
+      .limit(limit)
+      .exec();
+
+    const totalPages = Math.ceil(totalItems / limit);
+
+    return {
+      message: "Lấy danh sách phim thành công",
+      data,
+      meta: {
+        currentPage: page,
+        itemsPerPage: limit,
+        totalItems,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      }
+    };
   }
 
   // 2. Lấy 1 phim theo ID

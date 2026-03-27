@@ -89,6 +89,8 @@ export default function CreateShowtimePage() {
     const filteredRooms = useMemo(() => {
         if (!formData.cinema_id) return [];
         return rooms.filter(r => {
+            // Skip nếu room không có cinema
+            if (!r.cinema) return false;
             // Cinema có thể là object (populated) hoặc string (ID)
             const cinemaId = typeof r.cinema === 'object' ? r.cinema._id : r.cinema;
             // Chỉ lấy phòng đang hoạt động

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Pagination from '@/components/Pagination';
 
 interface IShowtime {
     _id: string;
@@ -53,7 +54,7 @@ export default function AdminShowtimesPage() {
     const [filterCinema, setFilterCinema] = useState('');
     const [filterDate, setFilterDate] = useState('');
 
-    const ITEMS_PER_PAGE = 10;
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     // Fetch filter options
     useEffect(() => {
@@ -79,18 +80,18 @@ export default function AdminShowtimesPage() {
             try {
                 const params = new URLSearchParams({
                     page: currentPage.toString(),
-                    limit: ITEMS_PER_PAGE.toString(),
+                    limit: itemsPerPage.toString(),
                 });
                 if (filterMovie) params.append('movie_id', filterMovie);
                 if (filterCinema) params.append('cinema_id', filterCinema);
                 if (filterDate) params.append('date', filterDate);
 
-                const res = await fetch(`${API_URL}/showtimes?${params.toString()}`);
-                const data = await res.json();
+                const res = await fetch(`${API_URL}/showtimes/admin/list?${params.toString()}`);
+                const responseData = await res.json();
 
-                setShowtimes(data.data || []);
-                setTotalPages(data.totalPages || 1);
-                setTotal(data.total || 0);
+                setShowtimes(responseData.data || []);
+                setTotalPages(responseData.meta?.totalPages || 1);
+                setTotal(responseData.meta?.totalItems || 0);
             } catch (error) {
                 console.error('Lỗi tải suất chiếu:', error);
             } finally {
@@ -321,35 +322,17 @@ export default function AdminShowtimesPage() {
             </div>
 
             {/* Pagination */}
-            {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-2 mt-6">
-                    <button
-                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                        disabled={currentPage === 1}
-                        className={`px-4 py-2 rounded-lg font-medium transition ${currentPage === 1
-                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-                            }`}
-                    >
-                        ← Trước
-                    </button>
-
-                    <span className="px-4 py-2 text-gray-600">
-                        Trang {currentPage} / {totalPages}
-                    </span>
-
-                    <button
-                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                        disabled={currentPage === totalPages}
-                        className={`px-4 py-2 rounded-lg font-medium transition ${currentPage === totalPages
-                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-                            }`}
-                    >
-                        Sau →
-                    </button>
-                </div>
-            )}
+            <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                totalItems={total}
+                itemsPerPage={itemsPerPage}
+                onLimitChange={(limit) => {
+                    setItemsPerPage(limit);
+                    setCurrentPage(1);
+                }}
+            />
         </div>
     );
 }

@@ -5,8 +5,6 @@ import Link from 'next/link';
 import { IMovie } from '@/types/index';
 import Pagination from '@/components/Pagination';
 
-const ITEMS_PER_PAGE = 10;
-
 export default function MovieListPage() {
   const [movies, setMovies] = useState<IMovie[]>([]);
   const [loading, setLoading] = useState(true);
@@ -14,6 +12,7 @@ export default function MovieListPage() {
   const [filterGenre, setFilterGenre] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -73,11 +72,11 @@ export default function MovieListPage() {
   }, [searchTerm, filterGenre, filterStatus]);
 
   // Phân trang
-  const totalPages = Math.ceil(filteredMovies.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredMovies.length / itemsPerPage);
   const paginatedMovies = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredMovies.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredMovies, currentPage]);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredMovies.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredMovies, currentPage, itemsPerPage]);
 
   // --- HÀM QUAN TRỌNG ĐÃ ĐƯỢC SỬA ---
   const getMovieStatus = (movie: IMovie) => {
@@ -267,7 +266,11 @@ export default function MovieListPage() {
           totalPages={totalPages}
           onPageChange={setCurrentPage}
           totalItems={filteredMovies.length}
-          itemsPerPage={ITEMS_PER_PAGE}
+          itemsPerPage={itemsPerPage}
+          onLimitChange={(limit) => {
+            setItemsPerPage(limit);
+            setCurrentPage(1); // Reset vế trang 1 khi đổi limit
+          }}
         />
       </div>
     </div>

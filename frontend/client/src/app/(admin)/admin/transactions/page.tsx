@@ -3,8 +3,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import Pagination from '@/components/Pagination';
 
-const ITEMS_PER_PAGE = 10;
-
 interface ITransaction {
   _id: string;
   showtime: {
@@ -42,6 +40,7 @@ export default function TransactionsPage() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDate, setFilterDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -114,11 +113,11 @@ export default function TransactionsPage() {
   }, [searchTerm, filterStatus, filterDate]);
 
   // Phân trang: tính toán dữ liệu hiển thị
-  const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
   const paginatedTransactions = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredTransactions.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredTransactions, currentPage]);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredTransactions.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredTransactions, currentPage, itemsPerPage]);
 
   // Calculate total revenue
   const totalRevenue = filteredTransactions.reduce((sum, t) => sum + (t.total_price || 0), 0);
@@ -313,7 +312,11 @@ export default function TransactionsPage() {
           totalPages={totalPages}
           onPageChange={setCurrentPage}
           totalItems={filteredTransactions.length}
-          itemsPerPage={ITEMS_PER_PAGE}
+          itemsPerPage={itemsPerPage}
+          onLimitChange={(limit) => {
+            setItemsPerPage(limit);
+            setCurrentPage(1);
+          }}
         />
       </div>
     </div>

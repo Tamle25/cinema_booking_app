@@ -6,17 +6,14 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
   totalItems: number;
   itemsPerPage: number;
+  onLimitChange?: (limit: number) => void;
+  limitOptions?: number[];
 }
 
 /**
- * Component phân trang dùng chung cho các trang Admin
+ * Component phân trang chuẩn cho các trang Admin
  * 
- * Props:
- * - currentPage: Trang hiện tại (bắt đầu từ 1)
- * - totalPages: Tổng số trang
- * - onPageChange: Callback khi đổi trang
- * - totalItems: Tổng số bản ghi
- * - itemsPerPage: Số bản ghi mỗi trang
+ * Màu chủ đạo: Tím (Purple)
  */
 export default function Pagination({
   currentPage,
@@ -24,152 +21,145 @@ export default function Pagination({
   onPageChange,
   totalItems,
   itemsPerPage,
+  onLimitChange,
+  limitOptions = [10, 20, 50, 100],
 }: PaginationProps) {
-  // Luôn render container để giữ layout ổn định
-  // Nếu chỉ có 1 trang hoặc không có data, hiển thị placeholder với chiều cao cố định
-  if (totalPages <= 1) {
+  // Nếu không có dữ liệu, hiển thị placeholder
+  if (totalItems === 0) {
     return (
-      <div className="flex items-center justify-between px-6 py-4 bg-white border-t border-gray-100 min-h-[60px]">
-        <div className="text-sm text-gray-500">
-          {totalItems > 0 ? (
-            <>Hiển thị <span className="font-medium text-gray-700">{totalItems}</span> bản ghi</>
-          ) : (
-            <span>&nbsp;</span>
-          )}
-        </div>
-        <div>&nbsp;</div>
+      <div className="flex items-center justify-center px-6 py-8 bg-white border-t border-gray-100">
+        <p className="text-sm text-gray-400 italic">Không có dữ liệu hiển thị</p>
       </div>
     );
   }
 
-  // Tính số bản ghi đang hiển thị
   const startItem = (currentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
 
-  // Tạo mảng số trang để hiển thị (tối đa 5 trang)
+  // Thuật toán hiển thị số trang với Ellipsis
   const getPageNumbers = (): (number | string)[] => {
     const pages: (number | string)[] = [];
-    const maxVisible = 5;
-
-    if (totalPages <= maxVisible) {
-      // Hiển thị tất cả nếu <= 5 trang
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
     } else {
-      // Luôn hiển thị trang đầu
-      pages.push(1);
-
-      if (currentPage > 3) {
-        pages.push('...');
-      }
-
-      // Hiển thị các trang xung quanh trang hiện tại
-      const start = Math.max(2, currentPage - 1);
-      const end = Math.min(totalPages - 1, currentPage + 1);
-
-      for (let i = start; i <= end; i++) {
-        if (!pages.includes(i)) {
-          pages.push(i);
-        }
-      }
-
-      if (currentPage < totalPages - 2) {
-        pages.push('...');
-      }
-
-      // Luôn hiển thị trang cuối
-      if (!pages.includes(totalPages)) {
-        pages.push(totalPages);
+      if (currentPage <= 3) {
+        pages.push(1, 2, 3, 4, '...', totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
       }
     }
-
     return pages;
   };
 
   const pageNumbers = getPageNumbers();
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 bg-white border-t border-gray-100 min-h-[60px]">
-      {/* Thông tin số bản ghi */}
-      <div className="text-sm text-gray-500">
-        Hiển thị <span className="font-medium text-gray-700">{startItem}</span> đến{' '}
-        <span className="font-medium text-gray-700">{endItem}</span> trong tổng số{' '}
-        <span className="font-medium text-gray-700">{totalItems}</span> bản ghi
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-4 px-6 bg-white border-t border-gray-100">
+      {/* Left: Info & Limit Select */}
+      <div className="flex items-center gap-4 text-sm text-gray-500">
+        <div>
+          Hiển thị <span className="font-medium text-gray-900">{startItem}</span> - {' '}
+          <span className="font-medium text-gray-900">{endItem}</span> trên {' '}
+          <span className="font-medium text-gray-900">{totalItems}</span>
+        </div>
+
+        {/* Dropdown chọn itemsPerPage */}
+        {onLimitChange && (
+          <div className="flex items-center gap-2 pl-4 border-l border-gray-200">
+            <label htmlFor="limit-select" className="hidden sm:inline-block text-gray-500">Hiển thị:</label>
+            <select
+              id="limit-select"
+              value={itemsPerPage}
+              onChange={(e) => onLimitChange(Number(e.target.value))}
+              className="bg-transparent border border-gray-200 text-gray-700 rounded-lg py-1 px-2 text-sm outline-none transition-all focus:border-purple-500 focus:ring-1 focus:ring-purple-500 hover:border-gray-300 cursor-pointer"
+            >
+              {limitOptions.map((limit) => (
+                <option key={limit} value={limit}>
+                  {limit}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
-      {/* Các nút phân trang */}
-      <div className="flex items-center gap-1">
-        {/* Nút Previous */}
-        <button
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          className={`p-2 rounded-lg transition ${
-            currentPage === 1
-              ? 'text-gray-300 cursor-not-allowed'
-              : 'text-gray-600 hover:bg-gray-100'
-          }`}
-          title="Trang trước"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-
-        {/* Số trang */}
-        {pageNumbers.map((page, index) => (
+      {/* Right: Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center gap-1.5">
+          {/* Nút Previous */}
           <button
-            key={index}
-            onClick={() => typeof page === 'number' && onPageChange(page)}
-            disabled={page === '...'}
-            className={`min-w-[40px] h-10 px-3 rounded-lg text-sm font-medium transition ${
-              page === currentPage
-                ? 'bg-blue-600 text-white shadow-sm'
-                : page === '...'
-                ? 'text-gray-400 cursor-default'
-                : 'text-gray-600 hover:bg-gray-100'
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className={`flex items-center justify-center p-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+              currentPage === 1
+                ? 'text-gray-300 cursor-not-allowed opacity-50'
+                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800 active:scale-95'
             }`}
+            title="Trang trước"
           >
-            {page}
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
           </button>
-        ))}
 
-        {/* Nút Next */}
-        <button
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className={`p-2 rounded-lg transition ${
-            currentPage === totalPages
-              ? 'text-gray-300 cursor-not-allowed'
-              : 'text-gray-600 hover:bg-gray-100'
-          }`}
-          title="Trang sau"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-      </div>
+          {/* Page Numbers */}
+          {pageNumbers.map((page, index) => {
+            if (page === '...') {
+              return (
+                <span key={`ellipsis-${index}`} className="flex items-center justify-center min-w-[36px] h-[36px] text-gray-400 pointer-events-none select-none">
+                  ...
+                </span>
+              );
+            }
+
+            const isCurrent = page === currentPage;
+
+            return (
+              <button
+                key={index}
+                onClick={() => typeof page === 'number' && onPageChange(page)}
+                className={`min-w-[36px] h-[36px] flex items-center justify-center rounded-lg text-sm transition-all duration-200 ${
+                  isCurrent
+                    ? 'bg-purple-600 text-white font-semibold shadow-sm shadow-purple-200'
+                    : 'text-gray-600 font-medium hover:bg-gray-100 hover:text-gray-900 active:scale-95'
+                }`}
+              >
+                {page}
+              </button>
+            );
+          })}
+
+          {/* Nút Next */}
+          <button
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className={`flex items-center justify-center p-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+              currentPage === totalPages
+                ? 'text-gray-300 cursor-not-allowed opacity-50'
+                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800 active:scale-95'
+            }`}
+            title="Trang sau"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-/**
- * Helper hook để sử dụng pagination
- * 
- * Cách dùng:
- * const { paginatedData, currentPage, setCurrentPage, totalPages } = usePagination(data, 10);
- */
-export function usePagination<T>(data: T[], itemsPerPage: number = 10) {
-  // Import useState từ React
+export function usePagination<T>(data: T[], defaultItemsPerPage: number = 10) {
   const { useState, useMemo, useEffect } = require('react');
-  
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(defaultItemsPerPage);
 
-  // Reset về trang 1 khi data thay đổi
   useEffect(() => {
     setCurrentPage(1);
-  }, [data.length]);
+  }, [data.length, itemsPerPage]);
 
   const totalPages = Math.ceil(data.length / itemsPerPage);
 
@@ -185,5 +175,6 @@ export function usePagination<T>(data: T[], itemsPerPage: number = 10) {
     totalPages,
     totalItems: data.length,
     itemsPerPage,
+    setItemsPerPage,
   };
 }

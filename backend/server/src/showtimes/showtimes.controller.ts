@@ -25,6 +25,23 @@ export class ShowtimesController {
     });
   }
 
+  @Get('admin/list')
+  findAllPaginated(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('cinema_id') cinema_id?: string,
+    @Query('movie_id') movie_id?: string,
+    @Query('date') date?: string,
+  ) {
+    return this.showtimesService.findAllPaginated({
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 10,
+      cinema_id,
+      movie_id,
+      date,
+    });
+  }
+
   @Post()
   create(@Body() createDto: CreateShowtimeDto) {
     return this.showtimesService.create(createDto);

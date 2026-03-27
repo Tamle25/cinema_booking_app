@@ -130,6 +130,63 @@ export class ShowtimesService {
     };
   }
 
+  // Lấy tất cả suất chiếu (có phân trang và filter) chuẩn hoá Admin
+  async findAllPaginated(query?: {
+    page?: number;
+    limit?: number;
+    cinema_id?: string;
+    movie_id?: string;
+    date?: string;
+  }): Promise<any> {
+    const page = query?.page || 1;
+    const limit = query?.limit || 10;
+    const skip = (page - 1) * limit;
+
+    const filter: any = { is_active: true };
+
+    if (query?.cinema_id) {
+      filter.cinema = query.cinema_id;
+    }
+    if (query?.movie_id) {
+      filter.movie = query.movie_id;
+    }
+    if (query?.date) {
+      const startOfDay = new Date(query.date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(query.date);
+      endOfDay.setHours(23, 59, 59, 999);
+      filter.start_time = { $gte: startOfDay, $lte: endOfDay };
+    }
+
+    const [data, totalItems] = await Promise.all([
+      this.showtimeModel
+        .find(filter)
+        .populate('movie', 'title poster_url duration')
+        .populate('cinema', 'name')
+        .populate('room', 'name type')
+        .sort({ start_time: -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.showtimeModel.countDocuments(filter),
+    ]);
+    
+    const totalPages = Math.ceil(totalItems / limit);
+
+    return {
+      message: "Lấy danh sách suất chiếu thành công",
+      data,
+      meta: {
+        currentPage: page,
+        itemsPerPage: limit,
+        totalItems,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      }
+    };
+  }
+
   async create(createDto: CreateShowtimeDto): Promise<Showtime> {
     const { movie_id, cinema_id, room_id, start_time, ...rest } = createDto;
 
