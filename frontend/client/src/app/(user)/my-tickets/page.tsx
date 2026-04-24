@@ -34,6 +34,12 @@ interface IBooking {
   total_price: number;
   status: 'pending' | 'confirmed' | 'cancelled' | 'used';
   createdAt: string;
+  combos?: {
+    combo_id: string;
+    name: string;
+    price: number;
+    quantity: number;
+  }[];
 }
 
 // Format date helper
@@ -151,6 +157,16 @@ const TicketCard = ({ booking, onViewDetail }: { booking: IBooking; onViewDetail
                     {booking.showtime?.room?.name} ({booking.showtime?.room?.type}) • Ghế: <span className="font-semibold text-gray-900">{booking.seats?.join(', ')}</span>
                   </span>
                 </div>
+
+                {/* Combos (nếu có) */}
+                {booking.combos && booking.combos.length > 0 && (
+                  <div className="flex items-start gap-2">
+                    <span className="w-4 h-4 flex flex-shrink-0 items-center justify-center text-sm grayscale mt-0.5">🍿</span>
+                    <span className="flex-1">
+                      Kèm <span className="font-semibold text-gray-900">{booking.combos.reduce((sum, c) => sum + c.quantity, 0)}</span> phần bắp nước
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -289,6 +305,23 @@ const TicketDetailModal = ({ booking, onClose }: { booking: IBooking; onClose: (
                 <p className="font-semibold text-gray-900">{booking.seats?.join(', ')}</p>
               </div>
             </div>
+
+            {/* Chi tiết Bắp nước */}
+            {booking.combos && booking.combos.length > 0 && (
+              <div className="pt-4 border-t border-gray-100">
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Bắp Nước Đã Chọn</p>
+                <div className="space-y-2">
+                  {booking.combos.map((combo, index) => (
+                    <div key={index} className="flex justify-between items-center">
+                      <p className="text-sm font-semibold text-gray-900">
+                        {combo.name} <span className="text-gray-500 font-normal">x{combo.quantity}</span>
+                      </p>
+                      <p className="text-sm text-gray-700">{formatCurrency(combo.price * combo.quantity)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="pt-4 border-t border-gray-100">
               <div className="flex justify-between items-center">

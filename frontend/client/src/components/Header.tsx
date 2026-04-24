@@ -351,18 +351,26 @@ const Header = () => {
 
                 {/* User Info Dropdown */}
                 <div className="flex items-center gap-2 pl-2 border-l border-gray-200">
-                  <div className="hidden sm:block text-right">
-                    <p className="text-xs text-gray-500 leading-none">Xin chào</p>
-                    <p className="text-sm font-semibold text-gray-900 leading-tight truncate max-w-[100px]">
-                      {user.full_name}
-                    </p>
-                  </div>
-                  <div className="w-9 h-9 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
-                    {user.full_name?.charAt(0)?.toUpperCase() || 'U'}
-                  </div>
+                  <Link href="/profile" className="flex items-center gap-2 group" title="Hồ sơ cá nhân">
+                    <div className="hidden sm:block text-right">
+                      <p className="text-xs text-gray-500 leading-none group-hover:text-red-500 transition-colors">Xin chào</p>
+                      <p className="text-sm font-semibold text-gray-900 leading-tight truncate max-w-[100px] group-hover:text-red-600 transition-colors">
+                        {user.full_name}
+                      </p>
+                    </div>
+                    {user.avatar_url ? (
+                      <div className="w-9 h-9 rounded-full overflow-hidden border border-gray-200 shadow-md">
+                        <img src={user.avatar_url.startsWith('http') ? user.avatar_url : `${API_URL}${user.avatar_url}`} alt={user.full_name} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="w-9 h-9 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
+                        {user.full_name?.charAt(0)?.toUpperCase() || 'U'}
+                      </div>
+                    )}
+                  </Link>
                   <button 
                     onClick={logout}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-1"
                     title="Đăng xuất"
                   >
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

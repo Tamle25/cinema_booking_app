@@ -17,4 +17,27 @@ export class UsersService {
   async findOne(email: string): Promise<UserDocument | null> {
     return this.userModel.findOne({ email }).exec();
   }
+
+  // Hàm tìm user theo ID
+  async findById(id: string): Promise<UserDocument | null> {
+    return this.userModel.findById(id).exec();
+  }
+
+  // Cập nhật thông tin profile
+  async updateProfile(id: string, updateData: { full_name?: string; avatar_url?: string }): Promise<UserDocument | null> {
+    return this.userModel.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    ).exec();
+  }
+
+  // Cập nhật mật khẩu
+  async updatePassword(id: string, hashPassword: string): Promise<UserDocument | null> {
+    return this.userModel.findByIdAndUpdate(
+      id,
+      { $set: { password: hashPassword } },
+      { new: true }
+    ).exec();
+  }
 }

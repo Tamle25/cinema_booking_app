@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { MoviesModule } from './movies/movies.module';
@@ -11,6 +13,8 @@ import { CinemaSystemsModule } from './cinema-systems/cinema-systems.module';
 import { AuthModule } from './auth/auth.module';
 import { RoomsModule } from './rooms/rooms.module';
 import { PaymentsModule } from './payments/payments.module';
+import { CombosModule } from './combos/combos.module';
+import { PromotionsModule } from './promotions/promotions.module';
 
 @Module({
   imports: [
@@ -27,6 +31,13 @@ import { PaymentsModule } from './payments/payments.module';
       }),
       inject: [ConfigService],
     }),
+
+    // 3. Serve static files (uploads)
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'uploads'),
+      serveRoot: '/uploads',
+    }),
+
     MoviesModule,
     ShowtimesModule,
     CinemasModule,
@@ -35,8 +46,10 @@ import { PaymentsModule } from './payments/payments.module';
     AuthModule,
     RoomsModule,
     PaymentsModule,
+    CombosModule,
+    PromotionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule {}

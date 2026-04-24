@@ -22,7 +22,7 @@ export class PaymentsController {
   @UseGuards(AuthGuard('jwt'))
   @Post('create-momo')
   async createMomoPayment(
-    @Body() body: { showtime_id: string; seats: string[]; payment_type?: string },
+    @Body() body: { showtime_id: string; seats: string[]; payment_type?: string; combos?: Array<{ combo_id: string; quantity: number }> },
     @Req() req: Request & { user: any },
   ) {
     const userId = req.user._id || req.user.id;
@@ -32,6 +32,7 @@ export class PaymentsController {
       seats: body.seats,
       user_id: userId,
       payment_type: (body.payment_type as any) || 'captureWallet',
+      combos: body.combos || [],
     };
 
     return this.paymentsService.createMomoPayment(createDto);
@@ -92,6 +93,42 @@ export class PaymentsController {
       },
     };
   }
+
+  /**
+   * API: Thanh toán lại đơn hàng pending
+   * POST /payments/retry
+   * Body: { bookingId, payment_type? }
+   * - Tạo MoMo orderId mới cho cùng booking (không lock ghế lại)
+   */
+  @UseGuards(AuthGuard('jwt'))
+  @Post('retry')
+  async retryPayment(
+    @Body() body: { bookingId: string; payment_type?: string },
+    @Req() req: Request & { user: any },
+  ) {
+    const userId = req.user._id || req.user.id;
+    return this.paymentsService.retryPayment(
+      body.bookingId,
+      userId,
+      (body.payment_type as any) || undefined,
+    );
+  }
+
+  /**
+   * API: Hủy đơn hàng pending (user chủ động hủy, release ghế ngay)
+   * POST /payments/cancel-booking
+   * Body: { bookingId }
+   */
+  @UseGuards(AuthGuard('jwt'))
+  @Post('cancel-booking')
+  async cancelPendingBooking(
+    @Body() body: { bookingId: string },
+    @Req() req: Request & { user: any },
+  ) {
+    const userId = req.user._id || req.user.id;
+    return this.paymentsService.cancelPendingBooking(body.bookingId, userId);
+  }
+
 
   /**
    * API: Test tạo URL thanh toán MoMo

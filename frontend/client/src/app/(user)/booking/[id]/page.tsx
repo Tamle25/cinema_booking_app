@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { IShowtime } from '@/types';
+import { IShowtime, ISelectedCombo } from '@/types';
+import ComboSelector from '@/components/ComboSelector';
 
 // Hàm chuyển đổi số thành chữ (0 -> A, 1 -> B...)
 const getRowLabel = (index: number) => {
@@ -20,10 +21,16 @@ export default function BookingPage() {
   const [processing, setProcessing] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPaymentType, setSelectedPaymentType] = useState<'captureWallet' | 'payWithATM' | 'payWithCC'>('captureWallet');
+  const [selectedCombos, setSelectedCombos] = useState<ISelectedCombo[]>([]);
+  const [pendingBooking, setPendingBooking] = useState<any>(null);
+  const [showPendingModal, setShowPendingModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState(false);
+  const [showComboModal, setShowComboModal] = useState(false);
+
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
   // 1. Lấy dữ liệu suất chiếu
   useEffect(() => {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
     const fetchShowtime = async () => {
       try {
         const res = await fetch(`${API_URL}/showtimes/${showtimeId}`);
@@ -36,7 +43,124 @@ export default function BookingPage() {
       }
     };
     if (showtimeId) fetchShowtime();
-  }, [showtimeId]);
+  }, [showtimeId, API_URL]);
+
+  // 1b. Kiểm tra xem user có booking pending cho suất chiếu này không
+  useEffect(() => {
+    const checkPendingBooking = async () => {
+      const token = localStorage.getItem('access_token');
+      if (!token || !showtimeId) return;
+
+      try {
+        const res = await fetch(`${API_URL}/bookings/my-bookings`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const bookings = await res.json();
+
+        // Tìm booking pending cho showtime này
+        const pending = bookings.find(
+          (b: any) => b.status === 'pending' &&
+            (b.showtime?._id === showtimeId || b.showtime === showtimeId)
+        );
+
+        if (pending) {
+          setPendingBooking(pending);
+          setShowPendingModal(true);
+        }
+      } catch (error) {
+        console.error('Lỗi kiểm tra booking pending:', error);
+      }
+    };
+    checkPendingBooking();
+  }, [showtimeId, API_URL]);
+
+  // Xử lý Thanh Toán Lại booking pending
+  const handleRetryPending = async () => {
+    if (!pendingBooking) return;
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      alert('Bạn cần đăng nhập!');
+      router.push('/login');
+      return;
+    }
+
+    setPendingAction(true);
+    try {
+      const res = await fetch(`${API_URL}/payments/retry`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ bookingId: pendingBooking._id }),
+      });
+      const data = await res.json();
+
+      if (res.status === 401) {
+        alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!');
+        localStorage.removeItem('access_token');
+        router.push('/login');
+        return;
+      }
+
+      if (res.ok && data.payUrl) {
+        window.location.href = data.payUrl;
+      } else {
+        alert(data.message || 'Không thể thanh toán lại. Đơn hàng có thể đã hết hạn.');
+        setShowPendingModal(false);
+        setPendingBooking(null);
+        setPendingAction(false);
+      }
+    } catch (error) {
+      console.error('Lỗi retry:', error);
+      alert('Có lỗi xảy ra.');
+      setPendingAction(false);
+    }
+  };
+
+  // Xử lý Hủy booking pending
+  const handleCancelPending = async () => {
+    if (!pendingBooking) return;
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+
+    setPendingAction(true);
+    try {
+      const res = await fetch(`${API_URL}/payments/cancel-booking`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ bookingId: pendingBooking._id }),
+      });
+
+      if (res.status === 401) {
+        alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!');
+        localStorage.removeItem('access_token');
+        router.push('/login');
+        return;
+      }
+
+      if (res.ok) {
+        setShowPendingModal(false);
+        setPendingBooking(null);
+        // Reload dữ liệu showtime để cập nhật ghế đã được release
+        const showtimeRes = await fetch(`${API_URL}/showtimes/${showtimeId}`);
+        const showtimeData = await showtimeRes.json();
+        setShowtime(showtimeData);
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Không thể hủy đơn hàng.');
+      }
+      setPendingAction(false);
+    } catch (error) {
+      console.error('Lỗi cancel:', error);
+      alert('Có lỗi xảy ra.');
+      setPendingAction(false);
+    }
+  };
 
   // 2. Xử lý chọn ghế
   const handleSeatClick = (seatName: string, isBooked: boolean) => {
@@ -53,7 +177,7 @@ export default function BookingPage() {
     }
   };
 
-  // 3. Mở modal xác nhận thanh toán
+  // 3. Mở modal chọn combo thay vì payment
   const handleProceedToPayment = () => {
     if (selectedSeats.length === 0) {
       alert("Vui lòng chọn ít nhất 1 ghế!");
@@ -67,12 +191,16 @@ export default function BookingPage() {
       return;
     }
 
+    setShowComboModal(true);
+  };
+
+  const handleProceedFromComboToPayment = () => {
+    setShowComboModal(false);
     setShowPaymentModal(true);
   };
 
   // 4. Xử lý thanh toán MoMo
   const handleMomoPayment = async () => {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
     const token = localStorage.getItem('access_token');
     setProcessing(true);
     setShowPaymentModal(false);
@@ -87,11 +215,22 @@ export default function BookingPage() {
         body: JSON.stringify({
           showtime_id: showtimeId,
           seats: selectedSeats,
-          payment_type: selectedPaymentType
+          payment_type: selectedPaymentType,
+          combos: selectedCombos.map(sc => ({
+            combo_id: sc.combo._id,
+            quantity: sc.quantity,
+          })),
         })
       });
 
       const data = await res.json();
+
+      if (res.status === 401) {
+        alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!');
+        localStorage.removeItem('access_token');
+        router.push('/login');
+        return;
+      }
 
       if (res.ok && data.payUrl) {
         // Redirect đến trang thanh toán MoMo
@@ -122,6 +261,11 @@ export default function BookingPage() {
   // ------------------------------
 
   const { room, price, booked_seats } = showtime;
+
+  // Tính tổng tiền combo
+  const comboTotal = selectedCombos.reduce((sum, sc) => sum + sc.combo.price * sc.quantity, 0);
+  const ticketTotal = selectedSeats.length * price;
+  const grandTotal = ticketTotal + comboTotal;
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center py-10">
@@ -197,8 +341,10 @@ export default function BookingPage() {
         </div>
       </div>
 
+      <div className="mb-24"></div>
+
       {/* FOOTER THANH TOÁN (STICKY) */}
-      <div className="fixed bottom-0 left-0 w-full bg-gray-800 border-t border-gray-700 p-4">
+      <div className="fixed bottom-0 left-0 w-full bg-gray-800 border-t border-gray-700 p-4 z-40">
         <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
 
           <div>
@@ -212,8 +358,13 @@ export default function BookingPage() {
             <div className="text-right">
               <p className="text-gray-400 text-sm">Tổng tiền:</p>
               <p className="text-2xl font-bold text-green-400">
-                {(selectedSeats.length * price).toLocaleString()}đ
+                {grandTotal.toLocaleString()}đ
               </p>
+              {comboTotal > 0 && (
+                <p className="text-xs text-gray-500">
+                  (Vé: {ticketTotal.toLocaleString()}đ + Combo: {comboTotal.toLocaleString()}đ)
+                </p>
+              )}
             </div>
 
             <button
@@ -234,12 +385,70 @@ export default function BookingPage() {
         </div>
       </div>
 
+      {/* MODAL CHỌN COMBO (UP-SELLING) */}
+      {showComboModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-gray-900 rounded-3xl max-w-4xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-gray-800">
+            {/* Header Modal */}
+            <div className="flex justify-between items-center p-6 border-b border-gray-800">
+              <div>
+                <h2 className="text-2xl font-bold text-yellow-500 leading-tight">Thêm chút bỏng nước nhé? 🍿</h2>
+                <p className="text-gray-400 text-sm mt-1">Hoàn thiện trải nghiệm xem phim của bạn.</p>
+              </div>
+              <button 
+                onClick={handleProceedFromComboToPayment}
+                className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 hover:bg-gray-700 hover:text-white transition"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Body - Combo Selector */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+              <ComboSelector
+                selectedCombos={selectedCombos}
+                onCombosChange={setSelectedCombos}
+                cinemaId={showtime?.cinema?._id}
+              />
+            </div>
+
+            {/* Footer Modal */}
+            <div className="p-6 bg-gray-900 border-t border-gray-800 flex flex-col sm:flex-row items-center gap-3 justify-between flex-shrink-0">
+              <button
+                onClick={handleProceedFromComboToPayment}
+                className="w-full sm:w-auto px-6 py-3 bg-transparent border-2 border-gray-600 text-gray-300 rounded-xl font-bold hover:bg-gray-800 hover:text-white transition-colors order-2 sm:order-1"
+              >
+                Bỏ qua & Thanh toán
+              </button>
+              
+              <div className="w-full sm:w-auto flex items-center gap-4 relative order-1 sm:order-2">
+                 <div className="hidden sm:block text-right">
+                   <div className="text-xs text-gray-400 font-medium">Tổng (Vé + Combo)</div>
+                   <div className="text-xl font-bold text-green-400">{grandTotal.toLocaleString()} đ</div>
+                 </div>
+                 <button
+                   onClick={handleProceedFromComboToPayment}
+                   className="w-full sm:w-auto px-8 py-3 bg-red-600 text-white rounded-xl font-bold text-lg hover:bg-red-700 hover:shadow-lg hover:shadow-red-500/30 transition-all flex items-center justify-center gap-2"
+                 >
+                   Tiếp tục 
+                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                   </svg>
+                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL XÁC NHẬN THANH TOÁN MOMO */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             {/* Header */}
-            <div className="bg-gradient-to-r from-pink-500 to-pink-600 px-6 py-4">
+            <div className="bg-gradient-to-r from-pink-500 to-pink-600 px-6 py-4 flex-shrink-0">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
@@ -249,7 +458,7 @@ export default function BookingPage() {
             </div>
 
             {/* Content */}
-            <div className="p-6">
+            <div className="p-6 flex-1 overflow-y-auto">
               {/* Order Summary */}
               <div className="bg-gray-50 rounded-xl p-4 mb-6">
                 <h3 className="text-sm font-semibold text-gray-700 mb-3">Thông tin đơn hàng</h3>
@@ -268,11 +477,43 @@ export default function BookingPage() {
                     <span className="text-gray-600">Ghế:</span>
                     <span className="font-semibold text-gray-900">{selectedSeats.join(', ')}</span>
                   </div>
+                  {/* Chi tiết combo trong modal */}
+                  {selectedCombos.length > 0 && (
+                    <>
+                      <div className="border-t pt-2 mt-2">
+                        <span className="text-gray-500 text-xs font-semibold">Bắp nước:</span>
+                      </div>
+                      <div className="max-h-28 overflow-y-auto pr-1 space-y-1">
+                        {selectedCombos.map((sc) => (
+                          <div key={sc.combo._id} className="flex justify-between">
+                            <span className="text-gray-600 text-sm">{sc.combo.name} × {sc.quantity}</span>
+                            <span className="font-medium text-gray-900 text-sm">
+                              {(sc.combo.price * sc.quantity).toLocaleString()}đ
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Tổng tiền:</span>
+                      <span className="text-gray-600">Tiền vé:</span>
+                      <span className="font-medium text-gray-900">
+                        {ticketTotal.toLocaleString()}đ
+                      </span>
+                    </div>
+                    {comboTotal > 0 && (
+                      <div className="flex justify-between mt-1">
+                        <span className="text-gray-600">Tiền bắp nước:</span>
+                        <span className="font-medium text-gray-900">
+                          {comboTotal.toLocaleString()}đ
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between mt-2 pt-2 border-t">
+                      <span className="font-semibold text-gray-700">Tổng cộng:</span>
                       <span className="font-bold text-red-600 text-xl">
-                        {(selectedSeats.length * price).toLocaleString()}đ
+                        {grandTotal.toLocaleString()}đ
                       </span>
                     </div>
                   </div>
@@ -375,7 +616,7 @@ export default function BookingPage() {
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 bg-gray-50 border-t flex gap-3">
+            <div className="px-6 py-4 bg-gray-50 border-t flex gap-3 flex-shrink-0">
               <button
                 onClick={() => setShowPaymentModal(false)}
                 className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-colors"
@@ -403,6 +644,86 @@ export default function BookingPage() {
                     Thanh Toán Ngay
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CẢNH BÁO BOOKING PENDING */}
+      {showPendingModal && pendingBooking && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                Đơn Hàng Chưa Thanh Toán
+              </h2>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <p className="text-gray-700 mb-4">
+                Bạn có đơn hàng chưa hoàn tất thanh toán cho suất chiếu này:
+              </p>
+
+              <div className="bg-gray-50 rounded-xl p-4 mb-6 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Ghế:</span>
+                  <span className="font-semibold text-gray-900">{pendingBooking.seats?.join(', ')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Tổng tiền:</span>
+                  <span className="font-bold text-red-600">
+                    {pendingBooking.total_price?.toLocaleString()}đ
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Trạng thái:</span>
+                  <span className="font-semibold text-amber-600">Chờ thanh toán</span>
+                </div>
+              </div>
+
+              <p className="text-sm text-gray-500 mb-4">
+                Bạn muốn thanh toán tiếp đơn này hay hủy để đặt vé mới?
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-gray-50 border-t flex flex-col gap-3">
+              <button
+                onClick={handleRetryPending}
+                disabled={pendingAction}
+                className="w-full px-4 py-3 bg-pink-600 text-white rounded-xl font-semibold hover:bg-pink-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {pendingAction ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Đang xử lý...
+                  </>
+                ) : (
+                  'Thanh Toán Tiếp'
+                )}
+              </button>
+              <button
+                onClick={handleCancelPending}
+                disabled={pendingAction}
+                className="w-full px-4 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50"
+              >
+                Hủy Đơn & Đặt Vé Mới
+              </button>
+              <button
+                onClick={() => setShowPendingModal(false)}
+                disabled={pendingAction}
+                className="w-full px-4 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-colors disabled:opacity-50"
+              >
+                Để Sau
               </button>
             </div>
           </div>

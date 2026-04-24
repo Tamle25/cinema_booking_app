@@ -1,0 +1,97 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname, join } from 'path';
+import { CombosService } from './combos.service';
+import { CreateComboDto } from './dto/create-combo.dto';
+import { UpdateComboDto } from './dto/update-combo.dto';
+
+// Cấu hình multer storage cho upload ảnh combo
+const comboStorage = diskStorage({
+  destination: join(process.cwd(), 'uploads', 'combos'),
+  filename: (req, file, callback) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = extname(file.originalname);
+    callback(null, `combo-${uniqueSuffix}${ext}`);
+  },
+});
+
+@Controller('combos')
+export class CombosController {
+  constructor(private readonly combosService: CombosService) {}
+
+  // GET /combos — Lấy danh sách combo active (cho user)
+  @Get()
+  findActive(
+    @Query('cinemaSystemId') cinemaSystemId?: string,
+    @Query('cinemaId') cinemaId?: string,
+  ) {
+    return this.combosService.findActive(cinemaSystemId, cinemaId);
+  }
+
+  // GET /combos/all — Lấy tất cả combo (cho admin)
+  @Get('all')
+  findAll(@Query('cinemaSystemId') cinemaSystemId?: string) {
+    return this.combosService.findAll(cinemaSystemId);
+  }
+
+  // GET /combos/:id — Lấy chi tiết combo
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.combosService.findOne(id);
+  }
+
+  // POST /combos — Tạo combo mới
+  @Post()
+  create(@Body() createComboDto: CreateComboDto) {
+    return this.combosService.create(createComboDto);
+  }
+
+  // POST /combos/upload — Upload ảnh combo
+  @Post('upload')
+  @UseInterceptors(
+    FileInterceptor('image', {
+      storage: comboStorage,
+      fileFilter: (req, file, callback) => {
+        if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
+          return callback(new Error('Chỉ chấp nhận file ảnh!'), false);
+        }
+        callback(null, true);
+      },
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB
+      },
+    }),
+  )
+  uploadImage(@UploadedFile() file: any) {
+    if (!file) {
+      return { error: 'Không có file nào được upload' };
+    }
+    // Trả về đường dẫn tương đối để frontend hiển thị
+    const imageUrl = `/uploads/combos/${file.filename}`;
+    return { image_url: imageUrl };
+  }
+
+  // PUT /combos/:id — Cập nhật combo
+  @Put(':id')
+  update(@Param('id') id: string, @Body() updateComboDto: UpdateComboDto) {
+    return this.combosService.update(id, updateComboDto);
+  }
+
+  // DELETE /combos/:id — Xóa combo
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.combosService.remove(id);
+  }
+}

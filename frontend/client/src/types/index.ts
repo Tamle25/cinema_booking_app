@@ -64,4 +64,55 @@ export interface IBooking {
   total_price: number;
   status: string;
   createdAt: string;
+  combos?: IBookingCombo[];
+}
+
+// Combo bắp nước
+export interface ICombo {
+  _id: string;
+  name: string;
+  description: string;
+  price: number;
+  image_url: string;
+  category: 'combo' | 'drink' | 'snack';
+  is_active: boolean;
+  is_popular: boolean;
+  cinema_system?: ICinemaSystem | string;
+}
+
+// Combo đã chọn (dùng trong state frontend)
+export interface ISelectedCombo {
+  combo: ICombo;
+  quantity: number;
+}
+
+// Combo lưu trong booking (snapshot)
+export interface IBookingCombo {
+  combo_id: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+// Khuyến mãi
+export interface IPromotion {
+  _id: string;
+  title: string;
+  description: string;
+  image: string;
+  type: 'hot' | 'sale' | 'free' | 'event';
+  discount_value: number;
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+  createdAt: string;
+}
+
+// Hệ thống rạp đối tác (alias cho cinema system dùng ở homepage)
+export interface ICinemaChain {
+  _id: string;
+  name: string;
+  slug: string;
+  logo_url?: string;
+  color_code?: string;
 }

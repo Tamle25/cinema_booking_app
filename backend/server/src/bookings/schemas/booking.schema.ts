@@ -42,6 +42,23 @@ export class Booking {
   // Ghi chú thanh toán
   @Prop()
   payment_note: string;
+
+  // Combo bắp nước đã chọn (snapshot giá tại thời điểm đặt)
+  @Prop({
+    type: [{
+      combo_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Combo' },
+      name: String,
+      price: Number,
+      quantity: Number,
+    }],
+    default: [],
+  })
+  combos: Array<{
+    combo_id: string;
+    name: string;
+    price: number;
+    quantity: number;
+  }>;
 }
 
 export const BookingSchema = SchemaFactory.createForClass(Booking);

@@ -16,6 +16,8 @@ function MomoReturnContent() {
   const router = useRouter();
   const [result, setResult] = useState<PaymentResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [retrying, setRetrying] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [momoInfo, setMomoInfo] = useState<{
     amount?: string;
     orderId?: string;
@@ -23,6 +25,8 @@ function MomoReturnContent() {
     resultCode?: string;
     message?: string;
   }>({});
+
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
   useEffect(() => {
     const verifyPayment = async () => {
@@ -44,7 +48,7 @@ function MomoReturnContent() {
 
         // Gọi API backend để xác thực
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/payments/momo-return?${params.toString()}`
+          `${API_URL}/payments/momo-return?${params.toString()}`
         );
         const data = await response.json();
         setResult(data);
@@ -60,13 +64,102 @@ function MomoReturnContent() {
     };
 
     verifyPayment();
-  }, [searchParams]);
+  }, [searchParams, API_URL]);
 
   // Format số tiền
   const formatAmount = (amount?: string) => {
     if (!amount) return '0';
     const num = parseInt(amount);
     return num.toLocaleString('vi-VN');
+  };
+
+  // Xử lý Thanh Toán Lại (Retry) — tạo phiên MoMo mới với orderId mới
+  const handleRetryPayment = async () => {
+    if (!result?.bookingId) {
+      alert('Không tìm thấy mã đặt vé để thử lại.');
+      return;
+    }
+
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      alert('Bạn cần đăng nhập để thực hiện thanh toán.');
+      router.push('/login');
+      return;
+    }
+
+    setRetrying(true);
+    try {
+      const response = await fetch(`${API_URL}/payments/retry`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          bookingId: result.bookingId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.payUrl) {
+        // Redirect đến trang thanh toán MoMo mới
+        window.location.href = data.payUrl;
+      } else {
+        alert(data.message || 'Không thể tạo lại thanh toán. Vui lòng đặt vé mới.');
+        setRetrying(false);
+      }
+    } catch (error) {
+      console.error('Lỗi retry payment:', error);
+      alert('Có lỗi xảy ra, vui lòng thử lại.');
+      setRetrying(false);
+    }
+  };
+
+  // Xử lý Hủy Đơn — release ghế ngay lập tức
+  const handleCancelBooking = async () => {
+    if (!result?.bookingId) {
+      router.push('/');
+      return;
+    }
+
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      router.push('/');
+      return;
+    }
+
+    if (!confirm('Bạn có chắc muốn hủy đơn hàng này? Ghế sẽ được mở lại cho người khác.')) {
+      return;
+    }
+
+    setCancelling(true);
+    try {
+      const response = await fetch(`${API_URL}/payments/cancel-booking`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          bookingId: result.bookingId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert('Đã hủy đơn hàng. Bạn có thể đặt vé mới.');
+        router.push('/');
+      } else {
+        alert(data.message || 'Không thể hủy đơn hàng.');
+        setCancelling(false);
+      }
+    } catch (error) {
+      console.error('Lỗi cancel booking:', error);
+      alert('Có lỗi xảy ra.');
+      setCancelling(false);
+    }
   };
 
   if (loading) {
@@ -163,12 +256,43 @@ function MomoReturnContent() {
                 </>
               ) : (
                 <>
-                  <button
-                    onClick={() => router.back()}
-                    className="block w-full bg-pink-600 text-white text-center py-3 rounded-xl font-semibold hover:bg-pink-700 transition-colors"
-                  >
-                    Thử Lại
-                  </button>
+                  {/* Nút Thanh Toán Lại — Tạo phiên MoMo mới (orderId mới) */}
+                  {result?.bookingId && (
+                    <button
+                      onClick={handleRetryPayment}
+                      disabled={retrying || cancelling}
+                      className="block w-full bg-pink-600 text-white text-center py-3 rounded-xl font-semibold hover:bg-pink-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {retrying ? (
+                        <>
+                          <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          Đang tạo thanh toán mới...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          Thanh Toán Lại
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  {/* Nút Hủy Đơn & Đặt Lại — Release ghế ngay */}
+                  {result?.bookingId && (
+                    <button
+                      onClick={handleCancelBooking}
+                      disabled={retrying || cancelling}
+                      className="block w-full bg-orange-500 text-white text-center py-3 rounded-xl font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50"
+                    >
+                      {cancelling ? 'Đang hủy đơn...' : 'Hủy Đơn & Đặt Vé Mới'}
+                    </button>
+                  )}
+
                   <Link
                     href="/"
                     className="block w-full bg-gray-100 text-gray-700 text-center py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
@@ -206,3 +330,4 @@ export default function MomoReturnPage() {
     </Suspense>
   );
 }
+

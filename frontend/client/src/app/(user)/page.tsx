@@ -3,6 +3,11 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import axios from "axios";
 import MovieCard from "@/components/MovieCard";
+import ShowtimesSection from "@/components/ShowtimesSection";
+import FeaturedMoviesSection from "@/components/HomePage/FeaturedMoviesSection";
+import PromotionsSection from "@/components/HomePage/PromotionsSection";
+import CinemaPartnersSection from "@/components/HomePage/CinemaPartnersSection";
+import { IMovie } from "@/types";
 
 // Định nghĩa kiểu dữ liệu (phải khớp với Backend)
 interface Movie {
@@ -58,6 +63,9 @@ export default function HomePage() {
   const totalPagesNowShowing = Math.ceil(nowShowingMovies.length / MOVIES_PER_PAGE);
   const totalPagesComingSoon = Math.ceil(comingSoonMovies.length / MOVIES_PER_PAGE);
 
+  // State cho dữ liệu IMovie đầy đủ (dùng cho hero banner)
+  const [fullMovies, setFullMovies] = useState<IMovie[]>([]);
+
   // Gọi API lấy danh sách phim
   useEffect(() => {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -65,6 +73,7 @@ export default function HomePage() {
       try {
         const res = await axios.get(`${API_URL}/movies`);
         setMovies(res.data);
+        setFullMovies(res.data);
       } catch (error) {
         console.error("Lỗi tải phim:", error);
       }
@@ -202,42 +211,8 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-gray-100">
-      {/* 1. Hero Banner */}
-      <div className="relative w-full h-[400px] bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          }} />
-        </div>
-
-        {/* Content */}
-        <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-4">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4">
-            Trải Nghiệm Điện Ảnh <span className="text-red-500">Đỉnh Cao</span>
-          </h1>
-          <p className="text-gray-300 text-lg md:text-xl max-w-2xl mb-8">
-            Đặt vé xem phim trực tuyến nhanh chóng, tiện lợi tại hơn 500 rạp trên toàn quốc
-          </p>
-          <div className="flex gap-4">
-            <a
-              href="/booking"
-              className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-full font-semibold transition-colors shadow-lg hover:shadow-red-600/30"
-            >
-              Đặt Vé Ngay
-            </a>
-            <a
-              href="#now-showing"
-              className="bg-white/10 hover:bg-white/20 text-white px-8 py-3 rounded-full font-semibold transition-colors backdrop-blur-sm border border-white/20"
-            >
-              Xem Phim
-            </a>
-          </div>
-        </div>
-
-        {/* Decorative Elements */}
-        <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-gray-100 to-transparent" />
-      </div>
+      {/* 1. Hero Banner - Featured Movies Carousel */}
+      <FeaturedMoviesSection movies={fullMovies} />
 
       {/* 2. Phần Danh Sách Phim Đang Chiếu */}
       <div id="now-showing" className="max-w-7xl mx-auto px-4 py-12">
@@ -520,6 +495,15 @@ export default function HomePage() {
           )}
         </div>
       )}
+
+      {/* 4. Phần Lịch Chiếu Phim Tích Hợp */}
+      <ShowtimesSection />
+
+      {/* 5. Phần Khuyến Mãi */}
+      <PromotionsSection />
+
+      {/* 6. Hệ Thống Rạp Đối Tác */}
+      <CinemaPartnersSection />
     </main>
   );
 }

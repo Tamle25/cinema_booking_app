@@ -4,12 +4,14 @@ import { Model } from 'mongoose';
 import { MomoService, MomoCallbackParams, MomoPaymentType } from './momo.service';
 import { Booking } from '../bookings/schemas/booking.schema';
 import { Showtime } from '../showtimes/schemas/showtime.schema';
+import { CombosService } from '../combos/combos.service';
 
 export interface CreatePaymentDto {
   showtime_id: string;
   seats: string[];
   user_id: string;
   payment_type?: MomoPaymentType; // Thêm option chọn phương thức: captureWallet | payWithATM | payWithCC
+  combos?: Array<{ combo_id: string; quantity: number }>; // Combo bắp nước
 }
 
 export interface PaymentResult {
@@ -27,6 +29,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     @InjectModel(Booking.name) private bookingModel: Model<Booking>,
     @InjectModel(Showtime.name) private showtimeModel: Model<Showtime>,
     private readonly momoService: MomoService,
+    private readonly combosService: CombosService,
   ) { }
 
   /**
@@ -86,8 +89,23 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       throw new BadRequestException('Ghế đã có người đặt!');
     }
 
-    // Tính tổng tiền
-    const totalPrice = showtime.price * seats.length;
+    // Tính tiền vé
+    const ticketPrice = showtime.price * seats.length;
+
+    // Validate và tính tiền combo (nếu có)
+    let validatedCombos: Array<{ combo_id: string; name: string; price: number; quantity: number }> = [];
+    let comboPrice = 0;
+
+    if (createDto.combos && createDto.combos.length > 0) {
+      validatedCombos = await this.combosService.validateCombos(
+        createDto.combos,
+        showtime.cinema.toString(),
+      );
+      comboPrice = validatedCombos.reduce((sum, c) => sum + c.price * c.quantity, 0);
+    }
+
+    // Tổng tiền = vé + combo
+    const totalPrice = ticketPrice + comboPrice;
 
     // MoMo yêu cầu số tiền tối thiểu 1000 VND
     if (totalPrice < 1000) {
@@ -103,6 +121,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       user: user_id,
       seats: seats,
       total_price: totalPrice,
+      combos: validatedCombos, // Lưu snapshot combo
       status: 'pending', // Trạng thái chờ thanh toán
       payment_method: 'momo',
       momo_order_id: momoOrderId, // Lưu mã đơn hàng MoMo
@@ -123,7 +142,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     const momoResponse = await this.momoService.createPaymentUrl({
       orderId: momoOrderId,
       amount: totalPrice,
-      orderInfo: `Thanh toan ve xem phim - ${seats.length} ghe`,
+      orderInfo: `Thanh toan ve xem phim - ${seats.length} ghe${validatedCombos.length > 0 ? ` + ${validatedCombos.length} combo` : ''}`,
       extraData: extraData,
       paymentType: createDto.payment_type || 'captureWallet', // Sử dụng payment_type từ request
     });
@@ -402,6 +421,115 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     await this.showtimeModel.findByIdAndUpdate(booking.showtime, {
       $pull: { booked_seats: { $in: booking.seats } },
     });
+  }
+
+  /**
+   * Thanh toán lại đơn hàng đang Pending
+   * - Tạo MoMo orderId MỚI cho cùng booking (MoMo yêu cầu orderId unique mỗi lần)
+   * - KHÔNG lock ghế lại (ghế đã được lock từ lần đầu)
+   * - Kiểm tra booking chưa expired (còn trong 15 phút)
+   */
+  async retryPayment(
+    bookingId: string,
+    userId: string,
+    paymentType?: MomoPaymentType,
+  ): Promise<{ payUrl: string; bookingId: string; orderId: string }> {
+    // 1. Tìm booking pending của user
+    const booking = await this.bookingModel.findOne({
+      _id: bookingId,
+      user: userId,
+      status: 'pending',
+    });
+
+    if (!booking) {
+      throw new BadRequestException('Đơn hàng không tồn tại hoặc đã được xử lý');
+    }
+
+    // 2. Kiểm tra booking chưa quá hạn (15 phút)
+    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+    const bookingCreatedAt = (booking as any).createdAt;
+    if (bookingCreatedAt && new Date(bookingCreatedAt) < fifteenMinutesAgo) {
+      // Booking đã quá hạn → hủy luôn
+      await this.releaseSeats(booking);
+      await this.bookingModel.findByIdAndUpdate(bookingId, {
+        status: 'expired',
+        payment_note: 'Hết thời gian thanh toán',
+      });
+      throw new BadRequestException('Đơn hàng đã hết hạn thanh toán. Vui lòng đặt vé mới.');
+    }
+
+    // 3. Tạo MoMo orderId MỚI HOÀN TOÀN
+    const newMomoOrderId = this.momoService.generateOrderId();
+
+    // 4. Cập nhật orderId mới vào booking
+    await this.bookingModel.findByIdAndUpdate(bookingId, {
+      momo_order_id: newMomoOrderId,
+    });
+
+    // 5. Mã hóa extraData
+    const extraData = Buffer.from(JSON.stringify({ bookingId })).toString('base64');
+
+    // 6. Tạo orderInfo
+    const comboCount = booking.combos?.length || 0;
+    const orderInfo = `Thanh toan ve xem phim - ${booking.seats.length} ghe${comboCount > 0 ? ` + ${comboCount} combo` : ''}`;
+
+    // 7. Gọi MoMo API với orderId mới
+    const momoResponse = await this.momoService.createPaymentUrl({
+      orderId: newMomoOrderId,
+      amount: booking.total_price,
+      orderInfo,
+      extraData,
+      paymentType: paymentType || 'captureWallet',
+    });
+
+    console.log('=== RETRY MOMO PAYMENT ===');
+    console.log('BookingId:', bookingId);
+    console.log('Old OrderId:', booking.momo_order_id);
+    console.log('New OrderId:', newMomoOrderId);
+    console.log('Amount:', booking.total_price);
+    console.log('MoMo Response:', JSON.stringify(momoResponse, null, 2));
+
+    if (momoResponse.resultCode !== 0) {
+      throw new BadRequestException(`Không thể tạo thanh toán MoMo: ${momoResponse.message}`);
+    }
+
+    return {
+      payUrl: momoResponse.payUrl,
+      bookingId,
+      orderId: newMomoOrderId,
+    };
+  }
+
+  /**
+   * Hủy đơn hàng pending (user chủ động hủy, không cần chờ cronjob 15 phút)
+   * - Release ghế ngay lập tức
+   * - Update status = cancelled
+   */
+  async cancelPendingBooking(bookingId: string, userId: string): Promise<{ message: string }> {
+    const booking = await this.bookingModel.findOne({
+      _id: bookingId,
+      user: userId,
+      status: 'pending',
+    });
+
+    if (!booking) {
+      throw new BadRequestException('Đơn hàng không tồn tại hoặc đã được xử lý');
+    }
+
+    // Release ghế
+    await this.releaseSeats(booking);
+
+    // Update status
+    await this.bookingModel.findByIdAndUpdate(bookingId, {
+      status: 'cancelled',
+      payment_note: 'Người dùng hủy đơn hàng',
+    });
+
+    console.log('=== CANCEL PENDING BOOKING ===');
+    console.log('BookingId:', bookingId);
+    console.log('Seats released:', booking.seats);
+
+    return { message: 'Đã hủy đơn hàng và hoàn lại ghế thành công' };
   }
 
   /**

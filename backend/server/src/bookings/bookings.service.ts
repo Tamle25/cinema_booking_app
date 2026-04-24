@@ -10,11 +10,11 @@ export class BookingsService {
   constructor(
     @InjectModel(Booking.name) private bookingModel: Model<Booking>,
     @InjectModel(Showtime.name) private showtimeModel: Model<Showtime>,
-  ) {}
+  ) { }
 
   async createBooking(createDto: CreateBookingDto): Promise<Booking> {
     const { showtime_id, seats, user_id } = createDto;
-    
+
     // 1. Kiểm tra user_id
     if (!user_id) {
       throw new BadRequestException('Bạn cần đăng nhập để đặt vé!');

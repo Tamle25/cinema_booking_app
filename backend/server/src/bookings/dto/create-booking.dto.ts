@@ -7,7 +7,7 @@ export class CreateBookingDto {
 
   @IsNotEmpty()
   @IsMongoId()
-  user_id: string; 
+  user_id: string;
 
   @IsNotEmpty()
   @IsArray()
