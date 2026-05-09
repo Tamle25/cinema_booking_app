@@ -16,7 +16,6 @@ export default function CreateMoviePage() {
     trailer_url: '',
     genre: '',
     duration: 0,
-    rating: 0,
     release_date: '',
     is_active: true
   });
@@ -26,7 +25,7 @@ export default function CreateMoviePage() {
     // Chuyển đổi số cho đúng kiểu dữ liệu
     setFormData(prev => ({
       ...prev,
-      [name]: (name === 'duration' || name === 'rating') ? Number(value) : value
+      [name]: name === 'duration' ? Number(value) : value
     }));
   };
 
@@ -125,10 +124,6 @@ export default function CreateMoviePage() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Thời lượng (phút)</label>
             <input type="number" name="duration" required onChange={handleChange} className="w-full border border-gray-300 p-2 rounded text-gray-900 placeholder:text-gray-400" placeholder="120" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Điểm (Rating)</label>
-            <input type="number" step="0.1" name="rating" onChange={handleChange} className="w-full border border-gray-300 p-2 rounded bg-yellow-50 text-gray-900 placeholder:text-gray-400" placeholder="0.0" />
           </div>
         </div>
 

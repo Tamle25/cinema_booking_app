@@ -17,9 +17,6 @@ export class UpdateMovieDto {
   @IsString()
   trailer_url?: string;
 
-  @IsOptional()
-  @IsNumber()
-  rating?: number;
 
   @IsOptional()
   @IsBoolean()

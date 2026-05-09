@@ -5,7 +5,8 @@ import axios from "axios";
 import MovieCard from "@/components/MovieCard";
 import ShowtimesSection from "@/components/ShowtimesSection";
 import FeaturedMoviesSection from "@/components/HomePage/FeaturedMoviesSection";
-import PromotionsSection from "@/components/HomePage/PromotionsSection";
+
+import FeaturedReviewsSection from "@/components/HomePage/FeaturedReviewsSection";
 import CinemaPartnersSection from "@/components/HomePage/CinemaPartnersSection";
 import { IMovie } from "@/types";
 
@@ -499,8 +500,8 @@ export default function HomePage() {
       {/* 4. Phần Lịch Chiếu Phim Tích Hợp */}
       <ShowtimesSection />
 
-      {/* 5. Phần Khuyến Mãi */}
-      <PromotionsSection />
+      {/* 5. Bình Luận Nổi Bật */}
+      <FeaturedReviewsSection />
 
       {/* 6. Hệ Thống Rạp Đối Tác */}
       <CinemaPartnersSection />

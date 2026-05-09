@@ -18,9 +18,6 @@ export class CreateMovieDto {
   @IsString()
   trailer_url?: string;
 
-  @IsOptional()
-  @IsNumber()
-  rating?: number; 
 
   @IsOptional()
   @IsBoolean()

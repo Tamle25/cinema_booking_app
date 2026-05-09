@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { IMovie, IShowtime, ICinemaSystem, ICinema } from '@/types';
+import { IMovie, IShowtime, ICinemaSystem, ICinema, IReview } from '@/types';
 import Link from 'next/link';
 import { VIETNAM_PROVINCES } from '@/constants/provinces';
 
@@ -39,6 +39,13 @@ export default function MovieDetailPage() {
   const [showtimes, setShowtimes] = useState<IShowtime[]>([]);
   const [relatedMovies, setRelatedMovies] = useState<IMovie[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Reviews states
+  const [reviews, setReviews] = useState<IReview[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsPage, setReviewsPage] = useState(1);
+  const [hasMoreReviews, setHasMoreReviews] = useState(false);
+  const [totalReviews, setTotalReviews] = useState(0);
 
   // New states for booking flow
   const [cities, setCities] = useState<string[]>([]);
@@ -96,6 +103,53 @@ export default function MovieDetailPage() {
 
     if (id) fetchData();
   }, [id]);
+
+  // Fetch reviews
+  const fetchReviews = useCallback(async (page: number, reset = false) => {
+    if (!id) return;
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    try {
+      setReviewsLoading(true);
+      const res = await fetch(`${API_URL}/reviews/${id}?page=${page}&limit=10&sort=highest_rating`);
+      const json = await res.json();
+      if (reset) {
+        setReviews(json.data || []);
+      } else {
+        setReviews(prev => [...prev, ...(json.data || [])]);
+      }
+      setHasMoreReviews(json.meta?.hasNextPage || false);
+      setTotalReviews(json.meta?.totalItems || 0);
+    } catch (err) {
+      console.error('Lỗi tải reviews:', err);
+    } finally {
+      setReviewsLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    if (id) {
+      setReviewsPage(1);
+      fetchReviews(1, true);
+    }
+  }, [id, fetchReviews]);
+
+  const handleLoadMoreReviews = () => {
+    const next = reviewsPage + 1;
+    setReviewsPage(next);
+    fetchReviews(next);
+  };
+
+  // Helper: relative time
+  const getRelativeTime = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins} phút trước`;
+    const hrs = Math.floor(diff / 3600000);
+    if (hrs < 24) return `${hrs} giờ trước`;
+    const days = Math.floor(diff / 86400000);
+    if (days < 30) return `${days} ngày trước`;
+    return new Date(dateStr).toLocaleDateString('vi-VN');
+  };
 
   // Reset brand when city changes
   useEffect(() => {
@@ -414,6 +468,7 @@ export default function MovieDetailPage() {
           </div>
         </div>
 
+
         {/* CỘT PHẢI: Phim nổi bật (Sidebar) (Chiếm 1 phần) */}
         <div className="lg:col-span-1">
           <h3 className="text-xl font-bold mb-6 text-gray-800">Phim Đang Chiếu</h3>
@@ -437,6 +492,90 @@ export default function MovieDetailPage() {
           </div>
         </div>
 
+      </div>
+
+      {/* --- PHẦN 3: BÌNH LUẬN PHIM --- */}
+      <div className="container mx-auto px-4 py-12 bg-white">
+        <div className="max-w-4xl">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-2xl font-bold border-l-4 border-red-500 pl-3 text-gray-800">
+              Bình Luận Phim
+              {totalReviews > 0 && (
+                <span className="text-base font-normal text-gray-400 ml-2">({totalReviews})</span>
+              )}
+            </h2>
+          </div>
+
+          {/* Reviews List */}
+          {reviews.length === 0 && !reviewsLoading ? (
+            <div className="text-center py-16 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+              <svg className="w-14 h-14 mx-auto text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              <p className="text-gray-500 font-medium">Chưa có đánh giá nào</p>
+              <p className="text-gray-400 text-sm mt-1">Hãy mua vé và trở thành người đầu tiên đánh giá!</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {reviews.map((rv) => {
+                const userName = rv.user?.full_name || 'Người dùng';
+                const userInitial = userName.charAt(0).toUpperCase();
+                return (
+                  <div key={rv._id} className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md transition-shadow">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                        {userInitial}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-gray-900 text-sm">{userName}</span>
+                          {rv.is_verified && (
+                            <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-green-200">
+                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                              Đã mua vé
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <div className="flex gap-0.5">
+                            {Array.from({ length: 10 }).map((_, i) => (
+                              <svg key={i} className={`w-3.5 h-3.5 ${i < rv.rating ? 'text-yellow-400' : 'text-gray-200'}`} fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                              </svg>
+                            ))}
+                          </div>
+                          <span className="text-sm font-bold text-yellow-600">{rv.rating}/10</span>
+                          <span className="text-xs text-gray-400">•</span>
+                          <span className="text-xs text-gray-400">{getRelativeTime(rv.createdAt)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="mt-3 text-gray-700 text-sm leading-relaxed">{rv.content}</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Loading */}
+          {reviewsLoading && (
+            <div className="flex justify-center py-8">
+              <div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+
+          {/* Xem thêm */}
+          {hasMoreReviews && !reviewsLoading && (
+            <div className="text-center mt-8">
+              <button
+                onClick={handleLoadMoreReviews}
+                className="px-8 py-3 bg-white border border-gray-200 text-gray-700 font-medium rounded-full hover:border-red-300 hover:text-red-600 transition-all shadow-sm"
+              >
+                Xem thêm đánh giá
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

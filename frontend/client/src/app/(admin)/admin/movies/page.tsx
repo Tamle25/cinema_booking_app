@@ -220,9 +220,14 @@ export default function MovieListPage() {
                       <span className="text-sm text-gray-700">{movie.duration} phút</span>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700">
-                        ★ {movie.rating || 'N/A'}
-                      </span>
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700">
+                          ★ {movie.rating || 0}
+                        </span>
+                        <span className="text-[10px] text-gray-400">
+                          {movie.review_count || 0} đánh giá
+                        </span>
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-center">
                       {/* Badge trạng thái */}

@@ -31,6 +31,9 @@ export class Movie {
   @Prop({ default: 0 })
   rating: number;
 
+  @Prop({ default: 0 })
+  review_count: number;
+
   @Prop({ default: true })
   is_active: boolean;
 

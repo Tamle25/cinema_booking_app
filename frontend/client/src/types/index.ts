@@ -50,6 +50,7 @@ export interface IMovie {
   genre: string;
   duration: number;
   rating: number;   
+  review_count: number;
   release_date: string;
   is_active: boolean;
   createdAt: string;
@@ -94,20 +95,6 @@ export interface IBookingCombo {
   quantity: number;
 }
 
-// Khuyến mãi
-export interface IPromotion {
-  _id: string;
-  title: string;
-  description: string;
-  image: string;
-  type: 'hot' | 'sale' | 'free' | 'event';
-  discount_value: number;
-  start_date: string;
-  end_date: string;
-  is_active: boolean;
-  createdAt: string;
-}
-
 // Hệ thống rạp đối tác (alias cho cinema system dùng ở homepage)
 export interface ICinemaChain {
   _id: string;
@@ -115,4 +102,30 @@ export interface ICinemaChain {
   slug: string;
   logo_url?: string;
   color_code?: string;
+}
+
+// Review phim
+export interface IReviewUser {
+  _id: string;
+  full_name: string;
+  avatar_url?: string;
+}
+
+export interface IReview {
+  _id: string;
+  user: IReviewUser;
+  movie: IMovie | string;
+  rating: number;
+  content: string;
+  is_verified: boolean;
+  likes_count: number;
+  is_liked?: boolean;
+  createdAt: string;
+}
+
+export interface IFeaturedReview {
+  movie: IMovie;
+  rating_avg: number;
+  review_count: number;
+  reviews: IReview[];
 }

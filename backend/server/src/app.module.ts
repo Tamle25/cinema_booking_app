@@ -14,7 +14,8 @@ import { AuthModule } from './auth/auth.module';
 import { RoomsModule } from './rooms/rooms.module';
 import { PaymentsModule } from './payments/payments.module';
 import { CombosModule } from './combos/combos.module';
-import { PromotionsModule } from './promotions/promotions.module';
+import { ReviewsModule } from './reviews/reviews.module';
+
 
 @Module({
   imports: [
@@ -47,7 +48,7 @@ import { PromotionsModule } from './promotions/promotions.module';
     RoomsModule,
     PaymentsModule,
     CombosModule,
-    PromotionsModule,
+    ReviewsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -272,8 +272,8 @@ const Header = () => {
               <Link href="#" className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                 Tin Tức
               </Link>
-              <Link href="#" className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                Khuyến Mãi
+              <Link href="/reviews" className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                Review Phim
               </Link>
             </div>
           </nav>
@@ -489,8 +489,8 @@ const Header = () => {
             <Link href="#" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors">
               Tin Tức
             </Link>
-            <Link href="#" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors">
-              Khuyến Mãi
+            <Link href="/reviews" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors">
+              Review Phim
             </Link>
           </nav>
         </div>
