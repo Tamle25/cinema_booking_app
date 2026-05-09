@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -90,5 +91,13 @@ export class ReviewsController {
   deleteReview(@Param('id') id: string, @Request() req: any) {
     const userId = req.user._id || req.user.id;
     return this.reviewsService.deleteReview(id, userId);
+  }
+
+  // PATCH /reviews/:id — Sửa review (chỉ chính chủ)
+  @UseGuards(AuthGuard('jwt'))
+  @Patch(':id')
+  updateReview(@Param('id') id: string, @Body() dto: CreateReviewDto, @Request() req: any) {
+    const userId = req.user._id || req.user.id;
+    return this.reviewsService.updateReview(id, userId, dto);
   }
 }

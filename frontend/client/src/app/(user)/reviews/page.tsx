@@ -63,9 +63,9 @@ export default function ReviewsPage() {
   };
 
   const sortOptions = [
-    { value: "hot", label: "Đang hot" },
-    { value: "highest_rating", label: "Rating cao" },
-    { value: "newest", label: "Mới cập nhật" },
+    { value: "hot", label: "Đang hot", icon: "🔥" },
+    { value: "highest_rating", label: "Rating cao", icon: "⭐" },
+    { value: "newest", label: "Mới cập nhật", icon: "🆕" },
   ];
 
   return (

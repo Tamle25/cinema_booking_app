@@ -10,6 +10,7 @@ import { Review, ReviewDocument } from './schemas/review.schema';
 import { ReviewLike, ReviewLikeDocument } from './schemas/review-like.schema';
 import { Movie } from '../movies/schemas/movie.schema';
 import { Booking } from '../bookings/schemas/booking.schema';
+import { Showtime } from '../showtimes/schemas/showtime.schema';
 import { CreateReviewDto } from './dto/create-review.dto';
 
 @Injectable()
@@ -19,6 +20,7 @@ export class ReviewsService {
     @InjectModel(ReviewLike.name) private reviewLikeModel: Model<ReviewLikeDocument>,
     @InjectModel(Movie.name) private movieModel: Model<Movie>,
     @InjectModel(Booking.name) private bookingModel: Model<Booking>,
+    @InjectModel(Showtime.name) private showtimeModel: Model<Showtime>,
   ) {}
 
   /**
@@ -36,18 +38,10 @@ export class ReviewsService {
       throw new NotFoundException('Không tìm thấy phim');
     }
 
-    // 2. Kiểm tra user đã mua vé và thanh toán thành công
-    const hasPaidBooking = await this.bookingModel.findOne({
-      user: userId,
-      status: 'confirmed',
-    }).populate({
-      path: 'showtime',
-      match: { movie: movie_id },
-    });
-
-    // Kiểm tra cả showtime có match movie không
-    if (!hasPaidBooking || !hasPaidBooking.showtime) {
-      throw new ForbiddenException('Bạn cần mua vé và thanh toán thành công để đánh giá phim này');
+    // 2. Kiểm tra user đã mua vé và thanh toán thành công, và suất chiếu đã kết thúc chưa
+    const checkStatus = await this.checkUserHasTicket(userId, movie_id);
+    if (!checkStatus.canReview) {
+      throw new ForbiddenException(checkStatus.message);
     }
 
     // 3. Kiểm tra đã review chưa
@@ -264,6 +258,29 @@ export class ReviewsService {
   }
 
   /**
+   * Cập nhật review (chỉ chính chủ)
+   */
+  async updateReview(reviewId: string, userId: string, dto: CreateReviewDto) {
+    const review = await this.reviewModel.findById(reviewId);
+    if (!review) {
+      throw new NotFoundException('Không tìm thấy đánh giá');
+    }
+
+    if (review.user.toString() !== userId) {
+      throw new ForbiddenException('Bạn không có quyền sửa đánh giá này');
+    }
+
+    review.rating = dto.rating;
+    review.content = dto.content;
+    await review.save();
+
+    // Cập nhật lại rating trung bình của phim
+    await this.updateMovieRating(review.movie.toString());
+
+    return review;
+  }
+
+  /**
    * Xóa review (chỉ chính chủ)
    */
   async deleteReview(reviewId: string, userId: string) {
@@ -301,18 +318,47 @@ export class ReviewsService {
   }
 
   /**
-   * Kiểm tra user đã mua vé phim chưa
+   * Kiểm tra user đã mua vé phim chưa và có quyền bình luận chưa
    */
   async checkUserHasTicket(userId: string, movieId: string) {
-    const booking = await this.bookingModel.findOne({
+    // 1. Lấy tất cả các suất chiếu của phim này
+    const allShowtimes = await this.showtimeModel.find({ movie: movieId }).select('_id end_time');
+    const allShowtimeIds = allShowtimes.map(st => st._id);
+    
+    // 2. Lọc ra các suất chiếu đã kết thúc (end_time <= now)
+    const now = new Date();
+    const pastShowtimeIds = allShowtimes
+      .filter(st => st.end_time && new Date(st.end_time) <= now)
+      .map(st => st._id);
+
+    // 3. Kiểm tra user có vé hợp lệ (confirmed) nào cho phim này chưa
+    const anyBooking = await this.bookingModel.findOne({
       user: userId,
       status: 'confirmed',
-    }).populate({
-      path: 'showtime',
-      match: { movie: movieId },
+      showtime: { $in: allShowtimeIds }
     });
 
-    return { hasTicket: !!(booking && booking.showtime) };
+    // 4. Kiểm tra user có vé hợp lệ nào thuộc về suất chiếu ĐÃ KẾT THÚC không
+    const validBooking = await this.bookingModel.findOne({
+      user: userId,
+      status: 'confirmed',
+      showtime: { $in: pastShowtimeIds }
+    });
+
+    let canReview = false;
+    let message = '';
+
+    if (validBooking) {
+      canReview = true;
+    } else if (anyBooking) {
+      // Đã mua vé nhưng chưa có suất chiếu nào kết thúc
+      message = 'Bạn chỉ có thể đánh giá sau khi đã xem xong phim (suất chiếu kết thúc).';
+    } else {
+      // Chưa từng mua vé phim này
+      message = 'Bạn cần mua vé và thanh toán thành công để đánh giá phim này.';
+    }
+
+    return { hasTicket: !!anyBooking, canReview, message };
   }
 
   /**

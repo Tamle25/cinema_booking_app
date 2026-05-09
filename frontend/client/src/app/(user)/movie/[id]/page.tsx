@@ -5,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { IMovie, IShowtime, ICinemaSystem, ICinema, IReview } from '@/types';
 import Link from 'next/link';
 import { VIETNAM_PROVINCES } from '@/constants/provinces';
+import TrailerModal from '@/components/TrailerModal';
+import { useAuth } from '@/context/AuthContext';
 
 const getNext14Days = () => {
   const dates = [];
@@ -40,12 +42,31 @@ export default function MovieDetailPage() {
   const [relatedMovies, setRelatedMovies] = useState<IMovie[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Auth context
+  const { user } = useAuth();
+
+  // Review status
+  const [canReview, setCanReview] = useState(false);
+  const [reviewMessage, setReviewMessage] = useState('');
+  const [userReview, setUserReview] = useState<IReview | null>(null);
+  const [isCheckingReview, setIsCheckingReview] = useState(false);
+
+  // Review form states
+  const [rating, setRating] = useState(10);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [reviewContent, setReviewContent] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+
   // Reviews states
   const [reviews, setReviews] = useState<IReview[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewsPage, setReviewsPage] = useState(1);
   const [hasMoreReviews, setHasMoreReviews] = useState(false);
   const [totalReviews, setTotalReviews] = useState(0);
+
+  // Trailer Modal state
+  const [isTrailerOpen, setIsTrailerOpen] = useState(false);
 
   // New states for booking flow
   const [cities, setCities] = useState<string[]>([]);
@@ -132,6 +153,123 @@ export default function MovieDetailPage() {
       fetchReviews(1, true);
     }
   }, [id, fetchReviews]);
+
+  // Check review permission
+  useEffect(() => {
+    if (id && user) {
+      const checkReviewPermission = async () => {
+        const token = localStorage.getItem('access_token');
+        if (!token) return;
+        
+        setIsCheckingReview(true);
+        try {
+          const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+          const res = await fetch(`${API_URL}/reviews/check/${id}`, {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setCanReview(data.canReview);
+            setReviewMessage(data.message);
+            
+            if (data.hasReviewed && data.review) {
+              setUserReview(data.review);
+            } else {
+              setUserReview(null);
+            }
+          }
+        } catch (err) {
+          console.error('Lỗi kiểm tra quyền review:', err);
+        } finally {
+          setIsCheckingReview(false);
+        }
+      };
+      checkReviewPermission();
+    }
+  }, [id, user]);
+
+  const handleReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const token = localStorage.getItem('access_token');
+    if (!reviewContent.trim() || !canReview || !token) return;
+
+    setIsSubmitting(true);
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const url = isEditing && userReview 
+        ? `${API_URL}/reviews/${userReview._id}` 
+        : `${API_URL}/reviews`;
+        
+      const method = isEditing && userReview ? 'PATCH' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          movie_id: id,
+          rating,
+          content: reviewContent
+        })
+      });
+
+      if (res.ok) {
+        setIsEditing(false);
+        setReviewContent('');
+        setRating(10);
+        
+        // Refresh check permission and reviews list
+        const resCheck = await fetch(`${API_URL}/reviews/check/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+        const dataCheck = await resCheck.json();
+        if (dataCheck.hasReviewed && dataCheck.review) {
+          setUserReview(dataCheck.review);
+        }
+        
+        fetchReviews(1, true);
+      } else {
+        const errData = await res.json();
+        alert(errData.message || 'Có lỗi xảy ra');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi kết nối máy chủ');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteReview = async () => {
+    const token = localStorage.getItem('access_token');
+    if (!userReview || !token) return;
+    if (!confirm('Bạn có chắc chắn muốn xóa đánh giá này?')) return;
+    
+    setIsSubmitting(true);
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const res = await fetch(`${API_URL}/reviews/${userReview._id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        setUserReview(null);
+        fetchReviews(1, true);
+        const resCheck = await fetch(`${API_URL}/reviews/check/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+        const dataCheck = await resCheck.json();
+        setCanReview(dataCheck.canReview);
+        setReviewMessage(dataCheck.message);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleLoadMoreReviews = () => {
     const next = reviewsPage + 1;
@@ -283,7 +421,7 @@ export default function MovieDetailPage() {
                 {/* Buttons - Only Trailer */}
                 <div className="flex gap-4">
                   <button
-                    onClick={() => window.open(movie.trailer_url, '_blank')}
+                    onClick={() => setIsTrailerOpen(true)}
                     className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-bold transition transform hover:scale-105"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
@@ -506,6 +644,154 @@ export default function MovieDetailPage() {
             </h2>
           </div>
 
+          {/* Form bình luận */}
+          <div className="mb-10 p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+            {!user ? (
+              <div className="text-center py-6">
+                <p className="text-gray-500 mb-4">Bạn cần đăng nhập để tham gia đánh giá phim.</p>
+                <Link href={`/login?redirect=/movie/${id}`} className="inline-block bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors">
+                  Đăng nhập ngay
+                </Link>
+              </div>
+            ) : isCheckingReview ? (
+              <div className="flex justify-center py-6">
+                <div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : userReview && !isEditing ? (
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-bold text-gray-800">Đánh giá của bạn</h3>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => {
+                        setIsEditing(true);
+                        setRating(userReview.rating);
+                        setReviewContent(userReview.content);
+                      }}
+                      className="text-sm text-blue-600 hover:text-blue-800 font-medium border border-blue-200 bg-blue-50 px-3 py-1 rounded-lg transition-colors"
+                    >
+                      Sửa
+                    </button>
+                    <button 
+                      onClick={handleDeleteReview}
+                      className="text-sm text-red-600 hover:text-red-800 font-medium border border-red-200 bg-red-50 px-3 py-1 rounded-lg transition-colors"
+                    >
+                      Xóa
+                    </button>
+                  </div>
+                </div>
+                <div className="bg-gray-50 p-5 rounded-lg border border-gray-100 shadow-sm">
+                  <div className="flex items-center gap-1.5 mb-3">
+                    <div className="flex gap-0.5">
+                      {Array.from({ length: 10 }).map((_, i) => (
+                        <svg key={i} className={`w-5 h-5 ${i < userReview.rating ? 'text-yellow-400 drop-shadow-sm' : 'text-gray-200'}`} fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                      ))}
+                    </div>
+                    <span className="text-sm font-bold text-yellow-600 ml-2 bg-yellow-100 px-2.5 py-0.5 rounded-full">{userReview.rating}/10</span>
+                  </div>
+                  <p className="text-gray-700 leading-relaxed">{userReview.content}</p>
+                </div>
+              </div>
+            ) : !canReview && !isEditing ? (
+              <div className="text-center py-6 bg-red-50 rounded-lg border border-red-100 shadow-inner">
+                <svg className="w-12 h-12 text-red-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <p className="text-red-700 font-medium">{reviewMessage}</p>
+              </div>
+            ) : (
+              <form onSubmit={handleReviewSubmit} className="animate-fade-in">
+                <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                  {isEditing ? 'Chỉnh sửa đánh giá của bạn' : 'Đánh giá bộ phim này'}
+                </h3>
+                
+                {/* 10-Star Rating Selector */}
+                <div className="mb-8 flex flex-col items-center p-6 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="flex gap-1.5 md:gap-2 mb-4">
+                    {Array.from({ length: 10 }).map((_, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setRating(i + 1)}
+                        onMouseEnter={() => setHoverRating(i + 1)}
+                        onMouseLeave={() => setHoverRating(0)}
+                        className="focus:outline-none transition-transform hover:scale-125"
+                      >
+                        <svg 
+                          className={`w-7 h-7 md:w-9 md:h-9 transition-colors duration-200 ${(hoverRating || rating) > i ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.6)]' : 'text-gray-300 hover:text-gray-400'}`} 
+                          fill="currentColor" 
+                          viewBox="0 0 20 20"
+                        >
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <span className="text-xl font-black text-yellow-600 bg-yellow-100/50 px-6 py-1.5 rounded-full border border-yellow-200 shadow-sm">
+                      {hoverRating || rating} <span className="text-sm font-medium text-yellow-700">/ 10</span>
+                    </span>
+                    <span className="text-xs text-gray-500 mt-2 font-medium">Nhấn vào sao để đánh giá</span>
+                  </div>
+                </div>
+
+                {/* Textarea */}
+                <div className="mb-6 relative">
+                  <textarea
+                    value={reviewContent}
+                    onChange={(e) => setReviewContent(e.target.value)}
+                    placeholder="Hãy chia sẻ cảm nhận chân thực của bạn về bộ phim này nhé..."
+                    className="w-full border border-gray-300 rounded-xl p-5 focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none h-36 text-gray-800 bg-white shadow-inner transition-all"
+                    required
+                  />
+                  <div className="absolute bottom-3 right-4 text-xs text-gray-400 font-medium">
+                    {reviewContent.length} ký tự
+                  </div>
+                </div>
+                
+                <div className="flex justify-end gap-3">
+                  {isEditing && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditing(false);
+                        setRating(userReview!.rating);
+                        setReviewContent(userReview!.content);
+                      }}
+                      className="px-6 py-3 rounded-xl font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
+                    >
+                      Hủy bỏ
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !reviewContent.trim()}
+                    className="bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 disabled:opacity-50 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 flex items-center gap-2"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Đang xử lý...
+                      </>
+                    ) : (
+                      <>
+                        {isEditing ? 'Lưu thay đổi' : 'Gửi đánh giá'}
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+
           {/* Reviews List */}
           {reviews.length === 0 && !reviewsLoading ? (
             <div className="text-center py-16 bg-gray-50 rounded-xl border border-dashed border-gray-200">
@@ -577,6 +863,15 @@ export default function MovieDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Trailer Modal Component */}
+      {movie && (
+        <TrailerModal
+          isOpen={isTrailerOpen}
+          onClose={() => setIsTrailerOpen(false)}
+          videoUrl={movie.trailer_url}
+        />
+      )}
     </div>
   );
 }
