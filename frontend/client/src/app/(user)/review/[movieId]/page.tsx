@@ -7,6 +7,7 @@ import ReviewList from "@/components/ReviewList";
 import { useAuth } from "@/context/AuthContext";
 import axios from "axios";
 import Link from "next/link";
+import { toastSuccess, toastWarning, toastError } from "@/utils/toast";
 
 export default function ReviewDetailPage() {
   const params = useParams();
@@ -77,17 +78,17 @@ export default function ReviewDetailPage() {
     e.preventDefault();
 
     if (reviewRating === 0) {
-      alert("Vui lòng chọn điểm đánh giá");
+      toastWarning("Vui lòng chọn điểm đánh giá");
       return;
     }
     if (reviewContent.trim().length < 10) {
-      alert("Nội dung đánh giá phải có ít nhất 10 ký tự");
+      toastWarning("Nội dung đánh giá phải có ít nhất 10 ký tự");
       return;
     }
 
     const token = localStorage.getItem("access_token");
     if (!token) {
-      alert("Vui lòng đăng nhập");
+      toastWarning("Vui lòng đăng nhập");
       return;
     }
 
@@ -103,7 +104,7 @@ export default function ReviewDetailPage() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      alert("✅ Đánh giá thành công!");
+      toastSuccess("Đánh giá thành công!");
       setReviewRating(0);
       setReviewContent("");
       setShowForm(false);
@@ -114,7 +115,7 @@ export default function ReviewDetailPage() {
     } catch (error: any) {
       const msg =
         error.response?.data?.message || "Có lỗi xảy ra khi gửi đánh giá";
-      alert(`❌ ${msg}`);
+      toastError(msg);
     } finally {
       setSubmitting(false);
     }

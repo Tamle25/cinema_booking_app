@@ -353,9 +353,6 @@ export default function ShowtimesSection() {
                              {cinema.name}
                            </h4>
                         </div>
-                        <svg className={`w-4 h-4 shrink-0 transition-transform mt-1 ml-2 ${selectedCinemaId === cinema._id ? 'text-red-500 translate-x-1' : 'text-gray-300 opacity-0 group-hover:opacity-100 group-hover:translate-x-0 -translate-x-2'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
                      </button>
                    ))}
                    
@@ -504,11 +501,6 @@ export default function ShowtimesSection() {
                        </div>
                     ) : (
                        <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-white rounded-xl">
-                          <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
-                            <svg className="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                          </div>
                           <h4 className="text-lg font-bold text-gray-900 mb-1">Không có suất chiếu</h4>
                           <p className="text-gray-500 max-w-sm">
                             Rất tiếc rạp này chưa có hoặc đã kết thúc phiên chiếu trong ngày <strong>{dateTabs.find(t=>t.dateISO === selectedDate)?.dayName} ({new Date(selectedDate).toLocaleDateString('vi-VN')})</strong>. Vui lòng chọn ngày hoặc rạp khác!

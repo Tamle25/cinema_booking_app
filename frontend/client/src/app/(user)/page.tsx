@@ -7,6 +7,7 @@ import ShowtimesSection from "@/components/ShowtimesSection";
 import FeaturedMoviesSection from "@/components/HomePage/FeaturedMoviesSection";
 
 import FeaturedReviewsSection from "@/components/HomePage/FeaturedReviewsSection";
+import NewsSection from "@/components/HomePage/NewsSection";
 import CinemaPartnersSection from "@/components/HomePage/CinemaPartnersSection";
 import { IMovie } from "@/types";
 
@@ -330,18 +331,6 @@ export default function HomePage() {
             ))}
           </div>
         )}
-
-        {/* Drag Hint */}
-        {nowShowingMovies.length > 6 && (
-          <p className="text-center text-gray-400 text-sm mt-4">
-            <span className="inline-flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
-              </svg>
-              Kéo để xem thêm phim
-            </span>
-          </p>
-        )}
       </div>
 
       {/* 3. Phần Danh Sách Phim Sắp Chiếu */}
@@ -452,10 +441,7 @@ export default function HomePage() {
                         {movie.title}
                       </h3>
                       <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
-                        <span className="flex items-center gap-1 text-yellow-600 font-medium">
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
+                        <span className="text-yellow-600 font-medium">
                           {formatReleaseDate(movie.release_date)}
                         </span>
                       </div>
@@ -482,18 +468,6 @@ export default function HomePage() {
               ))}
             </div>
           )}
-
-          {/* Drag Hint */}
-          {comingSoonMovies.length > 6 && (
-            <p className="text-center text-gray-400 text-sm mt-4">
-              <span className="inline-flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
-                </svg>
-                Kéo để xem thêm phim
-              </span>
-            </p>
-          )}
         </div>
       )}
 
@@ -503,7 +477,10 @@ export default function HomePage() {
       {/* 5. Bình Luận Nổi Bật */}
       <FeaturedReviewsSection />
 
-      {/* 6. Hệ Thống Rạp Đối Tác */}
+      {/* 6. Tin tức & Ưu đãi */}
+      <NewsSection />
+
+      {/* 7. Hệ Thống Rạp Đối Tác */}
       <CinemaPartnersSection />
     </main>
   );

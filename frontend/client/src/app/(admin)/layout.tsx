@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { toastWarning } from '@/utils/toast';
 
 // Icons as components
 const DashboardIcon = () => (
@@ -55,6 +56,13 @@ const ComboIcon = () => (
   </svg>
 );
 
+const NewsIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 5H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2V7a2 2 0 00-2-2z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 9h10M7 13h6" />
+  </svg>
+);
+
 const LogoutIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -69,6 +77,7 @@ const menuItems = [
   { href: '/admin/movies', label: 'Quản lý Phim', icon: MovieIcon },
   { href: '/admin/showtimes', label: 'Suất chiếu', icon: ShowtimeIcon },
   { href: '/admin/combos', label: 'Combo Bắp Nước', icon: ComboIcon },
+  { href: '/admin/news', label: 'Tin tức', icon: NewsIcon },
   { href: '/admin/transactions', label: 'Giao dịch', icon: TransactionIcon },
 ];
 
@@ -117,7 +126,7 @@ export default function AdminLayout({
 
       // Kiểm tra role admin
       if (currentUser?.role !== 'admin') {
-        alert('Bạn không có quyền truy cập trang Admin!');
+        toastWarning('Bạn không có quyền truy cập trang Admin!');
         router.push('/');
         return;
       }

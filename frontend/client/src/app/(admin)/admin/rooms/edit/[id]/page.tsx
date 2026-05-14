@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import { authHeaders } from '@/lib/api';
+import { toastSuccess, toastWarning, toastError } from '@/utils/toast';
 
 interface ICinema {
     _id: string;
@@ -52,7 +54,7 @@ export default function EditRoomPage() {
                 });
             } catch (error) {
                 console.error('Lỗi tải dữ liệu:', error);
-                alert('❌ Không thể tải thông tin phòng!');
+                toastError('❌ Không thể tải thông tin phòng!');
             } finally {
                 setIsLoading(false);
             }
@@ -78,11 +80,11 @@ export default function EditRoomPage() {
         e.preventDefault();
 
         if (!formData.name.trim()) {
-            alert('❌ Vui lòng nhập tên phòng!');
+            toastWarning('❌ Vui lòng nhập tên phòng!');
             return;
         }
         if (!formData.cinema_id) {
-            alert('❌ Vui lòng chọn rạp!');
+            toastWarning('❌ Vui lòng chọn rạp!');
             return;
         }
 
@@ -91,19 +93,19 @@ export default function EditRoomPage() {
         try {
             const res = await fetch(`${API_URL}/rooms/${roomId}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify(formData),
             });
 
             if (res.ok) {
-                alert('✅ Cập nhật phòng chiếu thành công!');
+                toastSuccess('✅ Cập nhật phòng chiếu thành công!');
                 router.push('/admin/rooms');
             } else {
                 const error = await res.json();
-                alert('❌ Lỗi: ' + (error.message || 'Không thể cập nhật'));
+                toastError('❌ Lỗi: ' + (error.message || 'Không thể cập nhật'));
             }
         } catch (error) {
-            alert('❌ Không thể kết nối đến server!');
+            toastError('❌ Không thể kết nối đến server!');
         } finally {
             setIsSubmitting(false);
         }

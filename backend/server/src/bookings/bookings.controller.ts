@@ -1,6 +1,7 @@
 import { Body, Controller, Post, Get, UseGuards, Request } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 import { AuthGuard } from '@nestjs/passport';
+import { AdminOnly } from '../common/decorators/admin.decorator';
 
 @Controller('bookings')
 export class BookingsController {
@@ -8,6 +9,7 @@ export class BookingsController {
 
   // Lấy tất cả bookings (cho admin)
   @Get()
+  @AdminOnly()
   async findAll() {
     return this.bookingsService.findAll();
   }

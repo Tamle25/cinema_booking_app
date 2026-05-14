@@ -160,10 +160,8 @@ const Header = () => {
         {movie.poster_url ? (
           <img src={movie.poster_url} alt={movie.title} className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-400">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
-            </svg>
+          <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400 font-bold text-sm">
+            {movie.title?.charAt(0)?.toUpperCase() || 'P'}
           </div>
         )}
       </div>
@@ -182,9 +180,6 @@ const Header = () => {
           )}
         </div>
       </div>
-      <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-      </svg>
     </button>
   );
 
@@ -231,12 +226,7 @@ const Header = () => {
         </div>
       ) : (
         <div className="p-6 text-center">
-          <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-            <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <p className="text-sm text-gray-600 font-medium">Không tìm thấy kết quả</p>
+          <p className="text-sm text-gray-500 font-medium">Không tìm thấy kết quả</p>
           <p className="text-xs text-gray-400 mt-1">Thử tìm với từ khóa khác</p>
         </div>
       )}
@@ -269,7 +259,7 @@ const Header = () => {
               <Link href="/booking" className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                 Lịch Chiếu
               </Link>
-              <Link href="#" className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+              <Link href="/news" className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                 Tin Tức
               </Link>
               <Link href="/reviews" className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
@@ -486,7 +476,7 @@ const Header = () => {
             <Link href="/booking" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors">
               Lịch Chiếu
             </Link>
-            <Link href="#" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors">
+            <Link href="/news" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors">
               Tin Tức
             </Link>
             <Link href="/reviews" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors">

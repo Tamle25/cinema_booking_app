@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toastSuccess, toastError, toastWarning } from '@/utils/toast';
 
 interface PaymentResult {
   success: boolean;
@@ -76,13 +77,13 @@ function MomoReturnContent() {
   // Xử lý Thanh Toán Lại (Retry) — tạo phiên MoMo mới với orderId mới
   const handleRetryPayment = async () => {
     if (!result?.bookingId) {
-      alert('Không tìm thấy mã đặt vé để thử lại.');
+      toastWarning('Không tìm thấy mã đặt vé để thử lại.');
       return;
     }
 
     const token = localStorage.getItem('access_token');
     if (!token) {
-      alert('Bạn cần đăng nhập để thực hiện thanh toán.');
+      toastWarning('Bạn cần đăng nhập để thực hiện thanh toán.');
       router.push('/login');
       return;
     }
@@ -106,12 +107,12 @@ function MomoReturnContent() {
         // Redirect đến trang thanh toán MoMo mới
         window.location.href = data.payUrl;
       } else {
-        alert(data.message || 'Không thể tạo lại thanh toán. Vui lòng đặt vé mới.');
+        toastError(data.message || 'Không thể tạo lại thanh toán. Vui lòng đặt vé mới.');
         setRetrying(false);
       }
     } catch (error) {
       console.error('Lỗi retry payment:', error);
-      alert('Có lỗi xảy ra, vui lòng thử lại.');
+      toastError('Có lỗi xảy ra, vui lòng thử lại.');
       setRetrying(false);
     }
   };
@@ -149,15 +150,15 @@ function MomoReturnContent() {
       const data = await response.json();
 
       if (response.ok) {
-        alert('Đã hủy đơn hàng. Bạn có thể đặt vé mới.');
+        toastSuccess('Đã hủy đơn hàng. Bạn có thể đặt vé mới.');
         router.push('/');
       } else {
-        alert(data.message || 'Không thể hủy đơn hàng.');
+        toastError(data.message || 'Không thể hủy đơn hàng.');
         setCancelling(false);
       }
     } catch (error) {
       console.error('Lỗi cancel booking:', error);
-      alert('Có lỗi xảy ra.');
+      toastError('Có lỗi xảy ra.');
       setCancelling(false);
     }
   };

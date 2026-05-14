@@ -100,11 +100,8 @@ const Footer = () => {
                 <li key={index}>
                   <Link 
                     href={link.href}
-                    className="text-gray-400 hover:text-red-500 transition-colors flex items-center gap-2 group"
+                    className="text-gray-400 hover:text-red-500 transition-colors"
                   >
-                    <svg className="w-4 h-4 text-gray-600 group-hover:text-red-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
                     {link.label}
                   </Link>
                 </li>
@@ -123,11 +120,8 @@ const Footer = () => {
                 <li key={index}>
                   <Link 
                     href={link.href}
-                    className="text-gray-400 hover:text-red-500 transition-colors flex items-center gap-2 group"
+                    className="text-gray-400 hover:text-red-500 transition-colors"
                   >
-                    <svg className="w-4 h-4 text-gray-600 group-hover:text-red-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
                     {link.label}
                   </Link>
                 </li>

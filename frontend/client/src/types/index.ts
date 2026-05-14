@@ -129,3 +129,15 @@ export interface IFeaturedReview {
   review_count: number;
   reviews: IReview[];
 }
+
+export interface INews {
+  _id: string;
+  title: string;
+  slug: string;
+  shortDescription: string;
+  content: string;
+  thumbnail: string;
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
+}

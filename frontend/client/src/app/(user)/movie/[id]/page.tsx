@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { VIETNAM_PROVINCES } from '@/constants/provinces';
 import TrailerModal from '@/components/TrailerModal';
 import { useAuth } from '@/context/AuthContext';
+import { toastError } from '@/utils/toast';
 
 const getNext14Days = () => {
   const dates = [];
@@ -232,11 +233,11 @@ export default function MovieDetailPage() {
         fetchReviews(1, true);
       } else {
         const errData = await res.json();
-        alert(errData.message || 'Có lỗi xảy ra');
+        toastError(errData.message || 'Có lỗi xảy ra');
       }
     } catch (err) {
       console.error(err);
-      alert('Lỗi kết nối máy chủ');
+      toastError('Lỗi kết nối máy chủ');
     } finally {
       setIsSubmitting(false);
     }

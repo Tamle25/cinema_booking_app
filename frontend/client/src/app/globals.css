@@ -5,7 +5,7 @@
   --foreground: #171717;
 }
 
-@theme inline {
+@theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
@@ -40,4 +40,108 @@ body {
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;  /* Chrome, Safari and Opera */
+}
+
+/* =============================================
+   Custom Toast Notification Styles
+   Minimal, modern, premium design
+   ============================================= */
+
+/* Override toastify container */
+.Toastify__toast-container {
+  padding: 0 !important;
+  width: auto !important;
+  max-width: 380px !important;
+}
+
+/* Base toast style */
+.toast-minimal {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  border-left: 3px solid #94a3b8 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04) !important;
+  padding: 14px 18px !important;
+  margin-bottom: 8px !important;
+  min-height: auto !important;
+  font-family: inherit !important;
+}
+
+.toast-minimal .Toastify__toast-body {
+  padding: 0 !important;
+  margin: 0 !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: #1e293b !important;
+  line-height: 1.5 !important;
+  letter-spacing: -0.01em !important;
+}
+
+/* Remove default icon area */
+.toast-minimal .Toastify__toast-icon {
+  display: none !important;
+}
+
+/* Close button override */
+.toast-minimal .Toastify__close-button {
+  display: none !important;
+}
+
+/* Type-specific left border colors */
+.toast-success {
+  border-left-color: #10b981 !important;
+}
+
+.toast-error {
+  border-left-color: #ef4444 !important;
+}
+
+.toast-warning {
+  border-left-color: #f59e0b !important;
+}
+
+.toast-info {
+  border-left-color: #6366f1 !important;
+}
+
+/* Animation override — clean slide */
+.Toastify__toast--close-on-click {
+  cursor: pointer;
+}
+
+@keyframes toastSlideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toastSlideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.Toastify__slide-enter--top-right {
+  animation: toastSlideIn 0.3s cubic-bezier(0.21, 1.02, 0.73, 1) forwards !important;
+}
+
+.Toastify__slide-exit--top-right {
+  animation: toastSlideOut 0.25s cubic-bezier(0.06, 0.71, 0.55, 1) forwards !important;
+}
+
+/* Remove progress bar completely */
+.Toastify__progress-bar {
+  display: none !important;
 }

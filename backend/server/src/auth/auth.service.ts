@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from '../users/users.service'; 
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -15,12 +15,21 @@ export class AuthService {
     // Mã hóa mật khẩu (Hashing)
     const salt = await bcrypt.genSalt();
     const hashPassword = await bcrypt.hash(pass, salt);
-    const user = await this.usersService.create({ 
-      full_name,
-      email,
-      password: hashPassword 
-    });
-    return user;
+    try {
+      const user = await this.usersService.create({
+        full_name,
+        email,
+        password: hashPassword,
+      });
+      const userObject = (user as any).toObject ? (user as any).toObject() : user;
+      delete userObject.password;
+      return userObject;
+    } catch (error: any) {
+      if (error?.code === 11000) {
+        throw new ConflictException('Email da duoc su dung');
+      }
+      throw error;
+    }
   }
 
   async signIn(email: string, pass: string): Promise<any> {

@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import { authHeaders } from '@/lib/api';
+import { toastSuccess, toastWarning, toastError } from '@/utils/toast';
 
 interface IMovie {
     _id: string;
@@ -81,7 +83,7 @@ export default function EditShowtimePage() {
 
             } catch (error) {
                 console.error('Lỗi tải dữ liệu:', error);
-                alert('❌ Không thể tải thông tin suất chiếu!');
+                toastError('❌ Không thể tải thông tin suất chiếu!');
                 router.push('/admin/showtimes');
             } finally {
                 setIsLoading(false);
@@ -121,23 +123,23 @@ export default function EditShowtimePage() {
 
         // Validation
         if (!formData.movie_id) {
-            alert('❌ Vui lòng chọn phim!');
+            toastWarning('❌ Vui lòng chọn phim!');
             return;
         }
         if (!formData.cinema_id) {
-            alert('❌ Vui lòng chọn rạp!');
+            toastWarning('❌ Vui lòng chọn rạp!');
             return;
         }
         if (!formData.room_id) {
-            alert('❌ Vui lòng chọn phòng chiếu!');
+            toastWarning('❌ Vui lòng chọn phòng chiếu!');
             return;
         }
         if (!formData.start_time) {
-            alert('❌ Vui lòng chọn thời gian chiếu!');
+            toastWarning('❌ Vui lòng chọn thời gian chiếu!');
             return;
         }
         if (!formData.price || formData.price <= 0) {
-            alert('❌ Vui lòng nhập giá vé hợp lệ!');
+            toastWarning('❌ Vui lòng nhập giá vé hợp lệ!');
             return;
         }
 
@@ -146,20 +148,20 @@ export default function EditShowtimePage() {
         try {
             const res = await fetch(`${API_URL}/showtimes/${showtimeId}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify(formData),
             });
 
             if (res.ok) {
-                alert('✅ Cập nhật suất chiếu thành công!');
+                toastSuccess('✅ Cập nhật suất chiếu thành công!');
                 router.push('/admin/showtimes');
             } else {
                 const error = await res.json();
-                alert('❌ Lỗi: ' + (error.message || 'Không thể cập nhật suất chiếu'));
+                toastError('❌ Lỗi: ' + (error.message || 'Không thể cập nhật suất chiếu'));
             }
         } catch (error) {
             console.error('Lỗi:', error);
-            alert('❌ Không thể kết nối đến server!');
+            toastError('❌ Không thể kết nối đến server!');
         } finally {
             setIsSubmitting(false);
         }

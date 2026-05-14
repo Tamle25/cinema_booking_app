@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Combo } from './schemas/combo.schema';
@@ -102,6 +102,10 @@ export class CombosService {
     }
 
     for (const item of combos) {
+      if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
+        throw new BadRequestException('So luong combo khong hop le');
+      }
+
       const combo = await this.comboModel.findById(item.combo_id).exec();
       if (!combo) {
         throw new NotFoundException(`Combo với ID ${item.combo_id} không tồn tại`);

@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { authHeaders } from '@/lib/api';
+import { toastSuccess, toastWarning, toastError } from '@/utils/toast';
 
 const BUFFER_MINUTES = 15; // Thời gian dọn phòng
 
@@ -130,23 +132,23 @@ export default function CreateShowtimePage() {
 
         // Validation
         if (!formData.movie_id) {
-            alert('❌ Vui lòng chọn phim!');
+            toastWarning('❌ Vui lòng chọn phim!');
             return;
         }
         if (!formData.cinema_id) {
-            alert('❌ Vui lòng chọn rạp!');
+            toastWarning('❌ Vui lòng chọn rạp!');
             return;
         }
         if (!formData.room_id) {
-            alert('❌ Vui lòng chọn phòng chiếu!');
+            toastWarning('❌ Vui lòng chọn phòng chiếu!');
             return;
         }
         if (!formData.start_time) {
-            alert('❌ Vui lòng chọn thời gian chiếu!');
+            toastWarning('❌ Vui lòng chọn thời gian chiếu!');
             return;
         }
         if (!formData.price || formData.price <= 0) {
-            alert('❌ Vui lòng nhập giá vé hợp lệ!');
+            toastWarning('❌ Vui lòng nhập giá vé hợp lệ!');
             return;
         }
 
@@ -158,20 +160,20 @@ export default function CreateShowtimePage() {
 
             const res = await fetch(`${API_URL}/showtimes`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify(submitData),
             });
 
             if (res.ok) {
-                alert('✅ Thêm suất chiếu thành công!');
+                toastSuccess('✅ Thêm suất chiếu thành công!');
                 router.push('/admin/showtimes');
             } else {
                 const error = await res.json();
-                alert('❌ Lỗi: ' + (error.message || 'Không thể tạo suất chiếu'));
+                toastError('❌ Lỗi: ' + (error.message || 'Không thể tạo suất chiếu'));
             }
         } catch (error) {
             console.error('Lỗi:', error);
-            alert('❌ Không thể kết nối đến server!');
+            toastError('❌ Không thể kết nối đến server!');
         } finally {
             setIsSubmitting(false);
         }

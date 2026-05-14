@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { authHeaders } from '@/lib/api';
+import { toastSuccess, toastWarning, toastError } from '@/utils/toast';
 
 interface ICinema {
     _id: string;
@@ -50,15 +52,15 @@ export default function CreateRoomPage() {
         e.preventDefault();
 
         if (!formData.name.trim()) {
-            alert('❌ Vui lòng nhập tên phòng!');
+            toastWarning('❌ Vui lòng nhập tên phòng!');
             return;
         }
         if (!formData.cinema_id) {
-            alert('❌ Vui lòng chọn rạp!');
+            toastWarning('❌ Vui lòng chọn rạp!');
             return;
         }
         if (formData.rows < 1 || formData.columns < 1) {
-            alert('❌ Số hàng và số cột phải lớn hơn 0!');
+            toastWarning('❌ Số hàng và số cột phải lớn hơn 0!');
             return;
         }
 
@@ -67,19 +69,19 @@ export default function CreateRoomPage() {
         try {
             const res = await fetch(`${API_URL}/rooms`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify(formData),
             });
 
             if (res.ok) {
-                alert('✅ Thêm phòng chiếu thành công!');
+                toastSuccess('✅ Thêm phòng chiếu thành công!');
                 router.push('/admin/rooms');
             } else {
                 const error = await res.json();
-                alert('❌ Lỗi: ' + (error.message || 'Không thể tạo phòng'));
+                toastError('❌ Lỗi: ' + (error.message || 'Không thể tạo phòng'));
             }
         } catch (error) {
-            alert('❌ Không thể kết nối đến server!');
+            toastError('❌ Không thể kết nối đến server!');
         } finally {
             setIsSubmitting(false);
         }

@@ -4,6 +4,8 @@ import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { IMovie } from '@/types/index';
 import Pagination from '@/components/Pagination';
+import { authHeaders } from '@/lib/api';
+import { toastSuccess, toastError } from '@/utils/toast';
 
 export default function MovieListPage() {
   const [movies, setMovies] = useState<IMovie[]>([]);
@@ -37,15 +39,18 @@ export default function MovieListPage() {
     if (!window.confirm(`Bạn chắc chắn muốn xóa phim "${title}"?`)) return;
     
     try {
-      const res = await fetch(`${API_URL}/movies/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_URL}/movies/${id}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
       if (res.ok) {
-        alert('Xóa phim thành công!');
+        toastSuccess('Xóa phim thành công!');
         fetchMovies();
       } else {
-        alert('Xóa thất bại');
+        toastError('Xóa thất bại');
       }
     } catch (error) {
-      alert('Xóa thất bại');
+      toastError('Xóa thất bại');
     }
   };
 

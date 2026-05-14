@@ -4,6 +4,8 @@ import { PaymentsService, CreatePaymentDto } from './payments.service';
 import type { MomoCallbackParams } from './momo.service';
 import { MomoService } from './momo.service';
 import type { Request } from 'express';
+import { AdminOnly } from '../common/decorators/admin.decorator';
+import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
 
 @Controller('payments')
 export class PaymentsController {
@@ -71,9 +73,14 @@ export class PaymentsController {
    * API: Kiểm tra trạng thái thanh toán
    * GET /payments/status/:bookingId
    */
+  @UseGuards(AuthGuard('jwt'))
   @Get('status/:bookingId')
-  async checkPaymentStatus(@Param('bookingId') bookingId: string) {
-    return this.paymentsService.checkPaymentStatus(bookingId);
+  async checkPaymentStatus(
+    @Param('bookingId', ParseObjectIdPipe) bookingId: string,
+    @Req() req: Request & { user: any },
+  ) {
+    const userId = req.user._id || req.user.id;
+    return this.paymentsService.checkPaymentStatus(bookingId, userId, req.user.role);
   }
 
   /**
@@ -81,6 +88,7 @@ export class PaymentsController {
    * GET /payments/config
    */
   @Get('config')
+  @AdminOnly()
   async getConfig() {
     return {
       message: 'MoMo Sandbox Configuration',
@@ -135,6 +143,7 @@ export class PaymentsController {
    * GET /payments/test-payment
    */
   @Get('test-payment')
+  @AdminOnly()
   async testPayment() {
     const orderId = this.momoService.generateOrderId();
     const amount = 10000; // 10,000 VND (minimum amount)
@@ -174,6 +183,7 @@ export class PaymentsController {
    * GET /payments/momo-config
    */
   @Get('momo-config')
+  @AdminOnly()
   async getMomoConfig() {
     return {
       config: this.momoService.getConfig(),

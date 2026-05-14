@@ -3,6 +3,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import { ICombo } from '@/types';
 import Pagination from '@/components/Pagination';
+import { authHeaders } from '@/lib/api';
+import { toastSuccess, toastWarning, toastError } from '@/utils/toast';
 
 export default function AdminCombosPage() {
   const [combos, setCombos] = useState<ICombo[]>([]);
@@ -34,7 +36,7 @@ export default function AdminCombosPage() {
   const fetchCombos = async () => {
     try {
       const [combosRes, systemsRes] = await Promise.all([
-        fetch(`${API_URL}/combos/all`),
+        fetch(`${API_URL}/combos/all`, { headers: authHeaders() }),
         fetch(`${API_URL}/cinema-systems`)
       ]);
       const combosData = await combosRes.json();
@@ -86,6 +88,7 @@ export default function AdminCombosPage() {
 
       const res = await fetch(`${API_URL}/combos/upload`, {
         method: 'POST',
+        headers: authHeaders(),
         body: formDataUpload,
       });
 
@@ -93,11 +96,11 @@ export default function AdminCombosPage() {
       if (data.image_url) {
         setFormData(prev => ({ ...prev, image_url: data.image_url }));
       } else {
-        alert('Lỗi upload ảnh');
+        toastError('Lỗi upload ảnh');
       }
     } catch (error) {
       console.error('Lỗi upload:', error);
-      alert('Có lỗi xảy ra khi upload ảnh!');
+      toastError('Có lỗi xảy ra khi upload ảnh!');
     } finally {
       setUploading(false);
     }
@@ -142,15 +145,15 @@ export default function AdminCombosPage() {
   // Save combo
   const handleSave = async () => {
     if (!formData.name.trim()) {
-      alert('Vui lòng nhập tên combo!');
+      toastWarning('Vui lòng nhập tên combo!');
       return;
     }
     if (!formData.cinema_system_id) {
-      alert('Vui lòng chọn hệ thống rạp!');
+      toastWarning('Vui lòng chọn hệ thống rạp!');
       return;
     }
     if (!formData.price || formData.price <= 0) {
-      alert('Vui lòng nhập giá hợp lệ!');
+      toastWarning('Vui lòng nhập giá hợp lệ!');
       return;
     }
 
@@ -162,21 +165,21 @@ export default function AdminCombosPage() {
 
       const res = await fetch(url, {
         method: editingCombo ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(formData),
       });
 
       if (res.ok) {
-        alert(editingCombo ? 'Cập nhật thành công!' : 'Thêm combo thành công!');
+        toastSuccess(editingCombo ? 'Cập nhật thành công!' : 'Thêm combo thành công!');
         closeModal();
         fetchCombos();
       } else {
         const error = await res.json();
-        alert(`Lỗi: ${error.message}`);
+        toastError(`Lỗi: ${error.message}`);
       }
     } catch (error) {
       console.error('Lỗi lưu combo:', error);
-      alert('Có lỗi xảy ra!');
+      toastError('Có lỗi xảy ra!');
     } finally {
       setSaving(false);
     }
@@ -189,18 +192,19 @@ export default function AdminCombosPage() {
     try {
       const res = await fetch(`${API_URL}/combos/${combo._id}`, {
         method: 'DELETE',
+        headers: authHeaders(),
       });
 
       if (res.ok) {
-        alert('Xóa thành công!');
+        toastSuccess('Xóa thành công!');
         fetchCombos();
       } else {
         const error = await res.json();
-        alert(`Lỗi: ${error.message}`);
+        toastError(`Lỗi: ${error.message}`);
       }
     } catch (error) {
       console.error('Lỗi xóa:', error);
-      alert('Có lỗi xảy ra!');
+      toastError('Có lỗi xảy ra!');
     }
   };
 
@@ -209,7 +213,7 @@ export default function AdminCombosPage() {
     try {
       const res = await fetch(`${API_URL}/combos/${combo._id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ is_active: !combo.is_active }),
       });
 
@@ -226,7 +230,7 @@ export default function AdminCombosPage() {
     try {
       const res = await fetch(`${API_URL}/combos/${combo._id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ is_popular: !combo.is_popular }),
       });
 

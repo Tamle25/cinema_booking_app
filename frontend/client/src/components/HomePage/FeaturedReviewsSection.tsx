@@ -5,6 +5,7 @@ import { IFeaturedReview } from "@/types";
 import ReviewCard from "@/components/ReviewCard";
 import Link from "next/link";
 import axios from "axios";
+import TrailerModal from "@/components/TrailerModal";
 
 // Format số lượng: 1000 → 1K, 8200 → 8.2K
 const formatCount = (count: number): string => {
@@ -18,6 +19,7 @@ const formatCount = (count: number): string => {
 const FeaturedReviewsSection = () => {
   const [featured, setFeatured] = useState<IFeaturedReview[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTrailer, setActiveTrailer] = useState<string | null>(null);
 
   useEffect(() => {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
@@ -114,7 +116,10 @@ const FeaturedReviewsSection = () => {
               className="group bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300"
             >
               {/* Movie Thumbnail */}
-              <div className="relative h-48 overflow-hidden">
+              <div 
+                className="relative h-48 overflow-hidden cursor-pointer"
+                onClick={() => setActiveTrailer(item.movie.trailer_url || "")}
+              >
                 <img
                   src={item.movie.banner_url || item.movie.poster_url}
                   alt={item.movie.title}
@@ -181,28 +186,22 @@ const FeaturedReviewsSection = () => {
                 {/* "Xem thêm" Button */}
                 <Link
                   href={`/review/${item.movie._id}`}
-                  className="mt-3 flex items-center justify-center gap-1.5 w-full py-2.5 bg-red-50 text-red-600 font-medium text-sm rounded-lg hover:bg-red-100 transition-colors"
+                  className="mt-3 flex items-center justify-center w-full py-2.5 bg-red-50 text-red-600 font-medium text-sm rounded-lg hover:bg-red-100 transition-colors"
                 >
                   Xem thêm
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
                 </Link>
               </div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* Trailer Modal */}
+      <TrailerModal
+        isOpen={!!activeTrailer}
+        onClose={() => setActiveTrailer(null)}
+        videoUrl={activeTrailer || ""}
+      />
     </section>
   );
 };

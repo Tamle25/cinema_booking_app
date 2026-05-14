@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { toastSuccess } from '@/utils/toast';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -37,7 +38,7 @@ export default function RegisterPage() {
       }
 
       // Đăng ký thành công -> Chuyển sang login
-      alert('Đăng ký thành công! Vui lòng đăng nhập.');
+      toastSuccess('Đăng ký thành công! Vui lòng đăng nhập.');
       router.push('/login');
     } catch (err: any) {
       setError(err.message);

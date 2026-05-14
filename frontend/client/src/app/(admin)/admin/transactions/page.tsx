@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import Pagination from '@/components/Pagination';
+import { authHeaders } from '@/lib/api';
 
 interface ITransaction {
   _id: string;
@@ -47,7 +48,7 @@ export default function TransactionsPage() {
   // Fetch transactions
   const fetchTransactions = async () => {
     try {
-      const res = await fetch(`${API_URL}/bookings`);
+      const res = await fetch(`${API_URL}/bookings`, { headers: authHeaders() });
       const data = await res.json();
       setTransactions(Array.isArray(data) ? data : []);
     } catch (error) {

@@ -75,7 +75,7 @@ export class MomoService {
     console.log('=== MoMo Config Loaded ===');
     console.log('PartnerCode:', this.config.partnerCode);
     console.log('AccessKey:', this.config.accessKey ? this.config.accessKey.substring(0, 8) + '...' : 'NOT SET');
-    console.log('SecretKey:', this.config.secretKey ? this.config.secretKey.substring(0, 8) + '...' : 'NOT SET');
+    console.log('SecretKey:', this.config.secretKey ? 'SET' : 'NOT SET');
     console.log('Endpoint:', this.config.endpoint);
     console.log('ReturnUrl:', this.config.returnUrl);
     console.log('IpnUrl:', this.config.ipnUrl);
@@ -136,11 +136,7 @@ export class MomoService {
       `&requestId=${requestId}` +
       `&requestType=${requestType}`;
 
-    console.log('=== MOMO CREATE SIGNATURE ===');
-    console.log('RawSignature:', rawSignature);
-
     const signature = this.createSignature(rawSignature);
-    console.log('Signature:', signature);
 
     // Tạo request body theo tài liệu MoMo API v2
     // Lưu ý: KHÔNG gửi accessKey trong request body
@@ -161,7 +157,10 @@ export class MomoService {
       autoCapture: true, // Tự động capture tiền
     };
 
-    console.log('Request Body:', JSON.stringify(requestBody, null, 2));
+    console.log('=== MOMO CREATE PAYMENT REQUEST ===');
+    console.log('OrderId:', orderId);
+    console.log('Amount:', amount);
+    console.log('RequestType:', requestType);
 
     try {
       // Gọi API MoMo
@@ -227,14 +226,10 @@ export class MomoService {
       `&resultCode=${resultCode}` +
       `&transId=${transId}`;
 
-    console.log('=== MOMO VERIFY SIGNATURE ===');
-    console.log('RawSignature:', rawSignature);
-
     const calculatedSignature = this.createSignature(rawSignature);
-    console.log('Received Signature:', signature);
-    console.log('Calculated Signature:', calculatedSignature);
+    console.log('=== MOMO VERIFY SIGNATURE ===');
+    console.log('OrderId:', orderId);
     console.log('Match:', signature === calculatedSignature);
-    console.log('=============================');
 
     return signature === calculatedSignature;
   }

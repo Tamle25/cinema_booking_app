@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { IMovie } from "@/types";
+import TrailerModal from "@/components/TrailerModal";
 
 interface FeaturedMoviesSectionProps {
   movies: IMovie[];
@@ -12,6 +13,7 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [activeTrailer, setActiveTrailer] = useState<string | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Lọc phim featured: ưu tiên sắp chiếu, fallback đang chiếu
@@ -213,39 +215,13 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
                 {/* Thời lượng */}
                 {currentMovie.duration > 0 && (
                   <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-full">
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
                     {currentMovie.duration} phút
                   </span>
                 )}
 
                 {/* Thể loại */}
                 {currentMovie.genre && (
-                  <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-full">
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M7 4V2m0 2a2 2 0 012 2v1H5V6a2 2 0 012-2zm0 0h10m0 0V2m0 2a2 2 0 012 2v1h-4V6a2 2 0 012-2z"
-                      />
-                    </svg>
+                  <span className="bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-full">
                     {currentMovie.genre}
                   </span>
                 )}
@@ -264,27 +240,12 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
                   href={`/movie/${currentMovie._id}`}
                   className="inline-flex items-center gap-2 bg-[#E50914] hover:bg-red-700 text-white px-7 py-3 rounded-full font-bold text-sm transition-all duration-300 shadow-lg shadow-red-600/30 hover:shadow-red-600/50 hover:scale-105"
                 >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"
-                    />
-                  </svg>
                   Đặt vé ngay
                 </Link>
 
                 {trailerUrl && (
-                  <a
-                    href={trailerUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    onClick={() => setActiveTrailer(trailerUrl)}
                     className="inline-flex items-center gap-2 border-2 border-white/60 hover:border-white text-white px-7 py-3 rounded-full font-bold text-sm transition-all duration-300 hover:bg-white/10 hover:scale-105"
                   >
                     <svg
@@ -299,7 +260,7 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
                       />
                     </svg>
                     Xem trailer
-                  </a>
+                  </button>
                 )}
               </div>
             </div>
@@ -375,6 +336,13 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
           {currentIndex + 1} / {featuredMovies.length}
         </div>
       )}
+
+      {/* Trailer Modal */}
+      <TrailerModal
+        isOpen={!!activeTrailer}
+        onClose={() => setActiveTrailer(null)}
+        videoUrl={activeTrailer || ""}
+      />
     </section>
   );
 };

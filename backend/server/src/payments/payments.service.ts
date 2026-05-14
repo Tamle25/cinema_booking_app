@@ -64,13 +64,49 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  private normalizeSeats(seats: string[]): string[] {
+    if (!Array.isArray(seats) || seats.length === 0) {
+      throw new BadRequestException('Vui long chon it nhat mot ghe!');
+    }
+
+    const normalized = seats.map((seat) => String(seat).trim()).filter(Boolean);
+    if (normalized.length !== seats.length) {
+      throw new BadRequestException('Danh sach ghe khong hop le!');
+    }
+
+    if (new Set(normalized).size !== normalized.length) {
+      throw new BadRequestException('Danh sach ghe bi trung lap!');
+    }
+
+    return normalized;
+  }
+
+  private async lockSeats(showtimeId: string, seats: string[]): Promise<Showtime> {
+    const showtime = await this.showtimeModel.findOneAndUpdate(
+      { _id: showtimeId, booked_seats: { $nin: seats } },
+      { $addToSet: { booked_seats: { $each: seats } } },
+      { new: true },
+    );
+
+    if (!showtime) {
+      const existingShowtime = await this.showtimeModel.findById(showtimeId);
+      if (!existingShowtime) {
+        throw new NotFoundException('Suat chieu khong ton tai');
+      }
+      throw new BadRequestException('Ghe da co nguoi dat!');
+    }
+
+    return showtime;
+  }
+
   /**
    * Bước 1: Tạo booking tạm (pending) và URL thanh toán MoMo
    */
   async createMomoPayment(
     createDto: CreatePaymentDto,
   ): Promise<{ payUrl: string; bookingId: string; orderId: string }> {
-    const { showtime_id, seats, user_id } = createDto;
+    const { showtime_id, user_id } = createDto;
+    const seats = this.normalizeSeats(createDto.seats);
 
     // Validate
     if (!user_id) {
@@ -81,12 +117,6 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     const showtime = await this.showtimeModel.findById(showtime_id);
     if (!showtime) {
       throw new NotFoundException('Suất chiếu không tồn tại');
-    }
-
-    // Kiểm tra ghế trống
-    const isSeatTaken = seats.some((seat) => showtime.booked_seats.includes(seat));
-    if (isSeatTaken) {
-      throw new BadRequestException('Ghế đã có người đặt!');
     }
 
     // Tính tiền vé
@@ -127,13 +157,16 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       momo_order_id: momoOrderId, // Lưu mã đơn hàng MoMo
     });
 
-    const savedBooking = await newBooking.save();
-    const bookingId = savedBooking._id.toString();
+    await this.lockSeats(showtime_id, seats);
 
-    // Tạm thời giữ ghế (để tránh người khác đặt)
-    await this.showtimeModel.findByIdAndUpdate(showtime_id, {
-      $push: { booked_seats: { $each: seats } },
-    });
+    let savedBooking: any;
+    try {
+      savedBooking = await newBooking.save();
+    } catch (error) {
+      await this.releaseSeats({ showtime: showtime_id, seats });
+      throw error;
+    }
+    const bookingId = savedBooking._id.toString();
 
     // Encode bookingId vào extraData để có thể lấy lại khi callback
     const extraData = Buffer.from(JSON.stringify({ bookingId })).toString('base64');
@@ -535,7 +568,11 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
   /**
    * Kiểm tra trạng thái thanh toán của booking
    */
-  async checkPaymentStatus(bookingId: string): Promise<{ status: string; booking: any }> {
+  async checkPaymentStatus(
+    bookingId: string,
+    userId: string,
+    role?: string,
+  ): Promise<{ status: string; booking: any }> {
     const booking = await this.bookingModel
       .findById(bookingId)
       .populate({
@@ -550,6 +587,10 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
 
     if (!booking) {
       throw new NotFoundException('Không tìm thấy đơn đặt vé');
+    }
+
+    if (role !== 'admin' && booking.user.toString() !== userId) {
+      throw new BadRequestException('Ban khong co quyen xem don dat ve nay');
     }
 
     return {

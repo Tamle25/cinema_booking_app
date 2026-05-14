@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { IReview } from "@/types";
 import ReviewCard from "./ReviewCard";
 import axios from "axios";
+import { toastWarning } from "@/utils/toast";
 
 interface ReviewListProps {
   movieId: string;
@@ -66,7 +67,7 @@ const ReviewList = ({ movieId }: ReviewListProps) => {
   const handleLike = async (reviewId: string) => {
     const token = localStorage.getItem("access_token");
     if (!token) {
-      alert("Vui lòng đăng nhập để thích đánh giá");
+      toastWarning("Vui lòng đăng nhập để thích đánh giá");
       return;
     }
 

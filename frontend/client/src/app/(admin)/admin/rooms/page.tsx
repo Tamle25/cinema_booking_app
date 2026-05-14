@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Pagination from '@/components/Pagination';
+import { authHeaders } from '@/lib/api';
+import { toastSuccess, toastError } from '@/utils/toast';
 
 interface IRoom {
     _id: string;
@@ -63,7 +65,9 @@ export default function AdminRoomsPage() {
                     params.append('cinema_id', filterCinema);
                 }
 
-                const res = await fetch(`${API_URL}/rooms/admin/list?${params.toString()}`);
+                const res = await fetch(`${API_URL}/rooms/admin/list?${params.toString()}`, {
+                    headers: authHeaders(),
+                });
                 const responseData = await res.json();
 
                 setRooms(responseData.data || []);
@@ -87,17 +91,20 @@ export default function AdminRoomsPage() {
         if (!confirm(`Bạn có chắc muốn xóa phòng "${name}"?`)) return;
 
         try {
-            const res = await fetch(`${API_URL}/rooms/${id}`, { method: 'DELETE' });
+            const res = await fetch(`${API_URL}/rooms/${id}`, {
+                method: 'DELETE',
+                headers: authHeaders(),
+            });
             if (res.ok) {
-                alert('✅ Đã xóa phòng chiếu!');
+                toastSuccess('✅ Đã xóa phòng chiếu!');
                 // Xóa khỏi danh sách UI
                 setRooms(prev => prev.filter(r => r._id !== id));
                 setTotal(prev => prev - 1);
             } else {
-                alert('❌ Không thể xóa phòng!');
+                toastError('❌ Không thể xóa phòng!');
             }
         } catch (error) {
-            alert('❌ Lỗi kết nối!');
+            toastError('❌ Lỗi kết nối!');
         }
     };
 

@@ -3,6 +3,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import { ICinemaSystem } from '@/types';
 import Pagination from '@/components/Pagination';
+import { authHeaders } from '@/lib/api';
+import { toastSuccess, toastWarning, toastError } from '@/utils/toast';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -116,7 +118,7 @@ export default function CinemaSystemsPage() {
   // Save (create or update)
   const handleSave = async () => {
     if (!formData.name.trim()) {
-      alert('Vui lòng nhập tên hãng phim!');
+      toastWarning('Vui lòng nhập tên hãng phim!');
       return;
     }
 
@@ -128,21 +130,21 @@ export default function CinemaSystemsPage() {
       
       const res = await fetch(url, {
         method: editingSystem ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(formData),
       });
 
       if (res.ok) {
-        alert(editingSystem ? 'Cập nhật thành công!' : 'Thêm hãng phim thành công!');
+        toastSuccess(editingSystem ? 'Cập nhật thành công!' : 'Thêm hãng phim thành công!');
         closeModal();
         fetchSystems();
       } else {
         const error = await res.json();
-        alert(`Lỗi: ${error.message}`);
+        toastError(`Lỗi: ${error.message}`);
       }
     } catch (error) {
       console.error('Lỗi lưu hãng phim:', error);
-      alert('Có lỗi xảy ra!');
+      toastError('Có lỗi xảy ra!');
     } finally {
       setSaving(false);
     }
@@ -155,18 +157,19 @@ export default function CinemaSystemsPage() {
     try {
       const res = await fetch(`${API_URL}/cinema-systems/${system._id}`, {
         method: 'DELETE',
+        headers: authHeaders(),
       });
 
       if (res.ok) {
-        alert('Xóa thành công!');
+        toastSuccess('Xóa thành công!');
         fetchSystems();
       } else {
         const error = await res.json();
-        alert(`Lỗi: ${error.message}`);
+        toastError(`Lỗi: ${error.message}`);
       }
     } catch (error) {
       console.error('Lỗi xóa:', error);
-      alert('Có lỗi xảy ra!');
+      toastError('Có lỗi xảy ra!');
     }
   };
 

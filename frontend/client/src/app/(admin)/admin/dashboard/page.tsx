@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
+import { authHeaders } from '@/lib/api';
 
 interface DashboardStats {
   totalMovies: number;
@@ -158,7 +159,7 @@ export default function AdminDashboard() {
           fetch(`${API_URL}/movies`),
           fetch(`${API_URL}/cinema-systems`),
           fetch(`${API_URL}/cinemas`),
-          fetch(`${API_URL}/bookings`),
+          fetch(`${API_URL}/bookings`, { headers: authHeaders() }),
         ]);
 
         const movies = await moviesRes.json();

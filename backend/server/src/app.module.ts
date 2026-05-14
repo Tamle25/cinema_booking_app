@@ -15,6 +15,7 @@ import { RoomsModule } from './rooms/rooms.module';
 import { PaymentsModule } from './payments/payments.module';
 import { CombosModule } from './combos/combos.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { NewsModule } from './news/news.module';
 
 
 @Module({
@@ -49,8 +50,9 @@ import { ReviewsModule } from './reviews/reviews.module';
     PaymentsModule,
     CombosModule,
     ReviewsModule,
+    NewsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule {}

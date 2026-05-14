@@ -16,6 +16,8 @@ import { extname, join } from 'path';
 import { CombosService } from './combos.service';
 import { CreateComboDto } from './dto/create-combo.dto';
 import { UpdateComboDto } from './dto/update-combo.dto';
+import { AdminOnly } from '../common/decorators/admin.decorator';
+import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
 
 // Cấu hình multer storage cho upload ảnh combo
 const comboStorage = diskStorage({
@@ -42,24 +44,27 @@ export class CombosController {
 
   // GET /combos/all — Lấy tất cả combo (cho admin)
   @Get('all')
+  @AdminOnly()
   findAll(@Query('cinemaSystemId') cinemaSystemId?: string) {
     return this.combosService.findAll(cinemaSystemId);
   }
 
   // GET /combos/:id — Lấy chi tiết combo
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseObjectIdPipe) id: string) {
     return this.combosService.findOne(id);
   }
 
   // POST /combos — Tạo combo mới
   @Post()
+  @AdminOnly()
   create(@Body() createComboDto: CreateComboDto) {
     return this.combosService.create(createComboDto);
   }
 
   // POST /combos/upload — Upload ảnh combo
   @Post('upload')
+  @AdminOnly()
   @UseInterceptors(
     FileInterceptor('image', {
       storage: comboStorage,
@@ -85,13 +90,15 @@ export class CombosController {
 
   // PUT /combos/:id — Cập nhật combo
   @Put(':id')
-  update(@Param('id') id: string, @Body() updateComboDto: UpdateComboDto) {
+  @AdminOnly()
+  update(@Param('id', ParseObjectIdPipe) id: string, @Body() updateComboDto: UpdateComboDto) {
     return this.combosService.update(id, updateComboDto);
   }
 
   // DELETE /combos/:id — Xóa combo
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  @AdminOnly()
+  remove(@Param('id', ParseObjectIdPipe) id: string) {
     return this.combosService.remove(id);
   }
 }

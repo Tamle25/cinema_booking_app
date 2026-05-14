@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { authHeaders } from '@/lib/api';
+import { toastSuccess, toastWarning, toastError } from '@/utils/toast';
 
 export default function EditMoviePage() {
   const router = useRouter();
@@ -53,12 +55,12 @@ export default function EditMoviePage() {
           setMovieRating(movie.rating || 0);
           setMovieReviewCount(movie.review_count || 0);
         } else {
-          alert('❌ Không tìm thấy phim!');
+          toastError('❌ Không tìm thấy phim!');
           router.push('/admin/movies');
         }
       } catch (error) {
         console.error('Lỗi kết nối:', error);
-        alert('❌ Không thể kết nối đến server!');
+        toastError('❌ Không thể kết nối đến server!');
       } finally {
         setIsLoading(false);
       }
@@ -83,23 +85,23 @@ export default function EditMoviePage() {
 
     // Validate trước khi gửi
     if (!formData.title.trim()) {
-      alert('❌ Vui lòng nhập tên phim!');
+      toastWarning('❌ Vui lòng nhập tên phim!');
       return;
     }
     if (!formData.slug.trim()) {
-      alert('❌ Vui lòng nhập slug!');
+      toastWarning('❌ Vui lòng nhập slug!');
       return;
     }
     if (!formData.genre.trim()) {
-      alert('❌ Vui lòng nhập thể loại!');
+      toastWarning('❌ Vui lòng nhập thể loại!');
       return;
     }
     if (!formData.duration || formData.duration <= 0) {
-      alert('❌ Vui lòng nhập thời lượng phim hợp lệ!');
+      toastWarning('❌ Vui lòng nhập thời lượng phim hợp lệ!');
       return;
     }
     if (!formData.release_date) {
-      alert('❌ Vui lòng chọn ngày công chiếu!');
+      toastWarning('❌ Vui lòng chọn ngày công chiếu!');
       return;
     }
 
@@ -108,27 +110,27 @@ export default function EditMoviePage() {
     try {
       const res = await fetch(`${API_URL}/movies/${movieId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(formData),
       });
 
       if (res.ok) {
-        alert('✅ Cập nhật phim thành công!');
+        toastSuccess('✅ Cập nhật phim thành công!');
         router.push('/admin/movies');
       } else {
         const errorData = await res.json();
         // Xử lý lỗi validation từ backend
         if (errorData.message && Array.isArray(errorData.message)) {
-          alert('❌ Lỗi: ' + errorData.message.join('\n'));
+          toastError('❌ Lỗi: ' + errorData.message.join('\n'));
         } else if (errorData.message) {
-          alert('❌ Lỗi: ' + errorData.message);
+          toastError('❌ Lỗi: ' + errorData.message);
         } else {
-          alert('❌ Có lỗi xảy ra khi cập nhật phim!');
+          toastError('❌ Có lỗi xảy ra khi cập nhật phim!');
         }
       }
     } catch (error) {
       console.error('Lỗi kết nối:', error);
-      alert('❌ Không thể kết nối đến server. Vui lòng kiểm tra backend đang chạy!');
+      toastError('❌ Không thể kết nối đến server. Vui lòng kiểm tra backend đang chạy!');
     } finally {
       setIsSubmitting(false);
     }

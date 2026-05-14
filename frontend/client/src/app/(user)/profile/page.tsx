@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toastSuccess, toastError } from '@/utils/toast';
 
 interface IBooking {
   _id: string;
@@ -101,13 +102,13 @@ export default function ProfilePage() {
       if (res.ok) {
         const data = await res.json();
         updateUser(data); // Cập nhật AuthContext
-        setProfileMessage({ type: 'success', text: 'Cập nhật thông tin thành công!' });
+        toastSuccess('Cập nhật thông tin thành công!');
       } else {
         const err = await res.json();
-        setProfileMessage({ type: 'error', text: err.message || 'Có lỗi xảy ra' });
+        toastError(err.message || 'Có lỗi xảy ra');
       }
     } catch (error) {
-      setProfileMessage({ type: 'error', text: 'Không thể kết nối đến server' });
+      toastError('Không thể kết nối đến server');
     } finally {
       setIsUpdatingProfile(false);
     }
@@ -152,13 +153,13 @@ export default function ProfilePage() {
         if (updateRes.ok) {
           const updatedUser = await updateRes.json();
           updateUser(updatedUser);
-          setProfileMessage({ type: 'success', text: 'Cập nhật ảnh đại diện thành công!' });
+          toastSuccess('Cập nhật ảnh đại diện thành công!');
         }
       } else {
-        setProfileMessage({ type: 'error', text: 'Upload ảnh thất bại' });
+        toastError('Upload ảnh thất bại');
       }
     } catch (error) {
-      setProfileMessage({ type: 'error', text: 'Lỗi khi upload ảnh' });
+      toastError('Lỗi khi upload ảnh');
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -192,17 +193,17 @@ export default function ProfilePage() {
       });
 
       if (res.ok) {
-        setPasswordMessage({ type: 'success', text: 'Đổi mật khẩu thành công!' });
+        toastSuccess('Đổi mật khẩu thành công!');
         setOldPassword('');
         setNewPassword('');
         setConfirmPassword('');
         setTimeout(() => setIsPasswordModalOpen(false), 1500);
       } else {
         const err = await res.json();
-        setPasswordMessage({ type: 'error', text: err.message || 'Có lỗi xảy ra' });
+        toastError(err.message || 'Có lỗi xảy ra');
       }
     } catch (error) {
-      setPasswordMessage({ type: 'error', text: 'Không thể kết nối đến server' });
+      toastError('Không thể kết nối đến server');
     } finally {
       setIsUpdatingPassword(false);
     }
@@ -291,8 +292,8 @@ export default function ProfilePage() {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <h3 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4 mb-6">Thông tin cá nhân</h3>
             
-            {profileMessage.text && (
-              <div className={`p-4 rounded-lg mb-6 text-sm ${profileMessage.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+            {profileMessage.text && profileMessage.type === 'error' && (
+              <div className="p-4 rounded-lg mb-6 text-sm bg-red-50 text-red-700 border border-red-100">
                 {profileMessage.text}
               </div>
             )}
@@ -436,8 +437,8 @@ export default function ProfilePage() {
                 Đổi mật khẩu
               </h3>
               
-              {passwordMessage.text && (
-                <div className={`p-4 rounded-lg mb-6 text-sm ${passwordMessage.type === 'success' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
+              {passwordMessage.text && passwordMessage.type === 'error' && (
+                <div className="p-4 rounded-lg mb-6 text-sm bg-red-50 text-red-700 border border-red-100">
                   {passwordMessage.text}
                 </div>
               )}

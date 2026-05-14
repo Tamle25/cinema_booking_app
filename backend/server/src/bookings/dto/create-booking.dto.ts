@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsMongoId, IsArray } from 'class-validator';
+import { ArrayMinSize, IsArray, IsMongoId, IsNotEmpty, IsString } from 'class-validator';
 
 export class CreateBookingDto {
   @IsNotEmpty()
@@ -11,5 +11,7 @@ export class CreateBookingDto {
 
   @IsNotEmpty()
   @IsArray()
+  @ArrayMinSize(1)
+  @IsString({ each: true })
   seats: string[];
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { IShowtime, ISelectedCombo } from '@/types';
 import ComboSelector from '@/components/ComboSelector';
+import { toastWarning, toastError } from '@/utils/toast';
 
 // Hàm chuyển đổi số thành chữ (0 -> A, 1 -> B...)
 const getRowLabel = (index: number) => {
@@ -80,7 +81,7 @@ export default function BookingPage() {
     if (!pendingBooking) return;
     const token = localStorage.getItem('access_token');
     if (!token) {
-      alert('Bạn cần đăng nhập!');
+      toastWarning('Bạn cần đăng nhập!');
       router.push('/login');
       return;
     }
@@ -98,7 +99,7 @@ export default function BookingPage() {
       const data = await res.json();
 
       if (res.status === 401) {
-        alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!');
+        toastWarning('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!');
         localStorage.removeItem('access_token');
         router.push('/login');
         return;
@@ -107,14 +108,14 @@ export default function BookingPage() {
       if (res.ok && data.payUrl) {
         window.location.href = data.payUrl;
       } else {
-        alert(data.message || 'Không thể thanh toán lại. Đơn hàng có thể đã hết hạn.');
+        toastError(data.message || 'Không thể thanh toán lại. Đơn hàng có thể đã hết hạn.');
         setShowPendingModal(false);
         setPendingBooking(null);
         setPendingAction(false);
       }
     } catch (error) {
       console.error('Lỗi retry:', error);
-      alert('Có lỗi xảy ra.');
+      toastError('Có lỗi xảy ra.');
       setPendingAction(false);
     }
   };
@@ -137,7 +138,7 @@ export default function BookingPage() {
       });
 
       if (res.status === 401) {
-        alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!');
+        toastWarning('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!');
         localStorage.removeItem('access_token');
         router.push('/login');
         return;
@@ -152,12 +153,12 @@ export default function BookingPage() {
         setShowtime(showtimeData);
       } else {
         const data = await res.json();
-        alert(data.message || 'Không thể hủy đơn hàng.');
+        toastError(data.message || 'Không thể hủy đơn hàng.');
       }
       setPendingAction(false);
     } catch (error) {
       console.error('Lỗi cancel:', error);
-      alert('Có lỗi xảy ra.');
+      toastError('Có lỗi xảy ra.');
       setPendingAction(false);
     }
   };
@@ -170,7 +171,7 @@ export default function BookingPage() {
       setSelectedSeats(prev => prev.filter(s => s !== seatName));
     } else {
       if (selectedSeats.length >= 8) {
-        alert("Bạn chỉ được chọn tối đa 8 ghế!");
+        toastWarning("Bạn chỉ được chọn tối đa 8 ghế!");
         return;
       }
       setSelectedSeats(prev => [...prev, seatName]);
@@ -180,13 +181,13 @@ export default function BookingPage() {
   // 3. Mở modal chọn combo thay vì payment
   const handleProceedToPayment = () => {
     if (selectedSeats.length === 0) {
-      alert("Vui lòng chọn ít nhất 1 ghế!");
+      toastWarning("Vui lòng chọn ít nhất 1 ghế!");
       return;
     }
 
     const token = localStorage.getItem('access_token');
     if (!token) {
-      alert("Bạn cần đăng nhập để đặt vé!");
+      toastWarning("Bạn cần đăng nhập để đặt vé!");
       router.push('/login');
       return;
     }
@@ -226,7 +227,7 @@ export default function BookingPage() {
       const data = await res.json();
 
       if (res.status === 401) {
-        alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!');
+        toastWarning('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!');
         localStorage.removeItem('access_token');
         router.push('/login');
         return;
@@ -236,12 +237,12 @@ export default function BookingPage() {
         // Redirect đến trang thanh toán MoMo
         window.location.href = data.payUrl;
       } else {
-        alert(`Lỗi: ${data.message || 'Không thể tạo thanh toán MoMo'}`);
+        toastError(`Lỗi: ${data.message || 'Không thể tạo thanh toán MoMo'}`);
         setProcessing(false);
       }
     } catch (error) {
       console.error("Lỗi tạo thanh toán MoMo:", error);
-      alert("Có lỗi xảy ra, vui lòng thử lại.");
+      toastError("Có lỗi xảy ra, vui lòng thử lại.");
       setProcessing(false);
     }
   };

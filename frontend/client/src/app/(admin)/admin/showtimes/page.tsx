@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Pagination from '@/components/Pagination';
+import { authHeaders } from '@/lib/api';
+import { toastSuccess, toastError } from '@/utils/toast';
 
 interface IShowtime {
     _id: string;
@@ -86,7 +88,9 @@ export default function AdminShowtimesPage() {
                 if (filterCinema) params.append('cinema_id', filterCinema);
                 if (filterDate) params.append('date', filterDate);
 
-                const res = await fetch(`${API_URL}/showtimes/admin/list?${params.toString()}`);
+                const res = await fetch(`${API_URL}/showtimes/admin/list?${params.toString()}`, {
+                    headers: authHeaders(),
+                });
                 const responseData = await res.json();
 
                 setShowtimes(responseData.data || []);
@@ -131,20 +135,21 @@ export default function AdminShowtimesPage() {
         try {
             const res = await fetch(`${API_URL}/showtimes/${id}`, {
                 method: 'DELETE',
+                headers: authHeaders(),
             });
 
             if (res.ok) {
-                alert('✅ Đã xóa suất chiếu thành công!');
+                toastSuccess('✅ Đã xóa suất chiếu thành công!');
                 // Xóa khỏi danh sách UI ngay lập tức
                 setShowtimes(prev => prev.filter(s => s._id !== id));
                 setTotal(prev => prev - 1);
             } else {
                 const error = await res.json();
-                alert('❌ Lỗi: ' + (error.message || 'Không thể xóa suất chiếu'));
+                toastError('❌ Lỗi: ' + (error.message || 'Không thể xóa suất chiếu'));
             }
         } catch (error) {
             console.error('Lỗi xóa:', error);
-            alert('❌ Không thể kết nối đến server!');
+            toastError('❌ Không thể kết nối đến server!');
         }
     };
 
