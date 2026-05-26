@@ -168,6 +168,12 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     }
     const bookingId = savedBooking._id.toString();
 
+    // Notify websocket that booking has been created (seats are booked in DB)
+    await this.notifyWebsocket('/internal/booking-completed', {
+      showtimeId: showtime_id,
+      seats: seats,
+    });
+
     // Encode bookingId vào extraData để có thể lấy lại khi callback
     const extraData = Buffer.from(JSON.stringify({ bookingId })).toString('base64');
 
@@ -448,11 +454,44 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Gửi HTTP request notify sang Websocket service
+   */
+  private async notifyWebsocket(endpoint: string, payload: any): Promise<void> {
+    const wsUrl = process.env.WEBSOCKET_SERVICE_URL || 'http://localhost:4001';
+    try {
+      const response = await fetch(`${wsUrl}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        console.error(`[PaymentsService] Failed to notify websocket: ${response.statusText}`);
+      } else {
+        console.log(`[PaymentsService] Notified websocket ${endpoint} successfully`);
+      }
+    } catch (error) {
+      console.error(`[PaymentsService] Error notifying websocket at ${wsUrl}${endpoint}:`, error);
+    }
+  }
+
+  /**
    * Hoàn lại ghế khi thanh toán thất bại
    */
   private async releaseSeats(booking: any): Promise<void> {
     await this.showtimeModel.findByIdAndUpdate(booking.showtime, {
       $pull: { booked_seats: { $in: booking.seats } },
+    });
+
+    // Thông báo cho websocket giải phóng các ghế này
+    const showtimeId = booking.showtime && booking.showtime._id 
+      ? booking.showtime._id.toString() 
+      : booking.showtime.toString();
+
+    await this.notifyWebsocket('/internal/booking-released', {
+      showtimeId,
+      seats: booking.seats,
     });
   }
 

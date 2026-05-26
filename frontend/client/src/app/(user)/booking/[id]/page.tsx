@@ -5,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { IShowtime, ISelectedCombo } from '@/types';
 import ComboSelector from '@/components/ComboSelector';
 import { toastWarning, toastError } from '@/utils/toast';
+import { useSocket } from '@/context/SocketContext';
+import { useAuth } from '@/context/AuthContext';
 
 // Hàm chuyển đổi số thành chữ (0 -> A, 1 -> B...)
 const getRowLabel = (index: number) => {
@@ -14,10 +16,16 @@ const getRowLabel = (index: number) => {
 export default function BookingPage() {
   const params = useParams();
   const router = useRouter();
-  const showtimeId = params.id;
+  const showtimeId = params.id as string;
+
+  const { socket, isConnected } = useSocket();
+  const { user } = useAuth();
+  const userId = user?._id || user?.id;
 
   const [showtime, setShowtime] = useState<IShowtime | null>(null);
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
+  // Lưu danh sách các ghế đang bị người khác khóa realtime
+  const [lockedSeats, setLockedSeats] = useState<Record<string, { userId?: string; expiresAt: number; socketId: string }>>({});
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -29,6 +37,126 @@ export default function BookingPage() {
   const [showComboModal, setShowComboModal] = useState(false);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+  // Realtime Socket event listeners
+  useEffect(() => {
+    if (!socket || !showtimeId) return;
+
+    // Join room theo showtimeId
+    socket.emit('join_showtime', { showtimeId, userId });
+
+    // Nhận danh sách ghế đang bị khóa khi vừa join room
+    socket.on('seat_state_sync', (data: { showtimeId: string; lockedSeats: any }) => {
+      if (data.showtimeId === showtimeId) {
+        setLockedSeats(data.lockedSeats || {});
+      }
+    });
+
+    // Nhận thông báo một ghế bị khóa
+    socket.on('seat_locked', (data: { showtimeId: string; seatName: string; lockedBy: string; userId?: string; expiresAt: number }) => {
+      if (data.showtimeId === showtimeId) {
+        setLockedSeats(prev => ({
+          ...prev,
+          [data.seatName]: {
+            userId: data.userId,
+            expiresAt: data.expiresAt,
+            socketId: data.lockedBy
+          }
+        }));
+      }
+    });
+
+    // Nhận thông báo một ghế được mở khóa
+    socket.on('seat_unlocked', (data: { showtimeId: string; seatName: string }) => {
+      if (data.showtimeId === showtimeId) {
+        setLockedSeats(prev => {
+          const next = { ...prev };
+          delete next[data.seatName];
+          return next;
+        });
+      }
+    });
+
+    // Nhận thông báo một ghế bị hết hạn giữ
+    socket.on('seat_lock_expired', (data: { showtimeId: string; seatName: string }) => {
+      if (data.showtimeId === showtimeId) {
+        // Giải phóng khỏi lockedSeats
+        setLockedSeats(prev => {
+          const next = { ...prev };
+          delete next[data.seatName];
+          return next;
+        });
+
+        // Nếu ghế bị hết hạn là ghế của chính mình đang chọn
+        setSelectedSeats(prev => {
+          if (prev.includes(data.seatName)) {
+            toastWarning(`Ghế ${data.seatName} đã hết thời gian giữ và tự động giải phóng!`);
+            return prev.filter(s => s !== data.seatName);
+          }
+          return prev;
+        });
+      }
+    });
+
+    // Nhận thông báo ghế đã được đặt thành công (booked) qua DB
+    socket.on('seat_booked', (data: { showtimeId: string; seats: string[] }) => {
+      if (data.showtimeId === showtimeId) {
+        // Cập nhật trạng thái booked_seats cho showtime
+        setShowtime(prev => {
+          if (!prev) return null;
+          const updatedBooked = [...new Set([...(prev.booked_seats || []), ...data.seats])];
+          return {
+            ...prev,
+            booked_seats: updatedBooked,
+          };
+        });
+
+        // Xóa khỏi lockedSeats
+        setLockedSeats(prev => {
+          const next = { ...prev };
+          data.seats.forEach(seat => delete next[seat]);
+          return next;
+        });
+
+        // Xóa khỏi selectedSeats nếu mình cũng đang chọn ghế đó
+        setSelectedSeats(prev => {
+          const filtered = prev.filter(seat => !data.seats.includes(seat));
+          if (prev.length !== filtered.length) {
+            toastWarning("Một hoặc nhiều ghế bạn chọn vừa được thanh toán thành công bởi người khác!");
+          }
+          return filtered;
+        });
+      }
+    });
+
+    // Nhận lỗi từ websocket server (ví dụ lock trùng ghế)
+    socket.on('seat_lock_error', (data: { seatName: string; message: string }) => {
+      toastError(data.message);
+      // Revert optimistic update
+      setSelectedSeats(prev => prev.filter(s => s !== data.seatName));
+    });
+
+    return () => {
+      socket.off('seat_state_sync');
+      socket.off('seat_locked');
+      socket.off('seat_unlocked');
+      socket.off('seat_lock_expired');
+      socket.off('seat_booked');
+      socket.off('seat_lock_error');
+      socket.emit('leave_showtime', { showtimeId });
+    };
+  }, [socket, showtimeId, userId]);
+
+  // Tự động đồng bộ và lock lại ghế khi kết nối mạng/socket được thiết lập lại
+  useEffect(() => {
+    if (socket && isConnected && showtimeId) {
+      socket.emit('join_showtime', { showtimeId, userId });
+      // Thử lock lại các ghế mà client đang chọn trước khi mất kết nối
+      selectedSeats.forEach(seatName => {
+        socket.emit('lock_seat', { showtimeId, seatName, userId });
+      });
+    }
+  }, [socket, isConnected, showtimeId]);
 
   // 1. Lấy dữ liệu suất chiếu
   useEffect(() => {
@@ -167,14 +295,35 @@ export default function BookingPage() {
   const handleSeatClick = (seatName: string, isBooked: boolean) => {
     if (isBooked) return;
 
+    // Kiểm tra xem ghế có đang bị người khác khóa không
+    const isLockedByOthers = lockedSeats[seatName] && lockedSeats[seatName].socketId !== socket?.id;
+    if (isLockedByOthers) {
+      toastWarning("Ghế này đang được giữ bởi người dùng khác!");
+      return;
+    }
+
     if (selectedSeats.includes(seatName)) {
+      // 1. Optimistic update: Bỏ chọn local
       setSelectedSeats(prev => prev.filter(s => s !== seatName));
+      // 2. Emit unlock cho websocket server
+      if (socket && isConnected) {
+        socket.emit('unlock_seat', { showtimeId, seatName });
+      }
     } else {
       if (selectedSeats.length >= 8) {
         toastWarning("Bạn chỉ được chọn tối đa 8 ghế!");
         return;
       }
+
+      // 1. Optimistic update: Chọn local
       setSelectedSeats(prev => [...prev, seatName]);
+
+      // 2. Emit lock cho websocket server
+      if (socket && isConnected) {
+        socket.emit('lock_seat', { showtimeId, seatName, userId });
+      } else {
+        toastWarning("Đang ngắt kết nối với Realtime Server. Vui lòng đợi kết nối lại...");
+      }
     }
   };
 
@@ -300,24 +449,27 @@ export default function BookingPage() {
                 // Kiểm tra trạng thái
                 const isBooked = booked_seats.includes(seatName);
                 const isSelected = selectedSeats.includes(seatName);
+                const isLockedByOthers = lockedSeats[seatName] && lockedSeats[seatName].socketId !== socket?.id;
 
                 return (
                   <button
                     key={seatName}
-                    disabled={isBooked}
+                    disabled={isBooked || isLockedByOthers}
                     onClick={() => handleSeatClick(seatName, isBooked)}
                     className={`
                       w-10 h-10 rounded-t-lg text-xs font-bold transition
                       flex items-center justify-center
                       ${isBooked
-                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed' // Đã đặt (Xám đậm/Đỏ)
+                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed' // Đã bán (Xám đậm)
                         : isSelected
-                          ? 'bg-green-500 text-white shadow-[0_0_10px_#22c55e] transform scale-110' // Đang chọn
-                          : 'bg-gray-200 text-gray-900 hover:bg-white' // Trống
+                          ? 'bg-green-500 text-white shadow-[0_0_10px_#22c55e] transform scale-110' // Đang chọn (Xanh lá)
+                          : isLockedByOthers
+                            ? 'bg-amber-500 text-white cursor-not-allowed shadow-[0_0_10px_#f59e0b]' // Đang bị người khác khóa (Cam/Vàng)
+                            : 'bg-gray-200 text-gray-900 hover:bg-white' // Trống (Xám nhạt)
                       }
                     `}
                   >
-                    {isBooked ? 'X' : seatName}
+                    {isBooked ? 'X' : isLockedByOthers ? '🔒' : seatName}
                   </button>
                 );
               })}
@@ -335,6 +487,10 @@ export default function BookingPage() {
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 bg-green-500 rounded shadow-[0_0_5px_#22c55e]"></div>
           <span className="text-gray-400">Đang chọn</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 bg-amber-500 rounded shadow-[0_0_5px_#f59e0b]"></div>
+          <span className="text-gray-400">Đang bị giữ</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 bg-gray-700 rounded flex items-center justify-center font-bold text-xs">X</div>

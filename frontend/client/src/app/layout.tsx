@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/context/AuthContext";
+import { SocketProvider } from "@/context/SocketContext";
 import ToastProvider from "@/components/ToastProvider";
 import "./globals.css";
 
@@ -24,7 +25,7 @@ export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
+  }>) {
   return (
     <html lang="vi" suppressHydrationWarning>
       <body
@@ -32,9 +33,11 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <AuthProvider>
-          <ToastProvider>
-            {children}
-          </ToastProvider>
+          <SocketProvider>
+            <ToastProvider>
+              {children}
+            </ToastProvider>
+          </SocketProvider>
         </AuthProvider>
       </body>
     </html>
