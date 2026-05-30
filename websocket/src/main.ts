@@ -24,6 +24,9 @@ const io = new Server(httpServer, {
     methods: ['GET', 'POST'],
     credentials: true,
   },
+  // Ping interval/timeout: phát hiện client mất kết nối nhanh hơn
+  pingInterval: 10000,  // Gửi ping mỗi 10s
+  pingTimeout: 5000,    // Nếu không có pong trong 5s → coi như disconnect
 });
 
 // Khởi tạo GateWay

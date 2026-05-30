@@ -32,6 +32,12 @@ const RoomIcon = () => (
   </svg>
 );
 
+const GenreIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+  </svg>
+);
+
 const MovieIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
@@ -74,6 +80,7 @@ const menuItems = [
   { href: '/admin/cinema-systems', label: 'Hệ thống rạp', icon: CinemaSystemIcon },
   { href: '/admin/cinemas', label: 'Rạp chiếu', icon: CinemaIcon },
   { href: '/admin/rooms', label: 'Phòng chiếu', icon: RoomIcon },
+  { href: '/admin/genres', label: 'Thể loại phim', icon: GenreIcon },
   { href: '/admin/movies', label: 'Quản lý Phim', icon: MovieIcon },
   { href: '/admin/showtimes', label: 'Suất chiếu', icon: ShowtimeIcon },
   { href: '/admin/combos', label: 'Combo Bắp Nước', icon: ComboIcon },

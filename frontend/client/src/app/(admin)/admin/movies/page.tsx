@@ -2,13 +2,14 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
-import { IMovie } from '@/types/index';
+import { IMovie, IGenre } from '@/types/index';
 import Pagination from '@/components/Pagination';
-import { authHeaders } from '@/lib/api';
+import { authHeaders, API_URL } from '@/lib/api';
 import { toastSuccess, toastError } from '@/utils/toast';
 
 export default function MovieListPage() {
   const [movies, setMovies] = useState<IMovie[]>([]);
+  const [genres, setGenres] = useState<IGenre[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGenre, setFilterGenre] = useState('');
@@ -16,21 +17,28 @@ export default function MovieListPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-
   // Fetch movies
   const fetchMovies = async () => {
     try {
       const res = await fetch(`${API_URL}/movies`);
       if (!res.ok) throw new Error('Không tải được phim');
-      
-      // Backend (đã thêm Virtuals) sẽ trả về field 'status' trong JSON
       const data = await res.json(); 
       setMovies(data);
     } catch (error) {
       console.error(error);
-    } finally {
-      setLoading(false);
+    }
+  };
+
+  // Fetch genres
+  const fetchGenres = async () => {
+    try {
+      const res = await fetch(`${API_URL}/genres/active`);
+      if (res.ok) {
+        const data = await res.json();
+        setGenres(data);
+      }
+    } catch (error) {
+      console.error('Lỗi tải thể loại:', error);
     }
   };
 
@@ -55,16 +63,16 @@ export default function MovieListPage() {
   };
 
   useEffect(() => {
-    fetchMovies();
+    setLoading(true);
+    Promise.all([fetchMovies(), fetchGenres()]).finally(() => {
+      setLoading(false);
+    });
   }, []);
-
-  // Get unique genres
-  const uniqueGenres = [...new Set(movies.map(m => m.genre).filter(Boolean))];
 
   // Filter movies
   const filteredMovies = movies.filter(movie => {
     const matchSearch = movie.title.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchGenre = !filterGenre || movie.genre === filterGenre;
+    const matchGenre = !filterGenre || movie.genres?.some(g => g._id === filterGenre);
     const matchStatus = !filterStatus || 
       (filterStatus === 'active' && movie.is_active) ||
       (filterStatus === 'inactive' && !movie.is_active);
@@ -83,13 +91,11 @@ export default function MovieListPage() {
     return filteredMovies.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredMovies, currentPage, itemsPerPage]);
 
-  // --- HÀM QUAN TRỌNG ĐÃ ĐƯỢC SỬA ---
   const getMovieStatus = (movie: IMovie) => {
     if (!movie.is_active) {
       return { label: 'Ngưng chiếu', color: 'bg-gray-100 text-gray-600' };
     }
 
-    // ƯU TIÊN 1: Dùng status từ Backend gửi về (Chính xác nhất)
     if (movie.status) {
         if (movie.status === 'Đang chiếu') {
             return { label: 'Đang chiếu', color: 'bg-green-100 text-green-700' };
@@ -99,16 +105,14 @@ export default function MovieListPage() {
         }
     }
 
-    // ƯU TIÊN 2: Fallback (Phòng hờ backend chưa update, tính theo giờ trình duyệt)
     const releaseDate = new Date(movie.release_date);
-    const now = new Date(); // Dùng full time, không setHours để chính xác từng phút
+    const now = new Date();
     
     if (releaseDate > now) {
       return { label: 'Sắp chiếu', color: 'bg-yellow-100 text-yellow-700' };
     }
     return { label: 'Đang chiếu', color: 'bg-green-100 text-green-700' };
   };
-  // -----------------------------------
 
   if (loading) {
     return (
@@ -158,8 +162,8 @@ export default function MovieListPage() {
             className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
           >
             <option value="">Tất cả thể loại</option>
-            {uniqueGenres.map(genre => (
-              <option key={genre} value={genre}>{genre}</option>
+            {genres.map(genre => (
+              <option key={genre._id} value={genre._id}>{genre.name}</option>
             ))}
           </select>
           <select
@@ -219,7 +223,11 @@ export default function MovieListPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-sm text-gray-700">{movie.genre}</span>
+                      <span className="text-sm text-gray-700">
+                        {movie.genres && movie.genres.length > 0
+                          ? movie.genres.map(g => g.name).join(', ')
+                          : 'Chưa có'}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span className="text-sm text-gray-700">{movie.duration} phút</span>

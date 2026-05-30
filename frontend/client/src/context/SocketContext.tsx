@@ -1,64 +1,160 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 
 interface SocketContextProps {
   socket: Socket | null;
   isConnected: boolean;
+  /** true nếu socket đã từng kết nối thành công ít nhất 1 lần trong session này */
+  hasEverConnected: boolean;
+  /** Hàm disconnect thủ công (dùng khi logout, session invalid) */
+  disconnectSocket: () => void;
 }
 
 const SocketContext = createContext<SocketContextProps>({
   socket: null,
   isConnected: false,
+  hasEverConnected: false,
+  disconnectSocket: () => {},
 });
 
 export const useSocket = () => useContext(SocketContext);
 
+// Singleton: chỉ tạo 1 socket duy nhất cho toàn app
+let globalSocket: Socket | null = null;
+let isSocketDestroyed = false; // Flag riêng để biết socket đã bị destroy thủ công
+
+function getOrCreateSocket(): Socket | null {
+  if (typeof window === 'undefined') return null;
+
+  // Nếu đã có socket và chưa bị destroyed → tái sử dụng
+  if (globalSocket && !isSocketDestroyed) {
+    console.log('[SocketProvider] Reusing existing socket, ID:', globalSocket.id);
+    return globalSocket;
+  }
+
+  // Nếu socket bị destroyed (do logout/manual disconnect) → cleanup và tạo mới
+  if (globalSocket) {
+    console.log('[SocketProvider] Previous socket was destroyed, creating new one');
+    globalSocket.removeAllListeners();
+    globalSocket = null;
+  }
+  isSocketDestroyed = false;
+
+  const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'http://localhost:4001';
+  console.log(`[SocketProvider] Creating new WebSocket connection to ${wsUrl}`);
+
+  globalSocket = io(wsUrl, {
+    transports: ['websocket'],
+    autoConnect: true,
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    timeout: 20000,
+  });
+
+  return globalSocket;
+}
+
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [socket, setSocket] = useState<Socket | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
+  // Dùng ref để giữ socket singleton, tránh tạo lại khi re-render
+  const socketRef = useRef<Socket | null>(null);
 
-  useEffect(() => {
-    const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'http://localhost:4001';
-    console.log(`[SocketProvider] Connecting to WebSocket at ${wsUrl}`);
+  // Chỉ khởi tạo socket 1 lần
+  if (socketRef.current === null) {
+    socketRef.current = getOrCreateSocket();
+  }
 
-    const socketInstance = io(wsUrl, {
-      transports: ['websocket'],
-      autoConnect: true,
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 20000,
-    });
+  const socket = socketRef.current;
 
-    socketInstance.on('connect', () => {
-      console.log('[SocketProvider] Connected to WS Server, Socket ID:', socketInstance.id);
-      setIsConnected(true);
-    });
+  const [isConnected, setIsConnected] = useState(() => socket ? socket.connected : false);
+  const [hasEverConnected, setHasEverConnected] = useState(false);
 
-    socketInstance.on('disconnect', (reason) => {
-      console.log('[SocketProvider] Disconnected from WS Server, Reason:', reason);
+  // Ref để track hasEverConnected (tránh stale closure trong beforeunload)
+  const hasEverConnectedRef = useRef(false);
+
+  const disconnectSocket = useCallback(() => {
+    if (socketRef.current) {
+      console.log('[SocketProvider] Manual disconnect requested (logout/session invalid)');
+      socketRef.current.disconnect();
+      socketRef.current.removeAllListeners();
+      socketRef.current = null;
+      globalSocket = null;
+      isSocketDestroyed = true;
       setIsConnected(false);
-    });
-
-    socketInstance.on('connect_error', (error) => {
-      console.error('[SocketProvider] Connection Error:', error);
-      setIsConnected(false);
-    });
-
-    setSocket(socketInstance);
-
-    // Cleanup khi unmount
-    return () => {
-      console.log('[SocketProvider] Disconnecting Socket');
-      socketInstance.disconnect();
-    };
+      setHasEverConnected(false);
+      hasEverConnectedRef.current = false;
+    }
   }, []);
 
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleConnect = () => {
+      console.log('[SocketProvider] ✅ Connected to WS Server, Socket ID:', socket.id);
+      setIsConnected(true);
+      setHasEverConnected(true);
+      hasEverConnectedRef.current = true;
+    };
+
+    const handleDisconnect = (reason: string) => {
+      console.log('[SocketProvider] ❌ Disconnected from WS Server, Reason:', reason);
+      setIsConnected(false);
+      // KHÔNG reset hasEverConnected → để booking page biết đây là "mất kết nối" chứ không phải "chưa từng kết nối"
+    };
+
+    const handleConnectError = (error: Error) => {
+      console.error('[SocketProvider] ⚠️ Connection Error:', error.message);
+      setIsConnected(false);
+    };
+
+    const handleReconnect = (attempt: number) => {
+      console.log(`[SocketProvider] 🔄 Reconnected after ${attempt} attempt(s)`);
+    };
+
+    const handleReconnectAttempt = (attempt: number) => {
+      console.log(`[SocketProvider] 🔄 Reconnect attempt #${attempt}`);
+    };
+
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+    socket.on('connect_error', handleConnectError);
+    socket.io.on('reconnect', handleReconnect);
+    socket.io.on('reconnect_attempt', handleReconnectAttempt);
+
+    // Nếu socket đã connected sẵn (ví dụ re-mount), cập nhật state
+    if (socket.connected) {
+      setIsConnected(true);
+      setHasEverConnected(true);
+      hasEverConnectedRef.current = true;
+    }
+
+    // beforeunload: disconnect khi user thực sự đóng tab/refresh
+    const handleBeforeUnload = () => {
+      console.log('[SocketProvider] 🚪 Window beforeunload - disconnecting socket');
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      // Cleanup: CHỈ gỡ listeners, KHÔNG disconnect socket
+      // Socket sẽ sống suốt vòng đời app (singleton)
+      console.log('[SocketProvider] Cleaning up event listeners (socket stays alive)');
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+      socket.off('connect_error', handleConnectError);
+      socket.io.off('reconnect', handleReconnect);
+      socket.io.off('reconnect_attempt', handleReconnectAttempt);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [socket]);
+
   return (
-    <SocketContext.Provider value={{ socket, isConnected }}>
+    <SocketContext.Provider value={{ socket, isConnected, hasEverConnected, disconnectSocket }}>
       {children}
     </SocketContext.Provider>
   );

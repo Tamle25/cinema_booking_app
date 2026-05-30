@@ -246,7 +246,7 @@ export default function ShowtimesSection() {
                 className={`flex flex-col items-center justify-center min-w-[70px] transition-all p-2 rounded-xl group relative ${selectedSystemId === 'all' ? '' : 'opacity-70 hover:opacity-100 hover:bg-gray-100'}`}
              >
                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm border mb-1 transition-all ${selectedSystemId === 'all' ? 'border-red-500 bg-white ring-2 ring-red-100' : 'border-gray-200 bg-white group-hover:border-gray-300'}`}>
-                  <span className="text-xl">🌟</span>
+                  <span className="text-xl">🎬</span>
                 </div>
                 <span className={`text-xs font-semibold whitespace-nowrap ${selectedSystemId === 'all' ? 'text-red-600' : 'text-gray-600'}`}>Tất cả</span>
                 {selectedSystemId === 'all' && <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-red-600 rounded-full"></div>}

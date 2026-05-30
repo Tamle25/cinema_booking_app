@@ -220,9 +220,9 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
                 )}
 
                 {/* Thể loại */}
-                {currentMovie.genre && (
+                {currentMovie.genres && currentMovie.genres.length > 0 && (
                   <span className="bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-full">
-                    {currentMovie.genre}
+                    {currentMovie.genres.map((g) => g.name).join(', ')}
                   </span>
                 )}
               </div>

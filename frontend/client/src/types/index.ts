@@ -1,5 +1,14 @@
 // src/types/index.ts
 
+export interface IGenre {
+  _id: string;
+  name: string;
+  slug: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ICinemaSystem {
   _id: string;
   name: string;
@@ -47,7 +56,7 @@ export interface IMovie {
   poster_url: string;
   banner_url: string;
   trailer_url: string;
-  genre: string;
+  genres: IGenre[];
   duration: number;
   rating: number;   
   review_count: number;

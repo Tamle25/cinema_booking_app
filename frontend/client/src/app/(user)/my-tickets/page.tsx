@@ -14,7 +14,7 @@ interface IBooking {
       title: string;
       poster_url: string;
       duration: number;
-      genre: string;
+      genres: { name: string }[];
     };
     cinema: {
       _id: string;
@@ -234,7 +234,7 @@ const TicketDetailModal = ({ booking, onClose }: { booking: IBooking; onClose: (
             <StatusBadge status={booking.status || 'confirmed'} />
             <h2 className="text-2xl font-bold mt-2">{booking.showtime?.movie?.title}</h2>
             <p className="text-sm text-white/80">
-              {booking.showtime?.movie?.genre} • {booking.showtime?.movie?.duration} phút
+              {booking.showtime?.movie?.genres?.map(g => g.name).join(', ')} • {booking.showtime?.movie?.duration} phút
             </p>
           </div>
         </div>

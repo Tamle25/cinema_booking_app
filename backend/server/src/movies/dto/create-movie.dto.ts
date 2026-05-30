@@ -1,5 +1,4 @@
-// Bổ sung thêm IsOptional và IsBoolean vào dòng import
-import { IsNotEmpty, IsNumber, IsString, IsDateString, IsOptional, IsBoolean } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, IsDateString, IsOptional, IsBoolean, IsArray, IsMongoId } from 'class-validator';
 
 export class CreateMovieDto {
   @IsNotEmpty()
@@ -18,7 +17,6 @@ export class CreateMovieDto {
   @IsString()
   trailer_url?: string;
 
-
   @IsOptional()
   @IsBoolean()
   is_active?: boolean;
@@ -31,9 +29,10 @@ export class CreateMovieDto {
   @IsString()
   poster_url?: string;
 
-  @IsNotEmpty()
-  @IsString()
-  genre: string;
+  @IsOptional()
+  @IsArray()
+  @IsMongoId({ each: true, message: 'Mỗi thể loại phải là ObjectId hợp lệ' })
+  genres?: string[];
 
   @IsNotEmpty()
   @IsNumber()

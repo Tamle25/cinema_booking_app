@@ -125,10 +125,7 @@ export default function ComboSelector({ selectedCombos, onCombosChange, cinemaId
     <div className="w-full max-w-4xl mx-auto px-4 py-6">
       {/* Header */}
       <div className="text-center mb-6">
-        <h2 className="text-xl font-bold text-yellow-500 flex items-center justify-center gap-2">
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-          </svg>
+        <h2 className="text-xl font-bold text-yellow-500 flex items-center justify-center">
           Thêm Bắp Nước
         </h2>
         <p className="text-gray-500 text-sm mt-1">Chọn combo yêu thích để thưởng thức cùng bộ phim</p>
@@ -227,21 +224,8 @@ export default function ComboSelector({ selectedCombos, onCombosChange, cinemaId
                   ) : (
                     <button
                       onClick={() => handleAdd(combo)}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-gray-900 rounded-lg font-semibold text-sm transition-all hover:shadow-lg hover:shadow-yellow-500/30"
+                      className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-gray-900 rounded-lg font-semibold text-sm transition-all hover:shadow-lg hover:shadow-yellow-500/30"
                     >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 4v16m8-8H4"
-                        />
-                      </svg>
                       Thêm
                     </button>
                   )}

@@ -1,9 +1,8 @@
-import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { MoviesService } from './movies.service';
 import { CreateMovieDto } from './dto/create-movie.dto';
 import { UpdateMovieDto } from './dto/update-movie.dto';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
-import { Query } from '@nestjs/common';
 import { AdminOnly } from '../common/decorators/admin.decorator';
 import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
 
@@ -18,8 +17,8 @@ export class MoviesController {
   }
 
   @Get()
-  findAll() {
-    return this.moviesService.findAll();
+  findAll(@Query('genre') genreId?: string) {
+    return this.moviesService.findAll(genreId);
   }
 
   @Get('admin/list')

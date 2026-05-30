@@ -1,4 +1,4 @@
-import { IsNumber, IsString, IsDateString, IsOptional, IsBoolean } from 'class-validator';
+import { IsNumber, IsString, IsDateString, IsOptional, IsBoolean, IsArray, IsMongoId } from 'class-validator';
 
 export class UpdateMovieDto {
   @IsOptional()
@@ -17,7 +17,6 @@ export class UpdateMovieDto {
   @IsString()
   trailer_url?: string;
 
-
   @IsOptional()
   @IsBoolean()
   is_active?: boolean;
@@ -31,8 +30,9 @@ export class UpdateMovieDto {
   poster_url?: string;
 
   @IsOptional()
-  @IsString()
-  genre?: string;
+  @IsArray()
+  @IsMongoId({ each: true, message: 'Mỗi thể loại phải là ObjectId hợp lệ' })
+  genres?: string[];
 
   @IsOptional()
   @IsNumber()

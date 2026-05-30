@@ -623,7 +623,11 @@ export default function AdminDashboard() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-900 truncate">{movie.title}</p>
-                      <p className="text-sm text-gray-500">{movie.genre}</p>
+                      <p className="text-sm text-gray-500">
+                        {movie.genres && movie.genres.length > 0
+                          ? movie.genres.map((g: any) => g.name).join(', ')
+                          : ''}
+                      </p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
                           {movie.duration} phút

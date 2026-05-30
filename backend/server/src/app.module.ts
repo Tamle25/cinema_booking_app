@@ -16,7 +16,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { CombosModule } from './combos/combos.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { NewsModule } from './news/news.module';
-
+import { GenresModule } from './genres/genres.module';
 
 @Module({
   imports: [
@@ -51,6 +51,7 @@ import { NewsModule } from './news/news.module';
     CombosModule,
     ReviewsModule,
     NewsModule,
+    GenresModule,
   ],
   controllers: [AppController],
   providers: [AppService],

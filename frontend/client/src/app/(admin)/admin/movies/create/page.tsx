@@ -1,26 +1,57 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { authHeaders } from '@/lib/api';
+import { authHeaders, API_URL } from '@/lib/api';
 import { toastSuccess, toastWarning, toastError } from '@/utils/toast';
+import { IGenre } from '@/types/index';
 
 export default function CreateMoviePage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-  const [formData, setFormData] = useState({
+  const [genresList, setGenresList] = useState<IGenre[]>([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [genreSearch, setGenreSearch] = useState('');
+  
+  const [formData, setFormData] = useState<{
+    title: string;
+    slug: string;
+    description: string;
+    poster_url: string;
+    banner_url: string;
+    trailer_url: string;
+    genres: string[];
+    duration: number;
+    release_date: string;
+    is_active: boolean;
+  }>({
     title: '',
     slug: '',
     description: '',
     poster_url: '',
     banner_url: '',
     trailer_url: '',
-    genre: '',
+    genres: [],
     duration: 0,
     release_date: '',
     is_active: true
   });
+
+  // Fetch active genres list
+  useEffect(() => {
+    const fetchActiveGenres = async () => {
+      try {
+        const res = await fetch(`${API_URL}/genres/active`);
+        if (!res.ok) throw new Error('Không tải được danh sách thể loại');
+        const data = await res.json();
+        setGenresList(data);
+      } catch (error) {
+        console.error('Lỗi tải thể loại:', error);
+        toastError('Không tải được danh sách thể loại');
+      }
+    };
+    fetchActiveGenres();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -29,6 +60,16 @@ export default function CreateMoviePage() {
       ...prev,
       [name]: name === 'duration' ? Number(value) : value
     }));
+  };
+
+  const handleGenreToggle = (genreId: string) => {
+    setFormData(prev => {
+      const isSelected = prev.genres.includes(genreId);
+      const newGenres = isSelected
+        ? prev.genres.filter(id => id !== genreId)
+        : [...prev.genres, genreId];
+      return { ...prev, genres: newGenres };
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,8 +84,8 @@ export default function CreateMoviePage() {
       toastWarning('❌ Vui lòng nhập slug!');
       return;
     }
-    if (!formData.genre.trim()) {
-      toastWarning('❌ Vui lòng nhập thể loại!');
+    if (formData.genres.length === 0) {
+      toastWarning('❌ Vui lòng chọn ít nhất một thể loại phim!');
       return;
     }
     if (!formData.duration || formData.duration <= 0) {
@@ -117,12 +158,92 @@ export default function CreateMoviePage() {
           </div>
         </div>
 
-        {/* Hàng 3: Chi tiết phim */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Thể loại</label>
-            <input name="genre" required onChange={handleChange} className="w-full border border-gray-300 p-2 rounded text-gray-900 placeholder:text-gray-400" placeholder="Hành động, Tình cảm" />
+        {/* Hàng 3: Thể loại & Thời lượng */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Thể loại (Multi-Select) */}
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Thể loại phim <span className="text-red-500">*</span>
+            </label>
+            
+            {/* Display Box */}
+            <div 
+              className="min-h-[42px] w-full border border-gray-300 p-1.5 rounded flex flex-wrap gap-2 items-center bg-white cursor-pointer" 
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            >
+              {formData.genres.length === 0 ? (
+                <span className="text-gray-400 text-sm pl-2">Chọn thể loại...</span>
+              ) : (
+                formData.genres.map(genreId => {
+                  const genre = genresList.find(g => g._id === genreId);
+                  return (
+                    <span 
+                      key={genreId} 
+                      className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-1 rounded"
+                    >
+                      {genre?.name || 'Unknown'}
+                      <button
+                        type="button"
+                        className="text-blue-600 hover:text-blue-800 font-bold focus:outline-none"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleGenreToggle(genreId);
+                        }}
+                      >
+                        &times;
+                      </button>
+                    </span>
+                  );
+                })
+              )}
+              
+              <div className="ml-auto pr-2 text-gray-400">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Dropdown Options */}
+            {isDropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setIsDropdownOpen(false)}></div>
+                <div className="absolute left-0 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg z-20 max-h-60 overflow-y-auto p-2">
+                  <input
+                    type="text"
+                    placeholder="Tìm thể loại..."
+                    value={genreSearch}
+                    onChange={(e) => setGenreSearch(e.target.value)}
+                    className="w-full border border-gray-300 p-1.5 rounded mb-2 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <div className="space-y-1">
+                    {genresList
+                      .filter(g => g.name.toLowerCase().includes(genreSearch.toLowerCase()))
+                      .map(g => {
+                        const isChecked = formData.genres.includes(g._id);
+                        return (
+                          <label
+                            key={g._id}
+                            className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-100 rounded cursor-pointer text-sm text-gray-900"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => handleGenreToggle(g._id)}
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                            {g.name}
+                          </label>
+                        );
+                      })}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Thời lượng (phút)</label>
             <input type="number" name="duration" required onChange={handleChange} className="w-full border border-gray-300 p-2 rounded text-gray-900 placeholder:text-gray-400" placeholder="120" />

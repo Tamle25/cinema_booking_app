@@ -411,7 +411,11 @@ export default function MovieDetailPage() {
                   <span className="hidden sm:inline">•</span>
                   <span>{new Date(movie.release_date).toLocaleDateString()}</span>
                   <span className="hidden sm:inline">•</span>
-                  <span className="uppercase">{movie.genre}</span>
+                  <span className="uppercase">
+                    {movie.genres && movie.genres.length > 0
+                      ? movie.genres.map(g => g.name).join(', ')
+                      : ''}
+                  </span>
                 </div>
 
                 {/* Description */}
@@ -623,7 +627,11 @@ export default function MovieDetailPage() {
                   <h4 className="font-bold text-sm text-gray-800 group-hover:text-pink-600 transition line-clamp-2">
                     {m.title}
                   </h4>
-                  <p className="text-xs text-gray-500 mt-1">{m.genre}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {m.genres && m.genres.length > 0
+                      ? m.genres.map(g => g.name).join(', ')
+                      : ''}
+                  </p>
                   <p className="text-xs text-yellow-500 mt-1 font-semibold">★ {m.rating || 9.0}</p>
                 </div>
               </Link>

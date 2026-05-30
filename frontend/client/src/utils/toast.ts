@@ -2,7 +2,6 @@ import { toast, ToastOptions } from 'react-toastify';
 
 const defaultOptions: ToastOptions = {
     position: "top-right",
-    autoClose: 3000,
     hideProgressBar: true,
     closeOnClick: true,
     pauseOnHover: true,
@@ -12,34 +11,58 @@ const defaultOptions: ToastOptions = {
 };
 
 export const toastSuccess = (message: string, options?: ToastOptions) => {
-    toast(message, {
+    const toastId = `success-${message}`;
+    if (toast.isActive(toastId)) {
+        toast.update(toastId, { render: message, autoClose: 3000 });
+        return;
+    }
+    toast.success(message, {
         ...defaultOptions,
-        className: 'toast-minimal toast-success',
+        toastId,
+        autoClose: 3000,
         ...options,
     });
 };
 
 export const toastError = (message: string, options?: ToastOptions) => {
-    toast(message, {
+    const toastId = `error-${message}`;
+    if (toast.isActive(toastId)) {
+        toast.update(toastId, { render: message, autoClose: 5000 });
+        return;
+    }
+    toast.error(message, {
         ...defaultOptions,
-        className: 'toast-minimal toast-error',
-        autoClose: 4000,
+        toastId,
+        autoClose: 5000,
         ...options,
     });
 };
 
 export const toastWarning = (message: string, options?: ToastOptions) => {
-    toast(message, {
+    const toastId = `warning-${message}`;
+    if (toast.isActive(toastId)) {
+        toast.update(toastId, { render: message, autoClose: 4000 });
+        return;
+    }
+    toast.warn(message, {
         ...defaultOptions,
-        className: 'toast-minimal toast-warning',
+        toastId,
+        autoClose: 4000,
         ...options,
     });
 };
 
 export const toastInfo = (message: string, options?: ToastOptions) => {
-    toast(message, {
+    const toastId = `info-${message}`;
+    if (toast.isActive(toastId)) {
+        toast.update(toastId, { render: message, autoClose: 4000 });
+        return;
+    }
+    toast.info(message, {
         ...defaultOptions,
-        className: 'toast-minimal toast-info',
+        toastId,
+        autoClose: 4000,
         ...options,
     });
 };
+

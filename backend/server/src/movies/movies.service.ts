@@ -11,8 +11,17 @@ export class MoviesService {
   constructor(@InjectModel(Movie.name) private movieModel: Model<Movie>) {}
 
   // 1. Lấy tất cả phim (Mới nhất lên đầu) - Dùng cho Client
-  async findAll(): Promise<Movie[]> {
-    return this.movieModel.find().sort({ release_date: -1 }).exec();
+  // Hỗ trợ filter theo genre ID
+  async findAll(genreId?: string): Promise<Movie[]> {
+    const filter: any = {};
+    if (genreId) {
+      filter.genres = genreId;
+    }
+    return this.movieModel
+      .find(filter)
+      .populate('genres')
+      .sort({ release_date: -1 })
+      .exec();
   }
 
   // 1b. Lấy phim phân trang cho Admin
@@ -25,6 +34,7 @@ export class MoviesService {
     // Lấy data phân trang
     const data = await this.movieModel
       .find()
+      .populate('genres')
       .sort({ release_date: -1 })
       .skip(skip)
       .limit(limit)
@@ -48,7 +58,7 @@ export class MoviesService {
 
   // 2. Lấy 1 phim theo ID
   async findOne(id: string): Promise<Movie> {
-    const movie = await this.movieModel.findById(id).exec();
+    const movie = await this.movieModel.findById(id).populate('genres').exec();
     if (!movie) {
       throw new NotFoundException('Không tìm thấy phim này!');
     }
@@ -58,7 +68,8 @@ export class MoviesService {
   // 3. Thêm phim mới (Cần cho Admin) -> Mới thêm
   async create(createMovieDto: CreateMovieDto): Promise<Movie> {
     const newMovie = new this.movieModel(createMovieDto);
-    return newMovie.save();
+    const saved = await newMovie.save();
+    return saved.populate('genres');
   }
 
   // 4. Xóa phim (Cần cho Admin) -> Mới thêm
@@ -74,6 +85,7 @@ export class MoviesService {
   async update(id: string, updateMovieDto: UpdateMovieDto): Promise<Movie> {
     const updatedMovie = await this.movieModel
       .findByIdAndUpdate(id, updateMovieDto, { new: true })
+      .populate('genres')
       .exec();
     if (!updatedMovie) {
       throw new NotFoundException(`Không tìm thấy phim với ID: ${id}`);

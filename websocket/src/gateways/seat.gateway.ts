@@ -31,7 +31,8 @@ export class SeatGateway {
 
   private setupListeners() {
     this.io.on('connection', (socket: Socket) => {
-      console.log(`[SeatGateway] Client connected: ${socket.id}`);
+      const totalClients = this.io.engine.clientsCount;
+      console.log(`[SeatGateway] ✅ Client connected: ${socket.id} (Total clients: ${totalClients})`);
 
       // 1. Join room showtime
       socket.on('join_showtime', (payload: JoinShowtimePayload) => {
@@ -161,20 +162,27 @@ export class SeatGateway {
       });
 
       // 5. Đứt kết nối (Disconnect)
-      socket.on('disconnect', () => {
-        console.log(`[SeatGateway] Client disconnected: ${socket.id}`);
+      socket.on('disconnect', (reason: string) => {
+        console.log(`[SeatGateway] ❌ Client disconnected: ${socket.id}, Reason: ${reason}`);
 
         // Giải phóng toàn bộ ghế được khóa bởi socket này
         const releasedSeats = this.seatLockService.releaseSocketLocks(socket.id);
         
+        if (releasedSeats.length > 0) {
+          console.log(`[SeatGateway] 🔓 Auto-released ${releasedSeats.length} seat(s) for disconnected socket ${socket.id}`);
+        }
+
         // Broadcast sự kiện mở khóa cho từng ghế
         releasedSeats.forEach(({ showtimeId, seatName }) => {
-          console.log(`[SeatGateway] Broadcast auto-unlock for seat ${seatName} in showtime ${showtimeId}`);
+          console.log(`[SeatGateway]   → Unlocked seat ${seatName} in showtime ${showtimeId}`);
           this.io.to(`showtime_${showtimeId}`).emit('seat_unlocked', {
             showtimeId,
             seatName,
           });
         });
+
+        const remainingClients = this.io.engine.clientsCount;
+        console.log(`[SeatGateway] Remaining clients: ${remainingClients}`);
       });
     });
   }

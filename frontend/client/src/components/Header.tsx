@@ -10,7 +10,7 @@ interface IMovie {
   title: string;
   slug: string;
   poster_url: string;
-  genre: string;
+  genres: { _id: string; name: string }[];
   duration: number;
   rating: number;
   release_date: string;
@@ -81,7 +81,7 @@ const Header = () => {
         // Filter movies by search query
         const filtered = movies.filter(movie => 
           movie.title.toLowerCase().includes(query.toLowerCase()) ||
-          movie.genre.toLowerCase().includes(query.toLowerCase())
+          movie.genres?.some(g => g.name.toLowerCase().includes(query.toLowerCase()))
         );
         
         if (isMobile) {
@@ -167,7 +167,7 @@ const Header = () => {
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-gray-900 truncate">{movie.title}</p>
-        <p className="text-sm text-gray-500 truncate">{movie.genre}</p>
+        <p className="text-sm text-gray-500 truncate">{movie.genres?.map(g => g.name).join(', ')}</p>
         <div className="flex items-center gap-2 mt-1">
           <span className="text-xs text-gray-400">{movie.duration} phút</span>
           {movie.rating > 0 && (
