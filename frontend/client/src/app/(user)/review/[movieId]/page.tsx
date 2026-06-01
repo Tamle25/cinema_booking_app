@@ -8,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import axios from "axios";
 import Link from "next/link";
 import { toastSuccess, toastWarning, toastError } from "@/utils/toast";
+import { getCloudinaryImageUrl, movieImagePresets } from "@/lib/cloudinary";
 
 export default function ReviewDetailPage() {
   const params = useParams();
@@ -137,12 +138,17 @@ export default function ReviewDetailPage() {
     );
   }
 
+  const reviewBannerUrl = getCloudinaryImageUrl(
+    movie.banner_url || movie.poster_url,
+    movieImagePresets.bannerHero,
+  );
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Banner */}
       <div
         className="relative w-full -mt-16 pt-16 bg-cover bg-center"
-        style={{ backgroundImage: `url(${movie.banner_url || movie.poster_url})` }}
+        style={{ backgroundImage: `url(${reviewBannerUrl})` }}
       >
         <div className="bg-gradient-to-t from-gray-900 via-gray-900/80 to-gray-900/60 py-12 md:py-16">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -150,7 +156,7 @@ export default function ReviewDetailPage() {
               {/* Poster */}
               <div className="hidden md:block flex-shrink-0">
                 <img
-                  src={movie.poster_url}
+                  src={getCloudinaryImageUrl(movie.poster_url, movieImagePresets.posterDetail)}
                   alt={movie.title}
                   className="w-32 h-48 object-cover rounded-xl shadow-2xl border-2 border-gray-600"
                 />

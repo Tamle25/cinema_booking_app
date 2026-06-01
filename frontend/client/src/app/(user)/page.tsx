@@ -10,6 +10,7 @@ import FeaturedReviewsSection from "@/components/HomePage/FeaturedReviewsSection
 import NewsSection from "@/components/HomePage/NewsSection";
 import CinemaPartnersSection from "@/components/HomePage/CinemaPartnersSection";
 import { IMovie } from "@/types";
+import { getCloudinaryImageUrl, movieImagePresets } from "@/lib/cloudinary";
 
 // Định nghĩa kiểu dữ liệu (phải khớp với Backend)
 interface Movie {
@@ -413,7 +414,7 @@ export default function HomePage() {
                   <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 group">
                     <div className="relative aspect-[2/3] overflow-hidden">
                       <img
-                        src={movie.poster_url}
+                        src={getCloudinaryImageUrl(movie.poster_url, movieImagePresets.posterCard)}
                         alt={movie.title}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                         draggable={false}

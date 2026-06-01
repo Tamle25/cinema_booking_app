@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { authHeaders } from '@/lib/api';
+import { getCloudinaryImageUrl, movieImagePresets } from '@/lib/cloudinary';
 
 interface DashboardStats {
   totalMovies: number;
@@ -612,7 +613,11 @@ export default function AdminDashboard() {
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
                       {movie.poster_url ? (
-                        <img src={movie.poster_url} alt={movie.title} className="w-full h-full object-cover" />
+                        <img
+                          src={getCloudinaryImageUrl(movie.poster_url, movieImagePresets.posterThumb)}
+                          alt={movie.title}
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-gray-400">
                           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

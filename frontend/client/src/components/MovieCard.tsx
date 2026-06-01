@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { getCloudinaryImageUrl, movieImagePresets } from "@/lib/cloudinary";
 
 // Định nghĩa dữ liệu đầu vào cho thẻ phim
 interface MovieProps {
@@ -20,7 +21,7 @@ const MovieCard = ({ movie }: MovieProps) => {
       {/* Phần Hình Ảnh */}
       <div className="relative aspect-[2/3] overflow-hidden">
         <img
-          src={movie.poster_url}
+          src={getCloudinaryImageUrl(movie.poster_url, movieImagePresets.posterCard)}
           alt={movie.title}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
           draggable={false}

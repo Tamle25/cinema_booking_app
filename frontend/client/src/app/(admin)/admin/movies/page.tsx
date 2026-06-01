@@ -6,6 +6,7 @@ import { IMovie, IGenre } from '@/types/index';
 import Pagination from '@/components/Pagination';
 import { authHeaders, API_URL } from '@/lib/api';
 import { toastSuccess, toastError } from '@/utils/toast';
+import { getCloudinaryImageUrl, movieImagePresets } from '@/lib/cloudinary';
 
 export default function MovieListPage() {
   const [movies, setMovies] = useState<IMovie[]>([]);
@@ -210,7 +211,7 @@ export default function MovieListPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
                         <img 
-                          src={movie.poster_url} 
+                          src={getCloudinaryImageUrl(movie.poster_url, movieImagePresets.posterThumb)}
                           alt={movie.title}
                           className="w-12 h-16 object-cover rounded shadow-sm" 
                         />

@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toastSuccess, toastError } from '@/utils/toast';
+import { getCloudinaryImageUrl, movieImagePresets } from '@/lib/cloudinary';
 
 interface IBooking {
   _id: string;
@@ -372,7 +373,11 @@ export default function ProfilePage() {
                   <div key={booking._id} className="flex gap-4 p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
                     <div className="w-16 h-20 bg-gray-200 rounded-lg overflow-hidden shrink-0">
                       {booking.showtime?.movie?.poster_url ? (
-                        <img src={booking.showtime.movie.poster_url} alt="" className="w-full h-full object-cover" />
+                        <img
+                          src={getCloudinaryImageUrl(booking.showtime.movie.poster_url, movieImagePresets.posterThumb)}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
                         <div className="w-full h-full bg-red-100 flex items-center justify-center text-red-300">
                           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

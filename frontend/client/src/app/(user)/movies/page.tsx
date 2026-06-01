@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import MovieCard from '@/components/MovieCard';
+import { getCloudinaryImageUrl, movieImagePresets } from '@/lib/cloudinary';
 
 interface Movie {
     _id: string;
@@ -169,7 +170,7 @@ function MoviesListContent() {
                                             <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300">
                                                 <div className="relative aspect-[2/3] overflow-hidden">
                                                     <img
-                                                        src={movie.poster_url}
+                                                        src={getCloudinaryImageUrl(movie.poster_url, movieImagePresets.posterCard)}
                                                         alt={movie.title}
                                                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                                                     />

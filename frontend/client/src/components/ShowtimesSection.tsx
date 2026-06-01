@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import Link from 'next/link';
+import { getCloudinaryImageUrl, movieImagePresets } from '@/lib/cloudinary';
 
 // --- Types ---
 interface ICinemaSystem {
@@ -448,7 +449,7 @@ export default function ShowtimesSection() {
                               {/* Movie Poster */}
                               <Link href={`/movie/${group.movie._id}`} className="w-24 sm:w-32 shrink-0 group/img relative rounded-xl overflow-hidden shadow-sm self-start">
                                 <img 
-                                  src={group.movie.poster_url} 
+                                  src={getCloudinaryImageUrl(group.movie.poster_url, movieImagePresets.posterCard)}
                                   alt={group.movie.title} 
                                   className="w-full object-cover aspect-[2/3] transition-transform duration-500 group-hover/img:scale-110" 
                                 />

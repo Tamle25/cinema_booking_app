@@ -5,6 +5,7 @@ import { IFeaturedReview } from "@/types";
 import ReviewCard from "@/components/ReviewCard";
 import Link from "next/link";
 import axios from "axios";
+import { getCloudinaryImageUrl, movieImagePresets } from "@/lib/cloudinary";
 
 // Format số lượng
 const formatCount = (count: number): string => {
@@ -155,7 +156,10 @@ export default function ReviewsPage() {
                 {/* Movie Thumbnail */}
                 <div className="relative h-48 overflow-hidden">
                   <img
-                    src={item.movie.banner_url || item.movie.poster_url}
+                    src={getCloudinaryImageUrl(
+                      item.movie.banner_url || item.movie.poster_url,
+                      movieImagePresets.bannerCard,
+                    )}
                     alt={item.movie.title}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                     loading="lazy"

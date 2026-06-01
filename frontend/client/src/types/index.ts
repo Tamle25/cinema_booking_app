@@ -54,7 +54,9 @@ export interface IMovie {
   slug: string;
   description: string;
   poster_url: string;
+  poster_public_id?: string;
   banner_url: string;
+  banner_public_id?: string;
   trailer_url: string;
   genres: IGenre[];
   duration: number;

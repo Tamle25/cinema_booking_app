@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { IMovie } from "@/types";
 import TrailerModal from "@/components/TrailerModal";
+import { getCloudinaryImageUrl, movieImagePresets } from "@/lib/cloudinary";
 
 interface FeaturedMoviesSectionProps {
   movies: IMovie[];
@@ -129,7 +130,10 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
           style={{ opacity: index === currentIndex ? 1 : 0, zIndex: index === currentIndex ? 1 : 0 }}
         >
           <img
-            src={movie.banner_url || movie.poster_url}
+            src={getCloudinaryImageUrl(
+              movie.banner_url || movie.poster_url,
+              movieImagePresets.bannerHero,
+            )}
             alt={movie.title}
             className="w-full h-full object-cover"
             loading={index === 0 ? "eager" : "lazy"}
@@ -165,7 +169,7 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
             >
               <div className="relative w-44 lg:w-52 rounded-2xl overflow-hidden shadow-2xl shadow-black/50 ring-1 ring-white/10 transform transition-transform duration-300 group-hover:scale-105">
                 <img
-                  src={currentMovie.poster_url}
+                  src={getCloudinaryImageUrl(currentMovie.poster_url, movieImagePresets.posterDetail)}
                   alt={currentMovie.title}
                   className="w-full aspect-[2/3] object-cover"
                 />

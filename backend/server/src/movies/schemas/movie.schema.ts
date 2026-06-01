@@ -24,7 +24,13 @@ export class Movie {
   poster_url: string;
 
   @Prop({ default: "" })
+  poster_public_id: string;
+
+  @Prop({ default: "" })
   banner_url: string;
+
+  @Prop({ default: "" })
+  banner_public_id: string;
 
   @Prop({ default: "" })
   trailer_url: string;

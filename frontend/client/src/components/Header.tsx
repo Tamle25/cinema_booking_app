@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { getCloudinaryImageUrl, movieImagePresets } from "@/lib/cloudinary";
 
 interface IMovie {
   _id: string;
@@ -158,7 +159,11 @@ const Header = () => {
     >
       <div className="w-12 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
         {movie.poster_url ? (
-          <img src={movie.poster_url} alt={movie.title} className="w-full h-full object-cover" />
+          <img
+            src={getCloudinaryImageUrl(movie.poster_url, movieImagePresets.posterThumb)}
+            alt={movie.title}
+            className="w-full h-full object-cover"
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400 font-bold text-sm">
             {movie.title?.charAt(0)?.toUpperCase() || 'P'}

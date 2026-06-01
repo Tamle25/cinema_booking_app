@@ -3,11 +3,13 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { MoviesController } from './movies.controller';
 import { MoviesService } from './movies.service';
 import { Movie, MovieSchema } from './schemas/movie.schema';
+import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 
 @Module({
   imports: [
     // Đăng ký Schema với Mongoose để Service có thể dùng
     MongooseModule.forFeature([{ name: Movie.name, schema: MovieSchema }]),
+    CloudinaryModule,
   ],
   controllers: [MoviesController],
   providers: [MoviesService],

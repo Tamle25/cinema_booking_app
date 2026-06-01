@@ -21,31 +21,59 @@ const SocketContext = createContext<SocketContextProps>({
 
 export const useSocket = () => useContext(SocketContext);
 
-// Singleton: chỉ tạo 1 socket duy nhất cho toàn app
-let globalSocket: Socket | null = null;
-let isSocketDestroyed = false; // Flag riêng để biết socket đã bị destroy thủ công
+// Singleton: gắn vào window để tránh bị mất khi HMR reload module (dev mode)
+// Khi HMR reload, biến module-level bị reset → tạo socket mới → socket cũ bị disconnect
+// Gắn vào window giúp giữ socket xuyên suốt các lần HMR reload
+declare global {
+  interface Window {
+    __cinema_socket?: Socket | null;
+    __cinema_socket_destroyed?: boolean;
+  }
+}
+
+function getGlobalSocket(): Socket | null {
+  if (typeof window === 'undefined') return null;
+  return window.__cinema_socket ?? null;
+}
+
+function setGlobalSocket(socket: Socket | null) {
+  if (typeof window === 'undefined') return;
+  window.__cinema_socket = socket;
+}
+
+function isSocketDestroyed(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.__cinema_socket_destroyed ?? false;
+}
+
+function setSocketDestroyed(value: boolean) {
+  if (typeof window === 'undefined') return;
+  window.__cinema_socket_destroyed = value;
+}
 
 function getOrCreateSocket(): Socket | null {
   if (typeof window === 'undefined') return null;
 
-  // Nếu đã có socket và chưa bị destroyed → tái sử dụng
-  if (globalSocket && !isSocketDestroyed) {
-    console.log('[SocketProvider] Reusing existing socket, ID:', globalSocket.id);
-    return globalSocket;
+  const existing = getGlobalSocket();
+
+  // Nếu đã có socket, chưa bị destroyed, và đang connected hoặc đang kết nối → tái sử dụng
+  if (existing && !isSocketDestroyed()) {
+    console.log('[SocketProvider] Reusing existing socket, ID:', existing.id);
+    return existing;
   }
 
   // Nếu socket bị destroyed (do logout/manual disconnect) → cleanup và tạo mới
-  if (globalSocket) {
+  if (existing) {
     console.log('[SocketProvider] Previous socket was destroyed, creating new one');
-    globalSocket.removeAllListeners();
-    globalSocket = null;
+    existing.removeAllListeners();
+    setGlobalSocket(null);
   }
-  isSocketDestroyed = false;
+  setSocketDestroyed(false);
 
   const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'http://localhost:4001';
   console.log(`[SocketProvider] Creating new WebSocket connection to ${wsUrl}`);
 
-  globalSocket = io(wsUrl, {
+  const newSocket = io(wsUrl, {
     transports: ['websocket'],
     autoConnect: true,
     reconnection: true,
@@ -55,7 +83,8 @@ function getOrCreateSocket(): Socket | null {
     timeout: 20000,
   });
 
-  return globalSocket;
+  setGlobalSocket(newSocket);
+  return newSocket;
 }
 
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -81,8 +110,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       socketRef.current.disconnect();
       socketRef.current.removeAllListeners();
       socketRef.current = null;
-      globalSocket = null;
-      isSocketDestroyed = true;
+      setGlobalSocket(null);
+      setSocketDestroyed(true);
       setIsConnected(false);
       setHasEverConnected(false);
       hasEverConnectedRef.current = false;

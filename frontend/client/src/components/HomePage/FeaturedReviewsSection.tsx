@@ -6,6 +6,7 @@ import ReviewCard from "@/components/ReviewCard";
 import Link from "next/link";
 import axios from "axios";
 import TrailerModal from "@/components/TrailerModal";
+import { getCloudinaryImageUrl, movieImagePresets } from "@/lib/cloudinary";
 
 // Format số lượng: 1000 → 1K, 8200 → 8.2K
 const formatCount = (count: number): string => {
@@ -121,7 +122,10 @@ const FeaturedReviewsSection = () => {
                 onClick={() => setActiveTrailer(item.movie.trailer_url || "")}
               >
                 <img
-                  src={item.movie.banner_url || item.movie.poster_url}
+                  src={getCloudinaryImageUrl(
+                    item.movie.banner_url || item.movie.poster_url,
+                    movieImagePresets.bannerCard,
+                  )}
                   alt={item.movie.title}
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                   loading="lazy"

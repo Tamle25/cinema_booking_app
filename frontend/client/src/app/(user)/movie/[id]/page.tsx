@@ -8,6 +8,7 @@ import { VIETNAM_PROVINCES } from '@/constants/provinces';
 import TrailerModal from '@/components/TrailerModal';
 import { useAuth } from '@/context/AuthContext';
 import { toastError } from '@/utils/toast';
+import { getCloudinaryImageUrl, movieImagePresets } from '@/lib/cloudinary';
 
 const getNext14Days = () => {
   const dates = [];
@@ -371,6 +372,11 @@ export default function MovieDetailPage() {
   if (loading) return <div className="text-center py-20 text-gray-600">Đang tải dữ liệu...</div>;
   if (!movie) return <div className="text-center py-20 text-gray-600">Không tìm thấy phim</div>;
 
+  const detailBannerUrl = getCloudinaryImageUrl(
+    movie.banner_url || movie.poster_url,
+    movieImagePresets.bannerHero,
+  );
+
   return (
     <div className="min-h-screen bg-white">
 
@@ -382,7 +388,7 @@ export default function MovieDetailPage() {
       */}
       <div
         className="relative w-full -mt-16 pt-16 bg-cover bg-center"
-        style={{ backgroundImage: `url(${movie.banner_url})` }}
+        style={{ backgroundImage: `url(${detailBannerUrl})` }}
       >
         {/* Overlay gradient + Content container */}
         <div className="bg-gradient-to-t from-gray-900 via-gray-900/80 to-gray-900/60 pt-8 pb-10">
@@ -391,9 +397,9 @@ export default function MovieDetailPage() {
               {/* Poster */}
               <div className="hidden md:block col-span-1">
                 <img
-                  src={movie.poster_url}
+                  src={getCloudinaryImageUrl(movie.poster_url, movieImagePresets.posterDetail)}
                   alt={movie.title}
-                  className="w-full rounded-lg shadow-2xl border-2 border-gray-600 object-cover"
+                  className="w-full aspect-[2/3] rounded-lg shadow-2xl border-2 border-gray-600 object-cover"
                 />
               </div>
 
@@ -619,7 +625,7 @@ export default function MovieDetailPage() {
             {relatedMovies.map((m) => (
               <Link key={m._id} href={`/movie/${m._id}`} className="group flex gap-4 items-start hover:bg-gray-50 p-2 rounded-lg transition border border-transparent hover:border-gray-200">
                 <img
-                  src={m.poster_url}
+                  src={getCloudinaryImageUrl(m.poster_url, movieImagePresets.posterThumb)}
                   alt={m.title}
                   className="w-20 h-28 object-cover rounded shadow-md group-hover:scale-105 transition"
                 />

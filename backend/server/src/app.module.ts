@@ -17,12 +17,14 @@ import { CombosModule } from './combos/combos.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { NewsModule } from './news/news.module';
 import { GenresModule } from './genres/genres.module';
+import { UploadsModule } from './uploads/uploads.module';
 
 @Module({
   imports: [
     // 1. Cấu hình để đọc file .env (isGlobal để dùng được ở mọi nơi)
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: [join(process.cwd(), '.env'), join(__dirname, '..', '.env')],
     }),
 
     // 2. Kết nối MongoDB kiểu Async (đợi đọc xong .env mới kết nối)
@@ -52,6 +54,7 @@ import { GenresModule } from './genres/genres.module';
     ReviewsModule,
     NewsModule,
     GenresModule,
+    UploadsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

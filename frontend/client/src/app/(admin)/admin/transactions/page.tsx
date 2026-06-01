@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import Pagination from '@/components/Pagination';
 import { authHeaders } from '@/lib/api';
+import { getCloudinaryImageUrl, movieImagePresets } from '@/lib/cloudinary';
 
 interface ITransaction {
   _id: string;
@@ -252,7 +253,7 @@ export default function TransactionsPage() {
                         <div className="flex items-center gap-3">
                           {trans.showtime?.movie?.poster_url && (
                             <img 
-                              src={trans.showtime.movie.poster_url} 
+                              src={getCloudinaryImageUrl(trans.showtime.movie.poster_url, movieImagePresets.posterThumb)}
                               alt="" 
                               className="w-10 h-14 object-cover rounded shadow-sm"
                             />

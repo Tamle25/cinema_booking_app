@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Pagination from '@/components/Pagination';
 import { authHeaders } from '@/lib/api';
 import { toastSuccess, toastError } from '@/utils/toast';
+import { getCloudinaryImageUrl, movieImagePresets } from '@/lib/cloudinary';
 
 interface IShowtime {
     _id: string;
@@ -260,7 +261,7 @@ export default function AdminShowtimesPage() {
                                         <div className="flex items-center gap-3">
                                             {showtime.movie?.poster_url && (
                                                 <img
-                                                    src={showtime.movie.poster_url}
+                                                    src={getCloudinaryImageUrl(showtime.movie.poster_url, movieImagePresets.posterThumb)}
                                                     alt={showtime.movie.title}
                                                     className="w-10 h-14 object-cover rounded"
                                                 />

@@ -30,6 +30,14 @@ export class CreateMovieDto {
   poster_url?: string;
 
   @IsOptional()
+  @IsString()
+  poster_public_id?: string;
+
+  @IsOptional()
+  @IsString()
+  banner_public_id?: string;
+
+  @IsOptional()
   @IsArray()
   @IsMongoId({ each: true, message: 'Mỗi thể loại phải là ObjectId hợp lệ' })
   genres?: string[];

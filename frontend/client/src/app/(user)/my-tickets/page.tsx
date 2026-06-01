@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
+import { getCloudinaryImageUrl, movieImagePresets } from '@/lib/cloudinary';
 
 interface IBooking {
   _id: string;
@@ -97,7 +98,7 @@ const TicketCard = ({ booking, onViewDetail }: { booking: IBooking; onViewDetail
         <div className="w-full md:w-40 h-48 md:h-auto relative flex-shrink-0">
           {booking.showtime?.movie?.poster_url ? (
             <img
-              src={booking.showtime.movie.poster_url}
+              src={getCloudinaryImageUrl(booking.showtime.movie.poster_url, movieImagePresets.posterThumb)}
               alt={booking.showtime.movie.title}
               className="w-full h-full object-cover"
             />
@@ -221,7 +222,7 @@ const TicketDetailModal = ({ booking, onClose }: { booking: IBooking; onClose: (
         <div className="relative h-48 overflow-hidden rounded-t-3xl">
           {booking.showtime?.movie?.poster_url ? (
             <img
-              src={booking.showtime.movie.poster_url}
+              src={getCloudinaryImageUrl(booking.showtime.movie.poster_url, movieImagePresets.posterThumb)}
               alt={booking.showtime.movie.title}
               className="w-full h-full object-cover"
             />

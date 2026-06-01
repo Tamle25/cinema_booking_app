@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { authHeaders, API_URL } from '@/lib/api';
 import { toastSuccess, toastWarning, toastError } from '@/utils/toast';
 import { IGenre } from '@/types/index';
+import MovieImageUpload, { UploadedMovieImage } from '@/components/admin/MovieImageUpload';
 
 export default function EditMoviePage() {
   const router = useRouter();
@@ -16,13 +17,17 @@ export default function EditMoviePage() {
   const [genresList, setGenresList] = useState<IGenre[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [genreSearch, setGenreSearch] = useState('');
+  const [isPosterUploading, setIsPosterUploading] = useState(false);
+  const [isBannerUploading, setIsBannerUploading] = useState(false);
 
   const [formData, setFormData] = useState<{
     title: string;
     slug: string;
     description: string;
     poster_url: string;
+    poster_public_id: string;
     banner_url: string;
+    banner_public_id: string;
     trailer_url: string;
     genres: string[];
     duration: number;
@@ -33,7 +38,9 @@ export default function EditMoviePage() {
     slug: '',
     description: '',
     poster_url: '',
+    poster_public_id: '',
     banner_url: '',
+    banner_public_id: '',
     trailer_url: '',
     genres: [],
     duration: 0,
@@ -73,7 +80,9 @@ export default function EditMoviePage() {
             slug: movie.slug || '',
             description: movie.description || '',
             poster_url: movie.poster_url || '',
+            poster_public_id: movie.poster_public_id || '',
             banner_url: movie.banner_url || '',
+            banner_public_id: movie.banner_public_id || '',
             trailer_url: movie.trailer_url || '',
             genres: movie.genres ? movie.genres.map((g: any) => g._id || g) : [],
             duration: movie.duration || 0,
@@ -118,6 +127,30 @@ export default function EditMoviePage() {
     });
   };
 
+  const handleMovieImageUploaded = (type: 'poster' | 'banner', image: UploadedMovieImage) => {
+    setFormData(prev => ({
+      ...prev,
+      ...(type === 'poster'
+        ? {
+            poster_url: image.secure_url,
+            poster_public_id: image.public_id,
+          }
+        : {
+            banner_url: image.secure_url,
+            banner_public_id: image.public_id,
+          }),
+    }));
+  };
+
+  const handleMovieImageUploadingChange = (type: 'poster' | 'banner', isUploading: boolean) => {
+    if (type === 'poster') {
+      setIsPosterUploading(isUploading);
+      return;
+    }
+
+    setIsBannerUploading(isUploading);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -128,6 +161,14 @@ export default function EditMoviePage() {
     }
     if (!formData.slug.trim()) {
       toastWarning('❌ Vui lòng nhập slug!');
+      return;
+    }
+    if (!formData.poster_url) {
+      toastWarning('Vui long upload poster phim!');
+      return;
+    }
+    if (isPosterUploading || isBannerUploading) {
+      toastWarning('Vui long doi upload anh hoan tat truoc khi luu phim!');
       return;
     }
     if (formData.genres.length === 0) {
@@ -219,24 +260,22 @@ export default function EditMoviePage() {
         {/* Hàng 2: URL Hình ảnh */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Poster URL</label>
-            <input
-              name="poster_url"
-              required
+            <MovieImageUpload
+              type="poster"
+              label="Poster"
               value={formData.poster_url}
-              onChange={handleChange}
-              className="w-full border border-gray-300 p-2 rounded text-gray-900 placeholder:text-gray-400"
-              placeholder="https://..."
+              required
+              onUploaded={handleMovieImageUploaded}
+              onUploadingChange={handleMovieImageUploadingChange}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Banner URL</label>
-            <input
-              name="banner_url"
+            <MovieImageUpload
+              type="banner"
+              label="Banner"
               value={formData.banner_url}
-              onChange={handleChange}
-              className="w-full border border-gray-300 p-2 rounded text-gray-900 placeholder:text-gray-400"
-              placeholder="https://..."
+              onUploaded={handleMovieImageUploaded}
+              onUploadingChange={handleMovieImageUploadingChange}
             />
           </div>
         </div>
@@ -401,8 +440,8 @@ export default function EditMoviePage() {
           </button>
           <button
             type="submit"
-            disabled={isSubmitting}
-            className={`font-bold py-3 px-8 rounded transition shadow-lg ${isSubmitting
+            disabled={isSubmitting || isPosterUploading || isBannerUploading}
+            className={`font-bold py-3 px-8 rounded transition shadow-lg ${isSubmitting || isPosterUploading || isBannerUploading
                 ? 'bg-gray-400 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700'
               } text-white`}
