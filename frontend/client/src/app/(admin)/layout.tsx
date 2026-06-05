@@ -69,6 +69,12 @@ const NewsIcon = () => (
   </svg>
 );
 
+const VoucherIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+  </svg>
+);
+
 const LogoutIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -84,6 +90,7 @@ const menuItems = [
   { href: '/admin/movies', label: 'Quản lý Phim', icon: MovieIcon },
   { href: '/admin/showtimes', label: 'Suất chiếu', icon: ShowtimeIcon },
   { href: '/admin/combos', label: 'Combo Bắp Nước', icon: ComboIcon },
+  { href: '/admin/vouchers', label: 'Quản lý Voucher', icon: VoucherIcon },
   { href: '/admin/news', label: 'Tin tức', icon: NewsIcon },
   { href: '/admin/transactions', label: 'Giao dịch', icon: TransactionIcon },
 ];

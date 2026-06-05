@@ -5,13 +5,17 @@ import { MomoService, MomoCallbackParams, MomoPaymentType } from './momo.service
 import { Booking } from '../bookings/schemas/booking.schema';
 import { Showtime } from '../showtimes/schemas/showtime.schema';
 import { CombosService } from '../combos/combos.service';
+import { LoyaltyService } from '../loyalty/loyalty.service';
+import { VouchersService } from '../vouchers/vouchers.service';
+import { User, UserDocument } from '../users/user.schema';
 
 export interface CreatePaymentDto {
   showtime_id: string;
   seats: string[];
   user_id: string;
-  payment_type?: MomoPaymentType; // Thêm option chọn phương thức: captureWallet | payWithATM | payWithCC
-  combos?: Array<{ combo_id: string; quantity: number }>; // Combo bắp nước
+  payment_type?: MomoPaymentType;
+  combos?: Array<{ combo_id: string; quantity: number }>;
+  voucherCode?: string; // Mã voucher (nếu có)
 }
 
 export interface PaymentResult {
@@ -28,8 +32,11 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
   constructor(
     @InjectModel(Booking.name) private bookingModel: Model<Booking>,
     @InjectModel(Showtime.name) private showtimeModel: Model<Showtime>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
     private readonly momoService: MomoService,
     private readonly combosService: CombosService,
+    private readonly loyaltyService: LoyaltyService,
+    private readonly vouchersService: VouchersService,
   ) { }
 
   /**
@@ -134,8 +141,35 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       comboPrice = validatedCombos.reduce((sum, c) => sum + c.price * c.quantity, 0);
     }
 
-    // Tổng tiền = vé + combo
-    const totalPrice = ticketPrice + comboPrice;
+    // Tổng tiền gốc = vé + combo
+    const originalPrice = ticketPrice + comboPrice;
+
+    // === Tính giảm giá thành viên ===
+    const user = await this.userModel.findById(user_id).select('membershipRank');
+    const membershipRank = user?.membershipRank || 'Member';
+    const membershipDiscountPercent = this.loyaltyService.getMembershipDiscount(membershipRank);
+    const membershipDiscount = Math.floor((originalPrice * membershipDiscountPercent) / 100);
+
+    // === Tính giảm giá voucher ===
+    let voucherDiscount = 0;
+    let appliedVoucherCode = '';
+    if (createDto.voucherCode) {
+      const cinemaId = showtime.cinema.toString();
+      const voucherResult = await this.vouchersService.validateVoucher(
+        createDto.voucherCode,
+        user_id,
+        cinemaId,
+        originalPrice - membershipDiscount, // Áp dụng voucher trên giá sau giảm thành viên
+      );
+      if (!voucherResult.valid) {
+        throw new BadRequestException(voucherResult.message);
+      }
+      voucherDiscount = voucherResult.discount || 0;
+      appliedVoucherCode = createDto.voucherCode.toUpperCase();
+    }
+
+    // Tổng tiền sau giảm (không được âm)
+    const totalPrice = Math.max(originalPrice - membershipDiscount - voucherDiscount, 0);
 
     // MoMo yêu cầu số tiền tối thiểu 1000 VND
     if (totalPrice < 1000) {
@@ -151,10 +185,14 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       user: user_id,
       seats: seats,
       total_price: totalPrice,
-      combos: validatedCombos, // Lưu snapshot combo
-      status: 'pending', // Trạng thái chờ thanh toán
+      originalPrice: originalPrice,
+      membershipDiscount: membershipDiscount,
+      voucherDiscount: voucherDiscount,
+      appliedVoucherCode: appliedVoucherCode,
+      combos: validatedCombos,
+      status: 'pending',
       payment_method: 'momo',
-      momo_order_id: momoOrderId, // Lưu mã đơn hàng MoMo
+      momo_order_id: momoOrderId,
     });
 
     await this.lockSeats(showtime_id, seats);
@@ -322,6 +360,10 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         momo_result_code: resultCode,
         payment_note: resultMessage,
       });
+
+      // Cộng điểm + ghi nhận voucher (fallback nếu IPN chưa xử lý)
+      await this.postPaymentSuccess(booking);
+
       return {
         success: true,
         message: 'Thanh toán thành công! Vé đã được xác nhận.',
@@ -432,6 +474,10 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
           momo_result_code: resultCode,
           payment_note: resultMessage,
         });
+
+        // Cộng điểm thưởng + ghi nhận voucher usage
+        await this.postPaymentSuccess(booking);
+
         console.log('IPN: Payment confirmed successfully');
         return { resultCode: 0, message: 'Confirm Success' };
       } else {
@@ -658,5 +704,45 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     }
 
     return expiredBookings.length;
+  }
+
+  /**
+   * Xử lý sau khi thanh toán thành công:
+   * 1. Cộng điểm thưởng cho user
+   * 2. Ghi nhận sử dụng voucher
+   */
+  private async postPaymentSuccess(booking: any): Promise<void> {
+    try {
+      const bookingId = booking._id ? booking._id.toString() : booking.toString();
+      const userId = booking.user && booking.user._id 
+        ? booking.user._id.toString() 
+        : (booking.user ? booking.user.toString() : '');
+
+      if (!userId || !bookingId) {
+        console.error('[PostPayment] Không thể tìm thấy userId hoặc bookingId để thực hiện postPaymentSuccess');
+        return;
+      }
+
+      // 1. Cộng điểm dựa trên số tiền thực tế đã thanh toán (sau giảm giá)
+      const pointsAmount = booking.total_price;
+      const pointsAwarded = await this.loyaltyService.awardPoints(userId, bookingId, pointsAmount);
+      if (pointsAwarded > 0) {
+        console.log(`[PostPayment] Đã cộng ${pointsAwarded} điểm cho user ${userId}`);
+      }
+
+      // 2. Ghi nhận sử dụng voucher
+      if (booking.appliedVoucherCode && booking.voucherDiscount > 0) {
+        await this.vouchersService.recordVoucherUsage(
+          userId,
+          bookingId,
+          booking.appliedVoucherCode,
+          booking.voucherDiscount,
+        );
+        console.log(`[PostPayment] Đã ghi nhận voucher ${booking.appliedVoucherCode}`);
+      }
+    } catch (error) {
+      console.error('[PostPayment] Lỗi xử lý sau thanh toán:', error);
+      // Không throw lỗi để không ảnh hưởng đến kết quả thanh toán
+    }
   }
 }

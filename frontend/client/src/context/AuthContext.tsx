@@ -10,6 +10,9 @@ interface User {
   email: string;
   role?: string;
   avatar_url?: string;
+  availablePoints?: number;
+  lifetimePoints?: number;
+  membershipRank?: string;
 }
 
 interface AuthContextType {
@@ -39,8 +42,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const token = localStorage.getItem('access_token');
       if (token) {
         try {
-          // Gọi API để lấy thông tin user từ token
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/profile`, {
+          // Gọi API để lấy thông tin user đầy đủ từ DB
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/profile`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (res.ok) {

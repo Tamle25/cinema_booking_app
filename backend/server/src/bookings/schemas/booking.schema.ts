@@ -59,6 +59,26 @@ export class Booking {
     price: number;
     quantity: number;
   }>;
+
+  // Giá gốc trước khi giảm giá
+  @Prop({ default: 0 })
+  originalPrice: number;
+
+  // Số tiền giảm từ hạng thành viên
+  @Prop({ default: 0 })
+  membershipDiscount: number;
+
+  // Số tiền giảm từ voucher
+  @Prop({ default: 0 })
+  voucherDiscount: number;
+
+  // Mã voucher đã áp dụng
+  @Prop()
+  appliedVoucherCode: string;
+
+  // Đã cộng điểm cho đơn này chưa (tránh cộng trùng)
+  @Prop({ default: false })
+  pointsAwarded: boolean;
 }
 
 export const BookingSchema = SchemaFactory.createForClass(Booking);

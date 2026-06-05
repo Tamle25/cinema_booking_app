@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { IShowtime, ISelectedCombo, IBooking } from '@/types';
+import { IShowtime, ISelectedCombo, IBooking, IUserVoucher } from '@/types';
 import ComboSelector from '@/components/ComboSelector';
-import { toastWarning, toastError, toastInfo } from '@/utils/toast';
+import { toastWarning, toastError, toastInfo, toastSuccess } from '@/utils/toast';
 import { toast } from 'react-toastify';
 import { useSocket } from '@/context/SocketContext';
 import { useAuth } from '@/context/AuthContext';
@@ -44,6 +44,17 @@ export default function BookingPage() {
   const [showPendingModal, setShowPendingModal] = useState(false);
   const [pendingAction, setPendingAction] = useState(false);
   const [showComboModal, setShowComboModal] = useState(false);
+
+  // States cho loyalty & voucher
+  const [membershipDiscountPercent, setMembershipDiscountPercent] = useState<number>(0);
+  const [membershipRank, setMembershipRank] = useState<string>('Member');
+  const [voucherCode, setVoucherCode] = useState<string>('');
+  const [appliedVoucherCode, setAppliedVoucherCode] = useState<string>('');
+  const [voucherDiscount, setVoucherDiscount] = useState<number>(0);
+  const [myVouchers, setMyVouchers] = useState<IUserVoucher[]>([]);
+  const [isValidatingVoucher, setIsValidatingVoucher] = useState<boolean>(false);
+  const [voucherError, setVoucherError] = useState<string>('');
+  const [showVoucherDropdown, setShowVoucherDropdown] = useState<boolean>(false);
 
   // Toast ID cố định để tránh spam
   const DISCONNECT_TOAST_ID = 'ws-disconnect-toast';
@@ -500,6 +511,104 @@ export default function BookingPage() {
     setShowPaymentModal(true);
   };
 
+  // Load thông tin loyalty & voucher của user
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const token = localStorage.getItem('access_token');
+      if (!token || !userId) return;
+
+      try {
+        // Fetch membership discount
+        const resDiscount = await fetch(`${API_URL}/loyalty/membership-discount`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (resDiscount.ok) {
+          const data = await resDiscount.json();
+          setMembershipDiscountPercent(data.discountPercent || 0);
+          setMembershipRank(data.membershipRank || 'Member');
+        }
+
+        // Fetch user vouchers
+        const resVouchers = await fetch(`${API_URL}/vouchers/my-vouchers`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (resVouchers.ok) {
+          const data = await resVouchers.json();
+          setMyVouchers(data);
+        }
+      } catch (error) {
+        console.error('Lỗi tải dữ liệu user cho booking:', error);
+      }
+    };
+
+    if (userId && showtime) {
+      fetchUserData();
+    }
+  }, [userId, showtime, API_URL]);
+
+  // Áp dụng voucher
+  const handleApplyVoucher = async (codeToApply?: string) => {
+    if (!showtime) return;
+    const code = (codeToApply || voucherCode).trim().toUpperCase();
+    if (!code) {
+      setVoucherError('Vui lòng nhập mã voucher');
+      return;
+    }
+
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+
+    setIsValidatingVoucher(true);
+    setVoucherError('');
+
+    const originalPrice = ticketTotal + comboTotal;
+    const membershipDiscount = Math.floor((originalPrice * membershipDiscountPercent) / 100);
+    const priceAfterMember = originalPrice - membershipDiscount;
+
+    try {
+      const res = await fetch(`${API_URL}/vouchers/validate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          code,
+          cinemaId: showtime.cinema?._id || showtime.cinema,
+          orderAmount: priceAfterMember
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.valid) {
+        setVoucherDiscount(data.discount || 0);
+        setAppliedVoucherCode(code);
+        setVoucherCode(code);
+        setVoucherError('');
+        toastSuccess('Áp dụng mã giảm giá thành công!');
+        setShowVoucherDropdown(false);
+      } else {
+        setVoucherError(data.message || 'Mã voucher không hợp lệ');
+        setVoucherDiscount(0);
+        setAppliedVoucherCode('');
+        toastError(data.message || 'Mã voucher không hợp lệ');
+      }
+    } catch (error) {
+      setVoucherError('Lỗi kiểm tra voucher');
+      toastError('Không thể kết nối tới server');
+    } finally {
+      setIsValidatingVoucher(false);
+    }
+  };
+
+  // Hủy voucher
+  const handleRemoveVoucher = () => {
+    setVoucherCode('');
+    setAppliedVoucherCode('');
+    setVoucherDiscount(0);
+    setVoucherError('');
+  };
+
   // 4. Xử lý thanh toán MoMo
   const handleMomoPayment = async () => {
     const token = localStorage.getItem('access_token');
@@ -521,6 +630,7 @@ export default function BookingPage() {
             combo_id: sc.combo._id,
             quantity: sc.quantity,
           })),
+          voucherCode: appliedVoucherCode || undefined, // Gửi mã voucher lên backend
         })
       });
 
@@ -779,7 +889,7 @@ export default function BookingPage() {
             {/* Content */}
             <div className="p-6 flex-1 overflow-y-auto">
               {/* Order Summary */}
-              <div className="bg-gray-50 rounded-xl p-4 mb-6">
+              <div className="bg-gray-50 rounded-xl p-4 mb-4">
                 <h3 className="text-sm font-semibold text-gray-700 mb-3">Thông tin đơn hàng</h3>
                 <div className="space-y-2">
                   <div className="flex justify-between">
@@ -814,29 +924,139 @@ export default function BookingPage() {
                       </div>
                     </>
                   )}
-                  <div className="border-t pt-2 mt-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Tiền vé:</span>
+                  
+                  {/* Chi tiết giá gốc và ưu đãi */}
+                  <div className="border-t pt-2 mt-2 space-y-1.5">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Tiền vé:</span>
                       <span className="font-medium text-gray-900">
                         {ticketTotal.toLocaleString()}đ
                       </span>
                     </div>
                     {comboTotal > 0 && (
-                      <div className="flex justify-between mt-1">
-                        <span className="text-gray-600">Tiền bắp nước:</span>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Tiền bắp nước:</span>
                         <span className="font-medium text-gray-900">
                           {comboTotal.toLocaleString()}đ
                         </span>
                       </div>
                     )}
+                    
+                    {/* Giảm giá thành viên */}
+                    {membershipDiscountPercent > 0 && (
+                      <div className="flex justify-between text-sm text-green-600 font-medium">
+                        <span>Thành viên ({membershipRank} -{membershipDiscountPercent}%):</span>
+                        <span>
+                          -{Math.floor(((ticketTotal + comboTotal) * membershipDiscountPercent) / 100).toLocaleString()}đ
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Giảm giá voucher */}
+                    {voucherDiscount > 0 && (
+                      <div className="flex justify-between text-sm text-green-600 font-medium">
+                        <span>Voucher giảm giá ({appliedVoucherCode}):</span>
+                        <span>
+                          -{voucherDiscount.toLocaleString()}đ
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Tổng cộng thanh toán cuối cùng */}
                     <div className="flex justify-between mt-2 pt-2 border-t">
-                      <span className="font-semibold text-gray-700">Tổng cộng:</span>
-                      <span className="font-bold text-red-600 text-xl">
-                        {grandTotal.toLocaleString()}đ
+                      <span className="font-bold text-gray-700">Tổng thanh toán:</span>
+                      <span className="font-black text-red-600 text-xl">
+                        {(() => {
+                          const originalPrice = ticketTotal + comboTotal;
+                          const membershipDiscount = Math.floor((originalPrice * membershipDiscountPercent) / 100);
+                          const finalPrice = Math.max(originalPrice - membershipDiscount - voucherDiscount, 0);
+                          return finalPrice.toLocaleString();
+                        })()}đ
                       </span>
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Nhập mã giảm giá */}
+              <div className="border border-gray-200 rounded-xl p-4 mb-6 relative">
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                  Ưu đãi & Khuyến mãi (Voucher)
+                </label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      placeholder="Nhập mã voucher"
+                      value={voucherCode}
+                      onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                      disabled={!!appliedVoucherCode || isValidatingVoucher}
+                      className="w-full px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-pink-500 uppercase font-semibold"
+                    />
+                    {appliedVoucherCode && (
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded font-bold border border-green-200">
+                        Đã áp dụng
+                      </span>
+                    )}
+                  </div>
+                  {appliedVoucherCode ? (
+                    <button
+                      onClick={handleRemoveVoucher}
+                      className="px-3 py-2 bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-lg text-sm font-semibold transition"
+                    >
+                      Hủy
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleApplyVoucher()}
+                      disabled={isValidatingVoucher || !voucherCode.trim()}
+                      className="px-4 py-2 bg-pink-600 text-white hover:bg-pink-700 rounded-lg text-sm font-semibold disabled:bg-pink-300 transition"
+                    >
+                      {isValidatingVoucher ? '...' : 'Áp dụng'}
+                    </button>
+                  )}
+                </div>
+                {voucherError && <p className="text-xs text-red-500 mt-1">{voucherError}</p>}
+                
+                {/* Nút chọn nhanh voucher cá nhân */}
+                {myVouchers.filter(v => v.status === 'UNUSED' && new Date(v.expiredAt) > new Date()).length > 0 && !appliedVoucherCode && (
+                  <div className="mt-2">
+                    <button
+                      onClick={() => setShowVoucherDropdown(!showVoucherDropdown)}
+                      className="text-xs font-semibold text-pink-600 hover:text-pink-700 flex items-center gap-1 focus:outline-none cursor-pointer"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                      </svg>
+                      Chọn từ voucher của bạn ({myVouchers.filter(v => v.status === 'UNUSED' && new Date(v.expiredAt) > new Date()).length})
+                    </button>
+                    
+                    {showVoucherDropdown && (
+                      <div className="absolute z-20 mt-1 w-full left-0 bg-white border border-gray-200 rounded-xl shadow-xl p-3 max-h-48 overflow-y-auto space-y-2 text-gray-700 custom-scrollbar">
+                        {myVouchers
+                          .filter(v => v.status === 'UNUSED' && new Date(v.expiredAt) > new Date())
+                          .map((uv) => (
+                            <div 
+                              key={uv._id} 
+                              onClick={() => {
+                                setVoucherCode(uv.code);
+                                handleApplyVoucher(uv.code);
+                              }}
+                              className="p-2 border border-gray-100 hover:border-pink-200 hover:bg-pink-50/50 rounded-lg cursor-pointer transition text-left"
+                            >
+                              <div className="flex justify-between items-center">
+                                <span className="font-bold text-xs text-pink-600">{uv.code}</span>
+                                <span className="text-[10px] text-gray-400">Hạn: {new Date(uv.expiredAt).toLocaleDateString('vi-VN')}</span>
+                              </div>
+                              <p className="text-xs font-semibold text-gray-800 mt-1 truncate">{uv.voucherTemplate.name}</p>
+                              <p className="text-[10px] text-gray-500 mt-0.5 truncate">{uv.voucherTemplate.description}</p>
+                            </div>
+                          ))
+                        }
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Payment Methods Selection */}
@@ -858,11 +1078,11 @@ export default function BookingPage() {
                     onChange={() => setSelectedPaymentType('captureWallet')}
                     className="w-5 h-5 text-pink-600"
                   />
-                  <div className="w-12 h-12 bg-pink-600 rounded-xl flex items-center justify-center text-white font-bold text-sm">
+                  <div className="w-12 h-12 bg-pink-600 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0">
                     MoMo
                   </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-900">Ví MoMo / QR Code</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm">Ví MoMo / QR Code</p>
                     <p className="text-xs text-gray-500">Quét QR hoặc mở app MoMo</p>
                   </div>
                 </label>
@@ -882,11 +1102,11 @@ export default function BookingPage() {
                     onChange={() => setSelectedPaymentType('payWithATM')}
                     className="w-5 h-5 text-blue-600"
                   />
-                  <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xs">
+                  <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xs shrink-0">
                     ATM
                   </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-900">Thẻ ATM nội địa</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm">Thẻ ATM nội địa</p>
                     <p className="text-xs text-gray-500">Vietcombank, BIDV, Techcombank...</p>
                   </div>
                 </label>
@@ -906,13 +1126,13 @@ export default function BookingPage() {
                     onChange={() => setSelectedPaymentType('payWithCC')}
                     className="w-5 h-5 text-purple-600"
                   />
-                  <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl flex items-center justify-center">
+                  <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl flex items-center justify-center shrink-0">
                     <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                     </svg>
                   </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-900">Thẻ quốc tế</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm">Thẻ quốc tế</p>
                     <p className="text-xs text-gray-500">Visa, Mastercard, JCB</p>
                   </div>
                 </label>

@@ -152,3 +152,74 @@ export interface INews {
   createdAt: string;
   updatedAt: string;
 }
+
+// === LOYALTY & VOUCHER TYPES ===
+
+export interface IPointTransaction {
+  _id: string;
+  user: string;
+  order?: string;
+  type: 'EARN' | 'REDEEM' | 'EXPIRE' | 'REFUND' | 'ADJUST';
+  points: number;
+  description: string;
+  expiredAt?: string;
+  isExpired?: boolean;
+  createdAt: string;
+}
+
+export interface IMembershipInfo {
+  availablePoints: number;
+  lifetimePoints: number;
+  membershipRank: string;
+  discountPercent: number;
+  nextRank: {
+    nextRank: string;
+    pointsNeeded: number;
+    nextRankMinPoints: number;
+  } | null;
+  rankThresholds: Array<{
+    rank: string;
+    minPoints: number;
+    discount: number;
+  }>;
+}
+
+export interface IVoucher {
+  _id: string;
+  name: string;
+  code?: string;
+  description: string;
+  voucherType: 'ADMIN_CODE' | 'POINT_EXCHANGE_TEMPLATE';
+  discountType: 'PERCENT' | 'FIXED_AMOUNT';
+  discountValue: number;
+  maxDiscountAmount: number;
+  minOrderAmount: number;
+  startDate?: string;
+  endDate?: string;
+  usageLimit: number;
+  usedCount: number;
+  isUnlimited: boolean;
+  status: string;
+  applicableCinemaIds: Array<{ _id: string; name: string }>;
+  isAllCinemas: boolean;
+  requiredMembershipRank: string;
+  requiredPoints: number;
+  validDaysAfterExchange: number;
+  exchangeLimit: number;
+  exchangedCount: number;
+  canExchange?: boolean;
+  userPoints?: number;
+  createdAt: string;
+}
+
+export interface IUserVoucher {
+  _id: string;
+  user: string;
+  voucherTemplate: IVoucher;
+  code: string;
+  status: 'UNUSED' | 'USED' | 'EXPIRED';
+  usedAt?: string;
+  expiredAt: string;
+  createdAt: string;
+}
+

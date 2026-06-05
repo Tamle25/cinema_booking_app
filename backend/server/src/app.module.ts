@@ -18,6 +18,8 @@ import { ReviewsModule } from './reviews/reviews.module';
 import { NewsModule } from './news/news.module';
 import { GenresModule } from './genres/genres.module';
 import { UploadsModule } from './uploads/uploads.module';
+import { LoyaltyModule } from './loyalty/loyalty.module';
+import { VouchersModule } from './vouchers/vouchers.module';
 
 @Module({
   imports: [
@@ -55,6 +57,8 @@ import { UploadsModule } from './uploads/uploads.module';
     NewsModule,
     GenresModule,
     UploadsModule,
+    LoyaltyModule,
+    VouchersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

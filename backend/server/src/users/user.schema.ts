@@ -19,6 +19,15 @@ export class User {
 
   @Prop({ default: 'user' }) // 'user' hoặc 'admin'
   role: string;
+
+  @Prop({ default: 0 })
+  availablePoints: number; // Điểm khả dụng để đổi voucher
+
+  @Prop({ default: 0 })
+  lifetimePoints: number; // Tổng điểm tích lũy trọn đời (dùng xét hạng)
+
+  @Prop({ default: 'Member', enum: ['Member', 'Silver', 'Gold', 'Platinum', 'Diamond'] })
+  membershipRank: string; // Hạng thành viên hiện tại
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
