@@ -89,6 +89,24 @@ export class ShowtimesController {
     return this.showtimesService.getAvailableDates(cinemaId);
   }
 
+  // API so sánh rạp chiếu theo phim và ngày
+  @Get('compare')
+  compareShowtimes(
+    @Query('movieId') movieId: string,
+    @Query('date') date: string,
+    @Query('userLat') userLat?: string,
+    @Query('userLng') userLng?: string,
+    @Query('sort') sort?: string,
+  ) {
+    return this.showtimesService.compareByMovie({
+      movieId,
+      date,
+      userLat: userLat ? parseFloat(userLat) : undefined,
+      userLng: userLng ? parseFloat(userLng) : undefined,
+      sort,
+    });
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseObjectIdPipe) id: string) {
     return this.showtimesService.findOne(id);

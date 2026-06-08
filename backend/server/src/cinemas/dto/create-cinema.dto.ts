@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsMongoId, IsUrl, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsString, IsMongoId, IsUrl, IsOptional, IsNumber, IsBoolean } from 'class-validator';
 
 export class CreateCinemaDto {
   @IsNotEmpty()
@@ -24,4 +24,16 @@ export class CreateCinemaDto {
   @IsOptional()
   @IsUrl()
   map_url?: string;
+
+  @IsOptional()
+  @IsNumber()
+  latitude?: number;
+
+  @IsOptional()
+  @IsNumber()
+  longitude?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

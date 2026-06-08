@@ -24,6 +24,15 @@ export class Cinema {
 
   @Prop()
   map_url: string; // Link Google Map
+
+  @Prop({ type: Number, default: null })
+  latitude: number; // Vĩ độ (VD: 21.0285)
+
+  @Prop({ type: Number, default: null })
+  longitude: number; // Kinh độ (VD: 105.8542)
+
+  @Prop({ default: true })
+  isActive: boolean; // Trạng thái hoạt động
 }
 
 export const CinemaSchema = SchemaFactory.createForClass(Cinema);

@@ -25,6 +25,9 @@ export interface ICinema {
   city: string;
   cinema_system: ICinemaSystem | string;
   map_url?: string;
+  latitude?: number;
+  longitude?: number;
+  isActive?: boolean;
 }
 
 export interface IRoom {
@@ -223,3 +226,32 @@ export interface IUserVoucher {
   createdAt: string;
 }
 
+// === SO SÁNH RẠP CHIẾU TYPES ===
+
+export interface IComparedShowtime {
+  showtimeId: string;
+  startTime: string;
+  endTime: string;
+  format: string;
+  roomName: string;
+  price: number;
+  availableSeats: number;
+}
+
+export interface IComparedCinema {
+  cinemaId: string;
+  cinemaName: string;
+  brand: string;
+  brandLogo: string;
+  brandSlug: string;
+  address: string;
+  city: string;
+  latitude: number | null;
+  longitude: number | null;
+  minPrice: number | null;
+  distanceKm: number | null;
+  earliestShowtime: string;
+  availableSeats: number;
+  labels: string[];
+  showtimes: IComparedShowtime[];
+}

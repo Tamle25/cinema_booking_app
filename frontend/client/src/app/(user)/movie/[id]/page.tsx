@@ -9,6 +9,7 @@ import TrailerModal from '@/components/TrailerModal';
 import { useAuth } from '@/context/AuthContext';
 import { toastError } from '@/utils/toast';
 import { getCloudinaryImageUrl, movieImagePresets } from '@/lib/cloudinary';
+import CompareCinemaSection from '@/components/CompareCinemaSection';
 
 const getNext14Days = () => {
   const dates = [];
@@ -645,6 +646,11 @@ export default function MovieDetailPage() {
           </div>
         </div>
 
+      </div>
+
+      {/* --- PHẦN 2.5: SO SÁNH RẠP CHIẾU --- */}
+      <div className="bg-gray-50 border-t border-gray-100">
+        <CompareCinemaSection movieId={id as string} />
       </div>
 
       {/* --- PHẦN 3: BÌNH LUẬN PHIM --- */}

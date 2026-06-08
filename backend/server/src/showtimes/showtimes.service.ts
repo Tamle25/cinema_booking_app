@@ -366,4 +366,264 @@ export class ShowtimesService {
 
     return showtime;
   }
+
+  // ============ SO SÁNH RẠP CHIẾU ============
+
+  /**
+   * Tính khoảng cách Haversine giữa 2 điểm (km)
+   */
+  private calculateHaversineDistance(
+    lat1: number, lon1: number,
+    lat2: number, lon2: number,
+  ): number {
+    const R = 6371; // Bán kính Trái Đất (km)
+    const dLat = this.toRad(lat2 - lat1);
+    const dLon = this.toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(this.toRad(lat1)) * Math.cos(this.toRad(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Math.round(R * c * 10) / 10; // Làm tròn 1 chữ số thập phân
+  }
+
+  private toRad(deg: number): number {
+    return deg * (Math.PI / 180);
+  }
+
+  /**
+   * Tính điểm "Đáng chọn nhất" (điểm càng thấp = càng tốt)
+   * bestScore = normalizedPrice * 0.5 + normalizedDistance * 0.3 + normalizedTime * 0.2
+   */
+  private calculateBestScore(
+    price: number, minAllPrice: number, maxAllPrice: number,
+    distance: number | null, minAllDistance: number | null, maxAllDistance: number | null,
+    time: number, minAllTime: number, maxAllTime: number,
+  ): number {
+    // Normalize giá: 0 = rẻ nhất, 1 = đắt nhất
+    const priceRange = maxAllPrice - minAllPrice;
+    const normalizedPrice = priceRange > 0 ? (price - minAllPrice) / priceRange : 0;
+
+    // Normalize khoảng cách: 0 = gần nhất, 1 = xa nhất
+    let normalizedDistance = 0.5; // Mặc định giữa nếu không có vị trí
+    if (distance !== null && minAllDistance !== null && maxAllDistance !== null) {
+      const distRange = maxAllDistance - minAllDistance;
+      normalizedDistance = distRange > 0 ? (distance - minAllDistance) / distRange : 0;
+    }
+
+    // Normalize thời gian: 0 = sớm nhất, 1 = muộn nhất
+    const timeRange = maxAllTime - minAllTime;
+    const normalizedTime = timeRange > 0 ? (time - minAllTime) / timeRange : 0;
+
+    return normalizedPrice * 0.5 + normalizedDistance * 0.3 + normalizedTime * 0.2;
+  }
+
+  /**
+   * So sánh rạp chiếu cho 1 phim trong 1 ngày
+   */
+  async compareByMovie(query: {
+    movieId: string;
+    date: string;
+    userLat?: number;
+    userLng?: number;
+    sort?: string;
+  }): Promise<any[]> {
+    const { movieId, date, userLat, userLng, sort } = query;
+
+    // 1. Lấy tất cả suất chiếu active theo phim + ngày
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const showtimes = await this.showtimeModel
+      .find({
+        movie: movieId,
+        is_active: true,
+        start_time: { $gte: startOfDay, $lte: endOfDay },
+      })
+      .populate({
+        path: 'cinema',
+        populate: { path: 'cinema_system' },
+      })
+      .populate('room', 'name type rows columns total_seats')
+      .exec();
+
+    if (!showtimes || showtimes.length === 0) {
+      return [];
+    }
+
+    // 2. Gom nhóm suất chiếu theo rạp
+    const cinemaMap = new Map<string, {
+      cinema: any;
+      showtimes: any[];
+    }>();
+
+    for (const st of showtimes) {
+      if (!st.cinema) continue;
+      const cinemaObj = st.cinema as any;
+      const cinemaId = cinemaObj._id?.toString();
+      if (!cinemaId) continue;
+
+      if (!cinemaMap.has(cinemaId)) {
+        cinemaMap.set(cinemaId, {
+          cinema: cinemaObj,
+          showtimes: [],
+        });
+      }
+      cinemaMap.get(cinemaId)!.showtimes.push(st);
+    }
+
+    // 3. Tính toán cho mỗi rạp
+    const hasUserLocation = userLat != null && userLng != null;
+    const results: any[] = [];
+
+    for (const [cinemaId, group] of cinemaMap) {
+      const { cinema, showtimes: cinemaShowtimes } = group;
+      const system = cinema.cinema_system;
+
+      // Giá thấp nhất
+      const prices = cinemaShowtimes.map(s => s.price).filter(p => p != null && p > 0);
+      const minPrice = prices.length > 0 ? Math.min(...prices) : null;
+
+      // Suất chiếu sớm nhất
+      const sortedByTime = [...cinemaShowtimes].sort(
+        (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
+      );
+      const earliest = sortedByTime[0];
+      const earliestTime = new Date(earliest.start_time);
+
+      // Số ghế còn trống (tổng của tất cả suất chiếu)
+      let totalAvailableSeats = 0;
+      for (const st of cinemaShowtimes) {
+        const room = st.room as any;
+        const totalSeats = room?.total_seats || (room?.rows * room?.columns) || 0;
+        const bookedCount = (st.booked_seats || []).length;
+        totalAvailableSeats += Math.max(0, totalSeats - bookedCount);
+      }
+
+      // Khoảng cách
+      let distanceKm: number | null = null;
+      if (hasUserLocation && cinema.latitude != null && cinema.longitude != null) {
+        distanceKm = this.calculateHaversineDistance(
+          userLat!, userLng!, cinema.latitude, cinema.longitude,
+        );
+      }
+
+      // Format showtimes
+      const formattedShowtimes = cinemaShowtimes.map(st => {
+        const room = st.room as any;
+        const totalSeats = room?.total_seats || (room?.rows * room?.columns) || 0;
+        const bookedCount = (st.booked_seats || []).length;
+        return {
+          showtimeId: st._id,
+          startTime: new Date(st.start_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+          endTime: new Date(st.end_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+          format: room?.type || '2D',
+          roomName: room?.name || '',
+          price: st.price || 0,
+          availableSeats: Math.max(0, totalSeats - bookedCount),
+        };
+      }).sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+      results.push({
+        cinemaId,
+        cinemaName: cinema.name,
+        brand: system?.name || '',
+        brandLogo: system?.logo_url || '',
+        brandSlug: system?.slug || '',
+        address: cinema.address || '',
+        city: cinema.city || '',
+        latitude: cinema.latitude,
+        longitude: cinema.longitude,
+        minPrice,
+        distanceKm,
+        earliestShowtime: earliestTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+        earliestTimestamp: earliestTime.getTime(),
+        availableSeats: totalAvailableSeats,
+        labels: [] as string[],
+        bestScore: 0,
+        showtimes: formattedShowtimes,
+      });
+    }
+
+    if (results.length === 0) return [];
+
+    // 4. Gắn nhãn
+    // Rẻ nhất
+    const allMinPrices = results.filter(r => r.minPrice != null).map(r => r.minPrice);
+    if (allMinPrices.length > 0) {
+      const cheapest = Math.min(...allMinPrices);
+      results.filter(r => r.minPrice === cheapest).forEach(r => r.labels.push('Rẻ nhất'));
+    }
+
+    // Gần nhất (chỉ khi có vị trí user)
+    const allDistances = results.filter(r => r.distanceKm != null).map(r => r.distanceKm);
+    if (allDistances.length > 0) {
+      const nearest = Math.min(...allDistances);
+      results.filter(r => r.distanceKm === nearest).forEach(r => r.labels.push('Gần nhất'));
+    }
+
+    // Suất sớm nhất
+    const allEarliestTimes = results.map(r => r.earliestTimestamp);
+    const earliestOfAll = Math.min(...allEarliestTimes);
+    results.filter(r => r.earliestTimestamp === earliestOfAll).forEach(r => r.labels.push('Suất sớm nhất'));
+
+    // 5. Tính điểm "Đáng chọn nhất"
+    const validPrices = results.filter(r => r.minPrice != null).map(r => r.minPrice);
+    const minAllPrice = validPrices.length > 0 ? Math.min(...validPrices) : 0;
+    const maxAllPrice = validPrices.length > 0 ? Math.max(...validPrices) : 0;
+
+    const validDistances = results.filter(r => r.distanceKm != null).map(r => r.distanceKm);
+    const minAllDistance = validDistances.length > 0 ? Math.min(...validDistances) : null;
+    const maxAllDistance = validDistances.length > 0 ? Math.max(...validDistances) : null;
+
+    const minAllTime = Math.min(...allEarliestTimes);
+    const maxAllTime = Math.max(...allEarliestTimes);
+
+    for (const r of results) {
+      r.bestScore = this.calculateBestScore(
+        r.minPrice || 0, minAllPrice, maxAllPrice,
+        r.distanceKm, minAllDistance, maxAllDistance,
+        r.earliestTimestamp, minAllTime, maxAllTime,
+      );
+    }
+
+    // Gắn nhãn "Đáng chọn nhất" cho rạp có điểm thấp nhất
+    const bestScoreMin = Math.min(...results.map(r => r.bestScore));
+    results.filter(r => r.bestScore === bestScoreMin).forEach(r => {
+      if (!r.labels.includes('Đáng chọn nhất')) {
+        r.labels.push('Đáng chọn nhất');
+      }
+    });
+
+    // 6. Sắp xếp theo tiêu chí
+    switch (sort) {
+      case 'cheapest':
+        results.sort((a, b) => (a.minPrice || Infinity) - (b.minPrice || Infinity));
+        break;
+      case 'nearest':
+        results.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
+        break;
+      case 'earliest':
+        results.sort((a, b) => a.earliestTimestamp - b.earliestTimestamp);
+        break;
+      case 'best':
+        results.sort((a, b) => a.bestScore - b.bestScore);
+        break;
+      case 'brand':
+        results.sort((a, b) => a.brand.localeCompare(b.brand));
+        break;
+      default:
+        // Mặc định: theo điểm tổng hợp
+        results.sort((a, b) => a.bestScore - b.bestScore);
+        break;
+    }
+
+    // 7. Xóa trường internal trước khi trả về
+    return results.map(r => {
+      const { earliestTimestamp, bestScore, ...rest } = r;
+      return rest;
+    });
+  }
 }
