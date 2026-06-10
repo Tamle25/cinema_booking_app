@@ -7,32 +7,31 @@ export type CinemaDocument = HydratedDocument<Cinema>;
 @Schema({ timestamps: true })
 export class Cinema {
   @Prop({ required: true })
-  name: string; // VD: "Beta Mỹ Đình"
+  name: string;
 
   @Prop({ required: true, unique: true })
-  slug: string; // VD: "beta-my-dinh"
+  slug: string;
 
   @Prop()
-  address: string; // VD: "Tầng hầm B1, Tòa nhà Golden Palace..."
+  address: string;
 
   @Prop()
-  city: string; // VD: "Hà Nội"
+  city: string;
 
-  // QUAN TRỌNG: Liên kết với thương hiệu cha
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'CinemaSystem', required: true })
   cinema_system: CinemaSystem;
 
   @Prop()
-  map_url: string; // Link Google Map
+  map_url: string;
 
   @Prop({ type: Number, default: null })
-  latitude: number; // Vĩ độ (VD: 21.0285)
+  latitude: number;
 
   @Prop({ type: Number, default: null })
-  longitude: number; // Kinh độ (VD: 105.8542)
+  longitude: number;
 
   @Prop({ default: true })
-  isActive: boolean; // Trạng thái hoạt động
+  isActive: boolean;
 }
 
 export const CinemaSchema = SchemaFactory.createForClass(Cinema);

@@ -5,6 +5,7 @@ import { ICinemaSystem } from '@/types';
 import Pagination from '@/components/Pagination';
 import { authHeaders } from '@/lib/api';
 import { toastSuccess, toastWarning, toastError } from '@/utils/toast';
+import ConfirmModal from '@/components/ConfirmModal';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -48,6 +49,9 @@ export default function CinemaSystemsPage() {
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ICinemaSystem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -151,11 +155,16 @@ export default function CinemaSystemsPage() {
   };
 
   // Delete cinema system
-  const handleDelete = async (system: ICinemaSystem) => {
-    if (!confirm(`Bạn có chắc muốn xóa hãng "${system.name}"?`)) return;
+  const handleDelete = (system: ICinemaSystem) => {
+    setDeleteTarget(system);
+    setIsConfirmOpen(true);
+  };
 
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
     try {
-      const res = await fetch(`${API_URL}/cinema-systems/${system._id}`, {
+      const res = await fetch(`${API_URL}/cinema-systems/${deleteTarget._id}`, {
         method: 'DELETE',
         headers: authHeaders(),
       });
@@ -163,6 +172,7 @@ export default function CinemaSystemsPage() {
       if (res.ok) {
         toastSuccess('Xóa thành công!');
         fetchSystems();
+        setIsConfirmOpen(false);
       } else {
         const error = await res.json();
         toastError(`Lỗi: ${error.message}`);
@@ -170,6 +180,8 @@ export default function CinemaSystemsPage() {
     } catch (error) {
       console.error('Lỗi xóa:', error);
       toastError('Có lỗi xảy ra!');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -436,6 +448,17 @@ export default function CinemaSystemsPage() {
           </div>
         </div>
       )}
+      {/* Confirm Modal */}
+      <ConfirmModal
+        open={isConfirmOpen}
+        title="Xác nhận xóa hãng phim"
+        message={`Bạn có chắc chắn muốn xóa hãng phim "${deleteTarget?.name}" không? Hành động này không thể hoàn tác.`}
+        confirmText="Xóa"
+        cancelText="Hủy"
+        loading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setIsConfirmOpen(false)}
+      />
     </div>
   );
 }

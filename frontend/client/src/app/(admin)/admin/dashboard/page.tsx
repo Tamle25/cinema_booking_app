@@ -13,8 +13,8 @@ interface DashboardStats {
   todayRevenue: number;
   monthRevenue: number;
   todayBookings: number;
-  recentBookings: any[];
-  recentMovies: any[];
+  recentBookings: DashboardBooking[];
+  recentMovies: DashboardMovie[];
   bookingsByStatus: {
     confirmed: number;
     pending: number;
@@ -23,21 +23,30 @@ interface DashboardStats {
   revenueByDay: { date: string; revenue: number; count: number }[];
 }
 
-// Mini Bar Chart Component
-const MiniBarChart = ({ data, maxValue }: { data: number[]; maxValue: number }) => (
-  <div className="flex items-end gap-1 h-12">
-    {data.map((value, i) => (
-      <div
-        key={i}
-        className="flex-1 bg-blue-500 rounded-t transition-all hover:bg-blue-600"
-        style={{ height: `${Math.max((value / maxValue) * 100, 5)}%` }}
-        title={`${value.toLocaleString()}đ`}
-      />
-    ))}
-  </div>
-);
+interface DashboardBooking {
+  user?: {
+    full_name?: string;
+  };
+  showtime?: {
+    movie?: {
+      title?: string;
+    };
+  };
+  seats?: string[];
+  total_price?: number;
+  createdAt?: string;
+  status?: string;
+}
 
-// Circular Progress Component
+interface DashboardMovie {
+  title: string;
+  poster_url?: string;
+  genres?: Array<{ name: string }>;
+  duration?: number;
+  rating?: number;
+  is_active?: boolean;
+}
+
 const CircularProgress = ({ percentage, color, size = 80 }: { percentage: number; color: string; size?: number }) => {
   const radius = (size - 8) / 2;
   const circumference = radius * 2 * Math.PI;
@@ -68,12 +77,11 @@ const CircularProgress = ({ percentage, color, size = 80 }: { percentage: number
           cy={size / 2}
         />
       </svg>
-      {/* Text content is rendered externally to avoid duplication */}
+      
     </div>
   );
 };
 
-// Stat Card Component
 const StatCard = ({ 
   label, 
   value, 
@@ -147,7 +155,6 @@ export default function AdminDashboard() {
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-  // Update time every minute
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
@@ -168,10 +175,9 @@ export default function AdminDashboard() {
         const cinemas = await cinemasRes.json();
         const bookings = await bookingsRes.json();
 
-        const bookingsArray = Array.isArray(bookings) ? bookings : [];
-        const moviesArray = Array.isArray(movies) ? movies : [];
+        const bookingsArray: DashboardBooking[] = Array.isArray(bookings) ? bookings : [];
+        const moviesArray: DashboardMovie[] = Array.isArray(movies) ? movies : [];
         
-        // Calculate revenues
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -182,7 +188,6 @@ export default function AdminDashboard() {
         let todayBookings = 0;
         const statusCount = { confirmed: 0, pending: 0, cancelled: 0 };
         
-        // Revenue by day (last 7 days)
         const last7Days: { [key: string]: { revenue: number; count: number } } = {};
         for (let i = 6; i >= 0; i--) {
           const d = new Date(today);
@@ -191,11 +196,13 @@ export default function AdminDashboard() {
           last7Days[key] = { revenue: 0, count: 0 };
         }
 
-        bookingsArray.forEach((b: any) => {
+        bookingsArray.forEach((b) => {
           const price = b.total_price || 0;
           totalRevenue += price;
           
-          const bookingDate = new Date(b.createdAt);
+          const bookingDate = new Date(b.createdAt || '');
+          if (Number.isNaN(bookingDate.getTime())) return;
+
           const bookingDateStr = bookingDate.toISOString().split('T')[0];
           
           if (bookingDate >= today) {
@@ -206,13 +213,11 @@ export default function AdminDashboard() {
             monthRevenue += price;
           }
           
-          // Count by status
           if (b.status === 'confirmed') statusCount.confirmed++;
           else if (b.status === 'pending') statusCount.pending++;
           else if (b.status === 'cancelled') statusCount.cancelled++;
-          else statusCount.confirmed++; // Default
+          else statusCount.confirmed++;
           
-          // Revenue by day
           if (last7Days[bookingDateStr]) {
             last7Days[bookingDateStr].revenue += price;
             last7Days[bookingDateStr].count++;
@@ -266,6 +271,13 @@ export default function AdminDashboard() {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
   };
 
+  const formatBookingDate = (date?: string) => {
+    if (!date) return 'N/A';
+
+    const parsedDate = new Date(date);
+    return Number.isNaN(parsedDate.getTime()) ? 'N/A' : parsedDate.toLocaleDateString('vi-VN');
+  };
+
   const getGreeting = () => {
     const hour = currentTime.getHours();
     if (hour < 12) return 'Chào buổi sáng';
@@ -273,7 +285,6 @@ export default function AdminDashboard() {
     return 'Chào buổi tối';
   };
 
-  // Calculate percentages for status chart
   const statusPercentages = useMemo(() => {
     const total = stats.bookingsByStatus.confirmed + stats.bookingsByStatus.pending + stats.bookingsByStatus.cancelled;
     if (total === 0) return { confirmed: 0, pending: 0, cancelled: 0 };
@@ -298,13 +309,8 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6 pb-8">
-      {/* Header Section */}
+      
       <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 rounded-2xl p-8 text-white relative overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full -translate-y-1/2 translate-x-1/2" />
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-white rounded-full translate-y-1/2 -translate-x-1/2" />
-        </div>
         
         <div className="relative z-10">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -312,7 +318,7 @@ export default function AdminDashboard() {
               <p className="text-slate-400 text-sm font-medium">
                 {currentTime.toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
               </p>
-              <h1 className="text-3xl font-bold mt-1">{getGreeting()}, Admin! 👋</h1>
+              <h1 className="text-3xl font-bold mt-1">{getGreeting()}, Admin!</h1>
               <p className="text-slate-300 mt-2">Đây là tổng quan hoạt động hệ thống hôm nay</p>
             </div>
             
@@ -332,7 +338,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard
           label="Tổng số phim"
@@ -381,9 +387,9 @@ export default function AdminDashboard() {
         />
       </div>
 
-      {/* Revenue Section */}
+      
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Monthly Revenue */}
+        
         <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 text-white shadow-lg shadow-green-500/20">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
@@ -403,7 +409,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Revenue Chart - Last 7 days */}
+        
         <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -418,7 +424,7 @@ export default function AdminDashboard() {
           
           {stats.revenueByDay.length > 0 ? (
             <div className="space-y-4">
-              {/* Chart */}
+              
               <div className="flex items-end gap-2 h-32">
                 {stats.revenueByDay.map((day, i) => {
                   const maxRevenue = Math.max(...stats.revenueByDay.map(d => d.revenue), 1);
@@ -435,7 +441,7 @@ export default function AdminDashboard() {
                           } group-hover:from-blue-700 group-hover:to-blue-500`}
                           style={{ height: `${Math.max(height, 8)}px` }}
                         />
-                        {/* Tooltip */}
+                        
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
                           <p className="font-semibold">{formatFullCurrency(day.revenue)}</p>
                           <p className="text-gray-300">{day.count} đơn</p>
@@ -457,9 +463,9 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Status & Quick Actions */}
+      
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Booking Status */}
+        
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           <h3 className="text-lg font-bold text-gray-900 mb-6">Trạng thái đơn hàng</h3>
           
@@ -500,7 +506,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Quick Actions */}
+        
         <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           <h3 className="text-lg font-bold text-gray-900 mb-4">Thao tác nhanh</h3>
           
@@ -544,9 +550,9 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Recent Data Tables */}
+      
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Recent Bookings */}
+        
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-6 border-b border-gray-100">
             <div className="flex items-center justify-between">
@@ -559,7 +565,7 @@ export default function AdminDashboard() {
           
           <div className="divide-y divide-gray-100">
             {stats.recentBookings.length > 0 ? (
-              stats.recentBookings.map((booking: any, index: number) => (
+              stats.recentBookings.map((booking, index) => (
                 <div key={index} className="p-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/30">
@@ -576,7 +582,7 @@ export default function AdminDashboard() {
                     <div className="text-right">
                       <p className="font-bold text-green-600">{formatFullCurrency(booking.total_price || 0)}</p>
                       <p className="text-xs text-gray-400">
-                        {new Date(booking.createdAt).toLocaleDateString('vi-VN')}
+                        {formatBookingDate(booking.createdAt)}
                       </p>
                     </div>
                   </div>
@@ -595,7 +601,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Recent Movies */}
+        
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-6 border-b border-gray-100">
             <div className="flex items-center justify-between">
@@ -608,7 +614,7 @@ export default function AdminDashboard() {
           
           <div className="divide-y divide-gray-100">
             {stats.recentMovies.length > 0 ? (
-              stats.recentMovies.map((movie: any, index: number) => (
+              stats.recentMovies.map((movie, index) => (
                 <div key={index} className="p-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
@@ -630,14 +636,14 @@ export default function AdminDashboard() {
                       <p className="font-semibold text-gray-900 truncate">{movie.title}</p>
                       <p className="text-sm text-gray-500">
                         {movie.genres && movie.genres.length > 0
-                          ? movie.genres.map((g: any) => g.name).join(', ')
+                          ? movie.genres.map((g) => g.name).join(', ')
                           : ''}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                          {movie.duration} phút
+                          {movie.duration || 0} phút
                         </span>
-                        {movie.rating > 0 && (
+                        {(movie.rating || 0) > 0 && (
                           <span className="text-xs text-yellow-600 flex items-center gap-1">
                             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                               <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />

@@ -14,17 +14,15 @@ export class CinemasService {
     
     const newCinema = new this.cinemaModel({
       ...rest,
-      cinema_system: cinema_system_id, // Gán ID hãng vào relationship
+      cinema_system: cinema_system_id,
     });
     return newCinema.save();
   }
 
   async findAll(): Promise<Cinema[]> {
-    // .populate('cinema_system') giúp lấy luôn Logo, Tên hãng rạp kèm theo
     return this.cinemaModel.find().populate('cinema_system').exec();
   }
 
-  // Lấy danh sách rạp phân trang cho Admin
   async findAllPaginated(page: number, limit: number): Promise<any> {
     const skip = (page - 1) * limit;
 
@@ -53,18 +51,15 @@ export class CinemasService {
     };
   }
   
-  // Lấy rạp theo ID hệ thống (VD: Lấy tất cả rạp Beta)
   async findBySystem(systemId: string): Promise<Cinema[]> {
     return this.cinemaModel.find({ cinema_system: systemId }).populate('cinema_system').exec();
   }
 
-  // Lấy danh sách các thành phố có rạp chiếu
   async getCities(): Promise<string[]> {
     const cities = await this.cinemaModel.distinct('city').exec();
-    return cities.filter(city => city); // Loại bỏ null/undefined
+    return cities.filter(city => city);
   }
 
-  // Lọc rạp theo hệ thống và/hoặc khu vực
   async filterCinemas(systemId?: string, city?: string): Promise<Cinema[]> {
     const filter: any = {};
     
@@ -78,7 +73,6 @@ export class CinemasService {
     return this.cinemaModel.find(filter).populate('cinema_system').exec();
   }
 
-  // Lấy chi tiết 1 rạp theo ID
   async findOne(id: string): Promise<Cinema> {
     const cinema = await this.cinemaModel.findById(id).populate('cinema_system').exec();
     if (!cinema) {
@@ -87,7 +81,6 @@ export class CinemasService {
     return cinema;
   }
 
-  // Cập nhật thông tin rạp
   async update(id: string, updateDto: UpdateCinemaDto): Promise<Cinema> {
     const { cinema_system_id, ...rest } = updateDto;
     
@@ -107,7 +100,6 @@ export class CinemasService {
     return updated;
   }
 
-  // Xóa rạp
   async delete(id: string): Promise<{ message: string }> {
     const result = await this.cinemaModel.findByIdAndDelete(id).exec();
     if (!result) {

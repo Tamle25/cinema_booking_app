@@ -4,8 +4,8 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface User {
-  _id?: string;      // ID từ MongoDB
-  id?: string;       // Alias của _id
+  _id?: string;
+  id?: string;
   full_name: string;
   email: string;
   role?: string;
@@ -37,22 +37,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    // Kiểm tra xem đã đăng nhập chưa khi F5 trang
     const checkLogin = async () => {
       const token = localStorage.getItem('access_token');
       if (token) {
         try {
-          // Gọi API để lấy thông tin user đầy đủ từ DB
           const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/profile`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (res.ok) {
             const userData = await res.json();
             setUser(userData);
-            // Lưu user vào localStorage để các trang khác có thể đọc
             localStorage.setItem('user', JSON.stringify(userData));
           } else {
-            // Token hết hạn hoặc không hợp lệ
             localStorage.removeItem('access_token');
             localStorage.removeItem('user');
           }
@@ -70,7 +66,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
     
-    // Điều hướng theo role
     if (userData.role === 'admin') {
       router.push('/admin/dashboard');
     } else {

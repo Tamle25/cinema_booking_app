@@ -5,7 +5,6 @@ import axios from 'axios';
 import Link from 'next/link';
 import { getCloudinaryImageUrl, movieImagePresets } from '@/lib/cloudinary';
 
-// --- Types ---
 interface ICinemaSystem {
   _id: string;
   name: string;
@@ -35,7 +34,6 @@ interface IShowtime {
   end_time: string;
 }
 
-// Group type for UI rendering
 interface IMovieGroup {
   movie: IMovie;
   showtimes: IShowtime[];
@@ -44,25 +42,21 @@ interface IMovieGroup {
 export default function ShowtimesSection() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-  // --- States ---
   const [cities, setCities] = useState<string[]>([]);
   const [cinemaSystems, setCinemaSystems] = useState<ICinemaSystem[]>([]);
   const [cinemas, setCinemas] = useState<ICinema[]>([]);
   const [showtimes, setShowtimes] = useState<IShowtime[]>([]);
 
-  // Selection States
   const [selectedCity, setSelectedCity] = useState<string>('');
-  const [selectedSystemId, setSelectedSystemId] = useState<string>('all'); // 'all' means no filter
+  const [selectedSystemId, setSelectedSystemId] = useState<string>('all');
   const [selectedCinemaId, setSelectedCinemaId] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [cinemaSearchTerm, setCinemaSearchTerm] = useState('');
   const [isCinemasExpanded, setIsCinemasExpanded] = useState(false);
 
-  // Loading States
   const [isLoadingCinemas, setIsLoadingCinemas] = useState(false);
   const [isLoadingShowtimes, setIsLoadingShowtimes] = useState(false);
 
-  // --- Initialize Dates (7 days from today) ---
   const dateTabs = useMemo(() => {
     const tabs: { dateISO: string; dayName: string; dayOfMonth: number; month: number }[] = [];
     const today = new Date();
@@ -71,7 +65,7 @@ export default function ShowtimesSection() {
        const nextDate = new Date(today);
        nextDate.setDate(today.getDate() + i);
        
-       const dateISO = nextDate.toISOString().split('T')[0]; // "YYYY-MM-DD"
+       const dateISO = nextDate.toISOString().split('T')[0];
        
        let dayName = '';
        if (i === 0) dayName = 'Hôm nay';
@@ -90,7 +84,6 @@ export default function ShowtimesSection() {
     return tabs;
   }, []);
 
-  // --- Fetch Initialization Data ---
   useEffect(() => {
     const fetchInitData = async () => {
       try {
@@ -101,7 +94,7 @@ export default function ShowtimesSection() {
         
         if (citiesRes.data && citiesRes.data.length > 0) {
           setCities(citiesRes.data);
-          setSelectedCity('Hà Nội'); // Priority default or first
+          setSelectedCity('Hà Nội');
           if (!citiesRes.data.includes('Hà Nội')) {
              setSelectedCity(citiesRes.data[0]);
           }
@@ -119,7 +112,6 @@ export default function ShowtimesSection() {
     fetchInitData();
   }, [API_URL, dateTabs]);
 
-  // --- Fetch Cinemas when City or System changes ---
   useEffect(() => {
     if (!selectedCity) return;
     
@@ -133,7 +125,6 @@ export default function ShowtimesSection() {
         const res = await axios.get(url);
         setCinemas(res.data);
         
-        // Auto select first cinema
         if (res.data.length > 0) {
           setSelectedCinemaId(res.data[0]._id);
         } else {
@@ -149,7 +140,6 @@ export default function ShowtimesSection() {
     fetchCinemas();
   }, [selectedCity, selectedSystemId, API_URL]);
 
-  // --- Fetch Showtimes when Cinema or Date changes ---
   useEffect(() => {
     if (!selectedCinemaId || !selectedDate) {
       setShowtimes([]);
@@ -171,13 +161,11 @@ export default function ShowtimesSection() {
     fetchShowtimes();
   }, [selectedCinemaId, selectedDate, API_URL]);
 
-  // --- Helper: Filtered Cinemas by Search ---
   const filteredCinemas = useMemo(() => {
     if (!cinemaSearchTerm) return cinemas;
     return cinemas.filter(c => c.name.toLowerCase().includes(cinemaSearchTerm.toLowerCase()));
   }, [cinemas, cinemaSearchTerm]);
 
-  // --- Helper: Group showtimes by movie ---
   const groupedShowtimes = useMemo(() => {
     if (!showtimes || showtimes.length === 0) return [];
     
@@ -192,7 +180,6 @@ export default function ShowtimesSection() {
        map.get(movieId)!.showtimes.push(st);
     });
     
-    // Sort showtimes by start_time inside each movie
     Array.from(map.values()).forEach(group => {
       group.showtimes.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
     });
@@ -203,7 +190,7 @@ export default function ShowtimesSection() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12 border-t border-gray-200">
-      {/* Title */}
+      
       <div className="text-center mb-8">
         <h2 className="text-3xl font-bold text-gray-900 inline-block relative pb-2 uppercase tracking-wide">
           Lịch chiếu phim
@@ -212,10 +199,10 @@ export default function ShowtimesSection() {
       </div>
 
       <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
-        {/* TOP FILTER BAR */}
+        
         <div className="flex flex-col md:flex-row items-center border-b border-gray-200 bg-gray-50/50">
           
-          {/* Vị trí Select */}
+          
           <div className="w-full md:w-[30%] lg:w-[25%] p-3 md:p-4 border-b md:border-b-0 md:border-r border-gray-200 flex items-center shrink-0">
              <span className="text-gray-500 font-medium mr-3 hidden lg:block whitespace-nowrap">Vị trí</span>
              <div className="relative w-full">
@@ -240,14 +227,13 @@ export default function ShowtimesSection() {
              </div>
           </div>
 
-          {/* System Tabs */}
           <div className="w-full flex-1 overflow-x-auto scrollbar-hide py-2 px-4 flex gap-4 min-w-0">
              <button
                 onClick={() => setSelectedSystemId('all')}
                 className={`flex flex-col items-center justify-center min-w-[70px] transition-all p-2 rounded-xl group relative ${selectedSystemId === 'all' ? '' : 'opacity-70 hover:opacity-100 hover:bg-gray-100'}`}
              >
                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm border mb-1 transition-all ${selectedSystemId === 'all' ? 'border-red-500 bg-white ring-2 ring-red-100' : 'border-gray-200 bg-white group-hover:border-gray-300'}`}>
-                  <span className="text-xl">🎬</span>
+                  <span className="text-xs font-bold text-red-600">ALL</span>
                 </div>
                 <span className={`text-xs font-semibold whitespace-nowrap ${selectedSystemId === 'all' ? 'text-red-600' : 'text-gray-600'}`}>Tất cả</span>
                 {selectedSystemId === 'all' && <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-red-600 rounded-full"></div>}
@@ -276,10 +262,10 @@ export default function ShowtimesSection() {
           </div>
         </div>
 
-        {/* MAIN SPLIT LAYOUT */}
+        
         <div className="flex flex-col md:flex-row min-h-[500px]">
           
-          {/* CỘT TRÁI: DANH SÁCH RẠP */}
+          
           <div className="w-full md:w-[30%] lg:w-[25%] flex flex-col border-r border-gray-200 bg-white shrink-0 h-[400px] md:h-auto overflow-hidden">
             <div className="p-4 border-b border-gray-100 z-10 shrink-0 bg-white">
                <div className="relative group">
@@ -357,7 +343,7 @@ export default function ShowtimesSection() {
                      </button>
                    ))}
                    
-                   {/* Expand / Collapse Button */}
+                   
                    {filteredCinemas.length > 10 && (
                      <div className="p-3 sticky bottom-0 bg-white border-t border-gray-100/60 shadow-[0_-10px_10px_-10px_rgba(0,0,0,0.05)] z-10 w-full mt-auto">
                        <button
@@ -380,11 +366,11 @@ export default function ShowtimesSection() {
             </div>
           </div>
 
-          {/* CỘT PHẢI: LỊCH CHIẾU */}
+          
           <div className="w-full md:w-[70%] lg:w-[75%] flex flex-col bg-white min-h-[500px]">
             {selectedCinemaId ? (
               <>
-                 {/* Cinema Header info */}
+                 
                  <div className="p-4 border-b border-gray-100 flex items-start justify-between bg-gray-50/30 shrink-0">
                     <div>
                        <h3 className="text-lg font-bold text-gray-900 leading-tight">
@@ -399,7 +385,7 @@ export default function ShowtimesSection() {
                     </a>
                  </div>
 
-                 {/* DATES TABS */}
+                 
                  <div className="border-b border-gray-200 bg-white z-10 shrink-0">
                    <div className="flex overflow-x-auto scrollbar-hide py-3 px-4 gap-2">
                       {dateTabs.map(tab => {
@@ -423,10 +409,9 @@ export default function ShowtimesSection() {
                    </div>
                  </div>
 
-                 {/* MOVIE LIST WITH SHOWTIMES */}
+                 
                  <div className="flex-1 overflow-y-auto p-4 md:p-6 scrollbar-thin scrollbar-thumb-gray-200 bg-gray-50/20">
                     {isLoadingShowtimes ? (
-                      // Skeleton cho ds phim
                       <div className="space-y-6">
                         {[1, 2].map(i => (
                           <div key={i} className="flex gap-4 animate-pulse">
@@ -446,7 +431,7 @@ export default function ShowtimesSection() {
                        <div className="space-y-6 lg:space-y-8">
                          {groupedShowtimes.map(group => (
                            <div key={group.movie._id} className="flex flex-col sm:flex-row gap-4 lg:gap-6 border-b border-gray-100 pb-6 lg:pb-8 last:border-0">
-                              {/* Movie Poster */}
+                              
                               <Link href={`/movie/${group.movie._id}`} className="w-24 sm:w-32 shrink-0 group/img relative rounded-xl overflow-hidden shadow-sm self-start">
                                 <img 
                                   src={getCloudinaryImageUrl(group.movie.poster_url, movieImagePresets.posterCard)}
@@ -459,7 +444,7 @@ export default function ShowtimesSection() {
                                 )}
                               </Link>
                               
-                              {/* Movie Info & Times */}
+                              
                               <div className="flex-1">
                                  <Link href={`/movie/${group.movie._id}`}>
                                    <h4 className="text-lg md:text-xl font-bold text-gray-900 hover:text-red-600 transition-colors leading-tight">
@@ -467,7 +452,7 @@ export default function ShowtimesSection() {
                                    </h4>
                                  </Link>
                                  <div className="flex items-center gap-3 text-sm text-gray-500 mt-1.5">
-                                   <span className="font-medium text-gray-700">2D Phụ đề</span> {/* Static mockup if not available in DB */}
+                                   <span className="font-medium text-gray-700">2D Phụ đề</span> 
                                    <span className="opacity-50">•</span>
                                    <span>Bản tiêu chuẩn {group.movie.rating < 16 ? '' : '| Rùng rợn, Ám ảnh'}</span>
                                  </div>
@@ -513,7 +498,6 @@ export default function ShowtimesSection() {
             ) : (
               <div className="flex-1 flex items-center justify-center text-gray-500 bg-gray-50/50">
                  <div className="text-center group border border-dashed border-gray-300 rounded-2xl p-8 bg-white shadow-sm">
-                   <span className="text-4xl block mb-3 opacity-50 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300">🍿</span>
                    <p className="font-medium text-gray-600">Vui lòng chọn nhánh rạp từ danh sách bên trái<br/>để xem lịch chiếu!</p>
                  </div>
               </div>

@@ -17,7 +17,6 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 
-// Cấu hình multer storage cho upload avatar
 const avatarStorage = diskStorage({
   destination: join(process.cwd(), 'uploads', 'users'),
   filename: (req, file, callback) => {
@@ -31,7 +30,6 @@ const avatarStorage = diskStorage({
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // Lấy thông tin profile (có thể tái sử dụng hoặc dùng của auth/profile)
   @UseGuards(AuthGuard('jwt'))
   @Get('profile')
   async getProfile(@Request() req: any) {
@@ -39,7 +37,6 @@ export class UsersController {
     return this.usersService.findById(userId);
   }
 
-  // Cập nhật thông tin cơ bản: Tên hiển thị, Avatar
   @UseGuards(AuthGuard('jwt'))
   @Put('profile')
   async updateProfile(
@@ -49,7 +46,6 @@ export class UsersController {
     const userId = req.user._id || req.user.id;
     const { full_name, avatar_url } = body;
 
-    // Lọc lại data cho phép
     const updateData: any = {};
     if (full_name !== undefined) updateData.full_name = full_name;
     if (avatar_url !== undefined) updateData.avatar_url = avatar_url;
@@ -64,14 +60,12 @@ export class UsersController {
       throw new BadRequestException('Bản ghi người dùng không tồn tại');
     }
 
-    // Xóa password trước khi trả về để bảo mật
     const userObject = updatedUser.toObject();
     delete (userObject as any).password;
     
     return userObject;
   }
 
-  // Cập nhật mật khẩu
   @UseGuards(AuthGuard('jwt'))
   @Put('password')
   async updatePassword(
@@ -90,13 +84,11 @@ export class UsersController {
       throw new BadRequestException('Bản ghi người dùng không tồn tại');
     }
 
-    // Kiểm tra mật khẩu cũ
     const isMatch = await bcrypt.compare(old_password, user.password);
     if (!isMatch) {
       throw new BadRequestException('Mật khẩu cũ không chính xác');
     }
 
-    // Hash mật khẩu mới
     const salt = await bcrypt.genSalt();
     const hashPassword = await bcrypt.hash(new_password, salt);
 
@@ -105,7 +97,6 @@ export class UsersController {
     return { message: 'Cập nhật mật khẩu thành công' };
   }
 
-  // Upload Avatar
   @UseGuards(AuthGuard('jwt'))
   @Post('upload-avatar')
   @UseInterceptors(
@@ -118,7 +109,7 @@ export class UsersController {
         callback(null, true);
       },
       limits: {
-        fileSize: 2 * 1024 * 1024, // 2MB cho avatar
+        fileSize: 2 * 1024 * 1024,
       },
     }),
   )

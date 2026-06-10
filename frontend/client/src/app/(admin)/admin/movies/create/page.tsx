@@ -44,7 +44,6 @@ export default function CreateMoviePage() {
     is_active: true
   });
 
-  // Fetch active genres list
   useEffect(() => {
     const fetchActiveGenres = async () => {
       try {
@@ -62,7 +61,6 @@ export default function CreateMoviePage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    // Chuyển đổi số cho đúng kiểu dữ liệu
     setFormData(prev => ({
       ...prev,
       [name]: name === 'duration' ? Number(value) : value
@@ -106,13 +104,12 @@ export default function CreateMoviePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate trước khi gửi
     if (!formData.title.trim()) {
-      toastWarning('❌ Vui lòng nhập tên phim!');
+      toastWarning('Vui lòng nhập tên phim!');
       return;
     }
     if (!formData.slug.trim()) {
-      toastWarning('❌ Vui lòng nhập slug!');
+      toastWarning('Vui lòng nhập slug!');
       return;
     }
     if (!formData.poster_url) {
@@ -124,15 +121,15 @@ export default function CreateMoviePage() {
       return;
     }
     if (formData.genres.length === 0) {
-      toastWarning('❌ Vui lòng chọn ít nhất một thể loại phim!');
+      toastWarning('Vui lòng chọn ít nhất một thể loại phim!');
       return;
     }
     if (!formData.duration || formData.duration <= 0) {
-      toastWarning('❌ Vui lòng nhập thời lượng phim hợp lệ!');
+      toastWarning('Vui lòng nhập thời lượng phim hợp lệ!');
       return;
     }
     if (!formData.release_date) {
-      toastWarning('❌ Vui lòng chọn ngày công chiếu!');
+      toastWarning('Vui lòng chọn ngày công chiếu!');
       return;
     }
 
@@ -146,22 +143,21 @@ export default function CreateMoviePage() {
       });
 
       if (res.ok) {
-        toastSuccess('✅ Thêm phim thành công!');
+        toastSuccess('Thêm phim thành công!');
         router.push('/admin/movies');
       } else {
         const errorData = await res.json();
-        // Xử lý lỗi validation từ backend
         if (errorData.message && Array.isArray(errorData.message)) {
-          toastError('❌ Lỗi: ' + errorData.message.join('\n'));
+          toastError('Lỗi: ' + errorData.message.join('\n'));
         } else if (errorData.message) {
-          toastError('❌ Lỗi: ' + errorData.message);
+          toastError('Lỗi: ' + errorData.message);
         } else {
-          toastError('❌ Có lỗi xảy ra khi tạo phim!');
+          toastError('Có lỗi xảy ra khi tạo phim!');
         }
       }
     } catch (error) {
       console.error('Lỗi kết nối:', error);
-      toastError('❌ Không thể kết nối đến server. Vui lòng kiểm tra backend đang chạy!');
+      toastError('Không thể kết nối đến server. Vui lòng kiểm tra backend đang chạy!');
     } finally {
       setIsSubmitting(false);
     }
@@ -173,7 +169,7 @@ export default function CreateMoviePage() {
 
       <form onSubmit={handleSubmit} className="bg-white p-8 rounded-lg shadow-md space-y-6">
 
-        {/* Hàng 1: Tên phim & Slug */}
+        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Tên phim</label>
@@ -185,7 +181,7 @@ export default function CreateMoviePage() {
           </div>
         </div>
 
-        {/* Hàng 2: URL Hình ảnh */}
+        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <MovieImageUpload
@@ -208,15 +204,15 @@ export default function CreateMoviePage() {
           </div>
         </div>
 
-        {/* Hàng 3: Thể loại & Thời lượng */}
+        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Thể loại (Multi-Select) */}
+          
           <div className="relative">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Thể loại phim <span className="text-red-500">*</span>
             </label>
             
-            {/* Display Box */}
+            
             <div 
               className="min-h-[42px] w-full border border-gray-300 p-1.5 rounded flex flex-wrap gap-2 items-center bg-white cursor-pointer" 
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -254,7 +250,7 @@ export default function CreateMoviePage() {
               </div>
             </div>
 
-            {/* Dropdown Options */}
+            
             {isDropdownOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setIsDropdownOpen(false)}></div>
@@ -300,7 +296,7 @@ export default function CreateMoviePage() {
           </div>
         </div>
 
-        {/* Hàng 4: Ngày chiếu & Trailer */}
+        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Ngày công chiếu</label>
@@ -312,13 +308,13 @@ export default function CreateMoviePage() {
           </div>
         </div>
 
-        {/* Mô tả */}
+        
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả phim</label>
           <textarea name="description" rows={4} onChange={handleChange} className="w-full border border-gray-300 p-2 rounded text-gray-900 placeholder:text-gray-400" placeholder="Nhập mô tả nội dung phim..."></textarea>
         </div>
 
-        {/* Nút Submit */}
+        
         <div className="flex justify-end pt-4">
           <button
             type="submit"

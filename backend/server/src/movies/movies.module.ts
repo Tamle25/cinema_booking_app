@@ -7,7 +7,6 @@ import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 
 @Module({
   imports: [
-    // Đăng ký Schema với Mongoose để Service có thể dùng
     MongooseModule.forFeature([{ name: Movie.name, schema: MovieSchema }]),
     CloudinaryModule,
   ],

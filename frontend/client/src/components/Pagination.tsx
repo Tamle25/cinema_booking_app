@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
+
 interface PaginationProps {
   currentPage: number;
   totalPages: number;
@@ -10,11 +12,6 @@ interface PaginationProps {
   limitOptions?: number[];
 }
 
-/**
- * Component phân trang chuẩn cho các trang Admin
- * 
- * Màu chủ đạo: Tím (Purple)
- */
 export default function Pagination({
   currentPage,
   totalPages,
@@ -24,7 +21,6 @@ export default function Pagination({
   onLimitChange,
   limitOptions = [10, 20, 50, 100],
 }: PaginationProps) {
-  // Nếu không có dữ liệu, hiển thị placeholder
   if (totalItems === 0) {
     return (
       <div className="flex items-center justify-center px-6 py-8 bg-white border-t border-gray-100">
@@ -36,7 +32,6 @@ export default function Pagination({
   const startItem = (currentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
 
-  // Thuật toán hiển thị số trang với Ellipsis
   const getPageNumbers = (): (number | string)[] => {
     const pages: (number | string)[] = [];
     if (totalPages <= 7) {
@@ -57,7 +52,7 @@ export default function Pagination({
 
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-4 px-6 bg-white border-t border-gray-100">
-      {/* Left: Info & Limit Select */}
+      
       <div className="flex items-center gap-4 text-sm text-gray-500">
         <div>
           Hiển thị <span className="font-medium text-gray-900">{startItem}</span> - {' '}
@@ -65,7 +60,7 @@ export default function Pagination({
           <span className="font-medium text-gray-900">{totalItems}</span>
         </div>
 
-        {/* Dropdown chọn itemsPerPage */}
+        
         {onLimitChange && (
           <div className="flex items-center gap-2 pl-4 border-l border-gray-200">
             <label htmlFor="limit-select" className="hidden sm:inline-block text-gray-500">Hiển thị:</label>
@@ -85,10 +80,10 @@ export default function Pagination({
         )}
       </div>
 
-      {/* Right: Pagination Controls */}
+      
       {totalPages > 1 && (
         <div className="flex items-center gap-1.5">
-          {/* Nút Previous */}
+          
           <button
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage === 1}
@@ -104,7 +99,7 @@ export default function Pagination({
             </svg>
           </button>
 
-          {/* Page Numbers */}
+          
           {pageNumbers.map((page, index) => {
             if (page === '...') {
               return (
@@ -131,7 +126,7 @@ export default function Pagination({
             );
           })}
 
-          {/* Nút Next */}
+          
           <button
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
@@ -153,12 +148,12 @@ export default function Pagination({
 }
 
 export function usePagination<T>(data: T[], defaultItemsPerPage: number = 10) {
-  const { useState, useMemo, useEffect } = require('react');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(defaultItemsPerPage);
 
   useEffect(() => {
-    setCurrentPage(1);
+    const timer = window.setTimeout(() => setCurrentPage(1), 0);
+    return () => clearTimeout(timer);
   }, [data.length, itemsPerPage]);
 
   const totalPages = Math.ceil(data.length / itemsPerPage);

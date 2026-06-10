@@ -10,9 +10,9 @@ interface ComboSelectorProps {
 }
 
 const categoryLabels: Record<string, string> = {
-  combo: '🍿 Combo',
-  snack: '🥨 Snack',
-  drink: '🥤 Nước uống',
+  combo: 'Combo',
+  snack: 'Snack',
+  drink: 'Nước uống',
 };
 
 const categoryColors: Record<string, string> = {
@@ -44,17 +44,15 @@ export default function ComboSelector({ selectedCombos, onCombosChange, cinemaId
     fetchCombos();
   }, [API_URL, cinemaId]);
 
-  // Lấy số lượng combo đã chọn
   const getQuantity = (comboId: string): number => {
     const found = selectedCombos.find((sc) => sc.combo._id === comboId);
     return found ? found.quantity : 0;
   };
 
-  // Thêm combo
   const handleAdd = (combo: ICombo) => {
     const existing = selectedCombos.find((sc) => sc.combo._id === combo._id);
     if (existing) {
-      if (existing.quantity >= 10) return; // Max 10
+      if (existing.quantity >= 10) return;
       onCombosChange(
         selectedCombos.map((sc) =>
           sc.combo._id === combo._id ? { ...sc, quantity: sc.quantity + 1 } : sc,
@@ -65,7 +63,6 @@ export default function ComboSelector({ selectedCombos, onCombosChange, cinemaId
     }
   };
 
-  // Giảm combo
   const handleRemove = (comboId: string) => {
     const existing = selectedCombos.find((sc) => sc.combo._id === comboId);
     if (!existing) return;
@@ -81,16 +78,13 @@ export default function ComboSelector({ selectedCombos, onCombosChange, cinemaId
     }
   };
 
-  // Tính tổng tiền combo
   const totalComboPrice = selectedCombos.reduce(
     (sum, sc) => sum + sc.combo.price * sc.quantity,
     0,
   );
 
-  // Lấy danh sách categories có dữ liệu
   const categories = ['all', ...new Set(combos.map((c) => c.category))];
 
-  // Filter theo category
   const filteredCombos =
     activeCategory === 'all'
       ? combos
@@ -111,10 +105,9 @@ export default function ComboSelector({ selectedCombos, onCombosChange, cinemaId
     return (
       <div className="w-full max-w-4xl mx-auto px-4 py-16 text-center">
         <div className="bg-gray-800/50 backdrop-blur rounded-3xl p-8 border border-gray-700/50 max-w-md mx-auto">
-          <span className="text-6xl mb-6 block drop-shadow-xl saturate-150">🍿</span>
-          <h3 className="text-xl font-bold text-gray-200 mb-2">Chưa Có Menu F&B</h3>
+          <h3 className="text-xl font-bold text-gray-200 mb-2">Chưa có menu bắp nước</h3>
           <p className="text-gray-400 text-sm leading-relaxed">
-            Hệ thống rạp này hiện chưa cập nhật menu bắp nước trực tuyến. Vui lòng bấm <strong className="text-white">Tiếp Tục</strong> để sang bước thanh toán.
+            Hệ thống rạp này hiện chưa cập nhật menu bắp nước trực tuyến. Vui lòng bấm <strong className="text-white">Tiếp tục</strong> để sang bước thanh toán.
           </p>
         </div>
       </div>
@@ -123,15 +116,13 @@ export default function ComboSelector({ selectedCombos, onCombosChange, cinemaId
 
   return (
     <div className="w-full max-w-4xl mx-auto px-4 py-6">
-      {/* Header */}
       <div className="text-center mb-6">
         <h2 className="text-xl font-bold text-yellow-500 flex items-center justify-center">
-          Thêm Bắp Nước
+          Thêm bắp nước
         </h2>
         <p className="text-gray-500 text-sm mt-1">Chọn combo yêu thích để thưởng thức cùng bộ phim</p>
       </div>
 
-      {/* Category Tabs */}
       <div className="flex justify-center gap-2 mb-6 flex-wrap">
         {categories.map((cat) => (
           <button
@@ -143,12 +134,11 @@ export default function ComboSelector({ selectedCombos, onCombosChange, cinemaId
                 : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
             }`}
           >
-            {cat === 'all' ? '🎯 Tất cả' : categoryLabels[cat] || cat}
+            {cat === 'all' ? 'Tất cả' : categoryLabels[cat] || cat}
           </button>
         ))}
       </div>
 
-      {/* Combo Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredCombos.map((combo) => {
           const qty = getQuantity(combo._id);
@@ -163,16 +153,14 @@ export default function ComboSelector({ selectedCombos, onCombosChange, cinemaId
                   : 'border-gray-700 hover:border-gray-600'
               }`}
             >
-              {/* Popular Badge */}
               {combo.is_popular && (
                 <div className="absolute top-3 left-3 z-10">
                   <span className="bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1">
-                    🔥 Bán chạy
+                    Bán chạy
                   </span>
                 </div>
               )}
 
-              {/* Image */}
               <div className={`relative h-36 bg-gradient-to-br ${categoryColors[combo.category] || 'from-gray-600 to-gray-700'} flex items-center justify-center`}>
                 {combo.image_url ? (
                   <img
@@ -181,12 +169,11 @@ export default function ComboSelector({ selectedCombos, onCombosChange, cinemaId
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <span className="text-5xl">
-                    {combo.category === 'combo' ? '🍿' : combo.category === 'drink' ? '🥤' : '🥨'}
+                  <span className="text-sm font-bold uppercase tracking-wide text-white/80">
+                    {categoryLabels[combo.category] || combo.category}
                   </span>
                 )}
 
-                {/* Category badge */}
                 <div className="absolute bottom-2 right-2">
                   <span className="bg-black/60 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full">
                     {categoryLabels[combo.category] || combo.category}
@@ -194,12 +181,10 @@ export default function ComboSelector({ selectedCombos, onCombosChange, cinemaId
                 </div>
               </div>
 
-              {/* Content */}
               <div className="p-4">
                 <h3 className="font-bold text-white text-base mb-1">{combo.name}</h3>
                 <p className="text-gray-400 text-xs mb-3 line-clamp-2">{combo.description}</p>
 
-                {/* Price + Controls */}
                 <div className="flex items-center justify-between">
                   <span className="text-yellow-400 font-bold text-lg">
                     {combo.price.toLocaleString()}đ
@@ -236,7 +221,6 @@ export default function ComboSelector({ selectedCombos, onCombosChange, cinemaId
         })}
       </div>
 
-      {/* Tổng tiền combo */}
       {selectedCombos.length > 0 && (
         <div className="mt-6 bg-gray-800/80 backdrop-blur border border-yellow-500/30 rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">

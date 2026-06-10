@@ -46,7 +46,6 @@ export default function TransactionsPage() {
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-  // Fetch transactions
   const fetchTransactions = async () => {
     try {
       const res = await fetch(`${API_URL}/bookings`, { headers: authHeaders() });
@@ -63,12 +62,10 @@ export default function TransactionsPage() {
     fetchTransactions();
   }, []);
 
-  // Format currency
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
   };
 
-  // Format date
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleString('vi-VN', {
       day: '2-digit',
@@ -79,7 +76,6 @@ export default function TransactionsPage() {
     });
   };
 
-  // Get status badge
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'confirmed':
@@ -93,7 +89,6 @@ export default function TransactionsPage() {
     }
   };
 
-  // Filter transactions
   const filteredTransactions = transactions.filter(trans => {
     const matchSearch = 
       trans.user?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -109,19 +104,16 @@ export default function TransactionsPage() {
     return matchSearch && matchStatus && matchDate;
   });
 
-  // Reset về trang 1 khi filter thay đổi
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, filterStatus, filterDate]);
 
-  // Phân trang: tính toán dữ liệu hiển thị
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
   const paginatedTransactions = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredTransactions.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredTransactions, currentPage, itemsPerPage]);
 
-  // Calculate total revenue
   const totalRevenue = filteredTransactions.reduce((sum, t) => sum + (t.total_price || 0), 0);
 
   if (loading) {
@@ -134,7 +126,7 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Lịch sử Giao dịch</h1>
@@ -146,7 +138,7 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {/* Stats */}
+      
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
           <p className="text-sm text-gray-500">Tổng giao dịch</p>
@@ -172,7 +164,7 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {/* Search & Filter */}
+      
       <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
         <div className="flex flex-wrap items-center gap-4">
           <div className="relative flex-1 min-w-[200px]">
@@ -209,7 +201,7 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {/* Table */}
+      
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full table-fixed min-w-[1000px]">
@@ -308,7 +300,7 @@ export default function TransactionsPage() {
           </table>
         </div>
         
-        {/* Pagination */}
+        
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}

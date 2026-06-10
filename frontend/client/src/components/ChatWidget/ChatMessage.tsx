@@ -8,14 +8,14 @@ interface Message {
   content: string;
   timestamp: Date;
   isError?: boolean;
-  /** Nguồn xử lý: gemini, rule, fallback */
   source?: 'gemini' | 'fallback' | 'rule';
-  /** Mã lỗi nếu có */
   errorCode?: string;
+  actions?: { type: string; label: string; url: string }[];
 }
 
 interface ChatMessageProps {
   message: Message;
+  onActionClick?: (url: string) => void;
 }
 
 function formatTime(date: Date): string {
@@ -25,13 +25,6 @@ function formatTime(date: Date): string {
   });
 }
 
-/**
- * Render markdown cơ bản cho bot response:
- * - **bold** → <strong>
- * - Dòng bắt đầu bằng `- ` hoặc `* ` → bullet list
- * - Dòng bắt đầu bằng `1. `, `2. ` ... → numbered list
- * - Line breaks → <br>
- */
 function renderMarkdown(text: string): string {
   const lines = text.split('\n');
   const result: string[] = [];
@@ -41,7 +34,6 @@ function renderMarkdown(text: string): string {
   for (const line of lines) {
     const trimmedLine = line.trim();
 
-    // Bullet list item
     if (/^[-*]\s+/.test(trimmedLine)) {
       if (!inList || listType !== 'ul') {
         if (inList) result.push(`</${listType}>`);
@@ -54,7 +46,6 @@ function renderMarkdown(text: string): string {
       continue;
     }
 
-    // Numbered list item
     if (/^\d+\.\s+/.test(trimmedLine)) {
       if (!inList || listType !== 'ol') {
         if (inList) result.push(`</${listType}>`);
@@ -67,24 +58,20 @@ function renderMarkdown(text: string): string {
       continue;
     }
 
-    // Kết thúc list nếu gặp dòng không phải list item
     if (inList) {
       result.push(`</${listType}>`);
       inList = false;
       listType = null;
     }
 
-    // Dòng trống
     if (trimmedLine === '') {
       result.push('<br/>');
       continue;
     }
 
-    // Dòng thường
     result.push(`<p>${formatInline(trimmedLine)}</p>`);
   }
 
-  // Đóng list nếu kết thúc ở cuối
   if (inList) {
     result.push(`</${listType}>`);
   }
@@ -92,24 +79,17 @@ function renderMarkdown(text: string): string {
   return result.join('');
 }
 
-/** Format inline: **bold** */
 function formatInline(text: string): string {
-  // Escape HTML đặc biệt trước
   let safe = text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
-  // **bold**
   safe = safe.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 
   return safe;
 }
 
-/**
- * Kiểm tra xem message có phải là fallback/warning hay không.
- * Nếu source = "fallback" hoặc errorCode = "QUOTA_EXCEEDED" → hiển thị khác.
- */
 function isFallbackMessage(message: Message): boolean {
   if (message.source === 'fallback') return true;
   if (message.errorCode === 'QUOTA_EXCEEDED') return true;
@@ -117,11 +97,10 @@ function isFallbackMessage(message: Message): boolean {
   return false;
 }
 
-const ChatMessage = memo(function ChatMessage({ message }: ChatMessageProps) {
+const ChatMessage = memo(function ChatMessage({ message, onActionClick }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const isFallback = !isUser && isFallbackMessage(message);
 
-  // Chỉ render markdown cho bot messages
   const renderedContent = useMemo(() => {
     if (isUser) return null;
     return renderMarkdown(message.content);
@@ -131,16 +110,28 @@ const ChatMessage = memo(function ChatMessage({ message }: ChatMessageProps) {
     <div
       className={`chat-msg chat-msg--${isUser ? 'user' : 'bot'}${message.isError ? ' chat-msg--error' : ''}${isFallback ? ' chat-msg--fallback' : ''}`}
     >
-      <div
-        className="chat-msg__bubble"
+      <div className="chat-msg__bubble"
         {...(isUser
           ? { children: message.content }
           : { dangerouslySetInnerHTML: { __html: renderedContent || '' } }
         )}
       />
+      {!isUser && message.actions && message.actions.length > 0 && (
+        <div className="chat-msg__actions">
+          {message.actions.map((act, index) => (
+            <button
+              key={index}
+              className="chat-msg__cta-btn"
+              onClick={() => onActionClick && onActionClick(act.url)}
+            >
+              {act.label}
+            </button>
+          ))}
+        </div>
+      )}
       <span className="chat-msg__time">
         {formatTime(message.timestamp)}
-        {isFallback && ' · ⚠️ Phản hồi tự động'}
+        {isFallback && ' · Phản hồi tự động'}
       </span>
     </div>
   );

@@ -6,7 +6,6 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { toastWarning } from '@/utils/toast';
 
-// Icons as components
 const DashboardIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -106,22 +105,18 @@ export default function AdminLayout({
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Chờ AuthContext load xong trước khi kiểm tra
     if (authLoading) {
-      return; // Vẫn đang load, chưa làm gì
+      return;
     }
 
-    // Check if user is admin
     const checkAdmin = () => {
       const token = localStorage.getItem('access_token');
 
-      // Kiểm tra token và user
       if (!token) {
         router.push('/login');
         return;
       }
 
-      // Nếu có token nhưng user chưa load, đọc từ localStorage
       let currentUser = user;
       if (!currentUser) {
         const savedUser = localStorage.getItem('user');
@@ -138,7 +133,6 @@ export default function AdminLayout({
         }
       }
 
-      // Kiểm tra role admin
       if (currentUser?.role !== 'admin') {
         toastWarning('Bạn không có quyền truy cập trang Admin!');
         router.push('/');
@@ -169,9 +163,9 @@ export default function AdminLayout({
 
   return (
     <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
+      
       <aside className="w-64 bg-slate-800 text-white flex flex-col shadow-xl">
-        {/* Logo */}
+        
         <div className="p-5 border-b border-slate-700">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
@@ -186,7 +180,7 @@ export default function AdminLayout({
           </div>
         </div>
 
-        {/* Navigation */}
+        
         <nav className="flex-1 p-4 space-y-1">
           {menuItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
@@ -207,7 +201,7 @@ export default function AdminLayout({
           })}
         </nav>
 
-        {/* User info & Logout */}
+        
         <div className="p-4 border-t border-slate-700">
           <div className="flex items-center gap-3 mb-3 px-2">
             <div className="w-10 h-10 bg-slate-600 rounded-full flex items-center justify-center">
@@ -228,9 +222,9 @@ export default function AdminLayout({
         </div>
       </aside>
 
-      {/* Main Content Area */}
+      
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
+        
         <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
@@ -242,18 +236,12 @@ export default function AdminLayout({
               </p>
             </div>
             <div className="flex items-center gap-4">
-              {/* Notification Bell */}
-              <button className="relative p-2 text-gray-500 hover:bg-gray-100 rounded-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-              </button>
+              {/* Notification button removed */}
             </div>
           </div>
         </header>
 
-        {/* Content */}
+        
         <main className="flex-1 overflow-y-scroll p-6 bg-gray-50" style={{ scrollbarGutter: 'stable' }}>
           {children}
         </main>

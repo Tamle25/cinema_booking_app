@@ -52,15 +52,15 @@ export default function CreateRoomPage() {
         e.preventDefault();
 
         if (!formData.name.trim()) {
-            toastWarning('❌ Vui lòng nhập tên phòng!');
+            toastWarning('Vui lòng nhập tên phòng!');
             return;
         }
         if (!formData.cinema_id) {
-            toastWarning('❌ Vui lòng chọn rạp!');
+            toastWarning('Vui lòng chọn rạp!');
             return;
         }
         if (formData.rows < 1 || formData.columns < 1) {
-            toastWarning('❌ Số hàng và số cột phải lớn hơn 0!');
+            toastWarning('Số hàng và số cột phải lớn hơn 0!');
             return;
         }
 
@@ -74,14 +74,14 @@ export default function CreateRoomPage() {
             });
 
             if (res.ok) {
-                toastSuccess('✅ Thêm phòng chiếu thành công!');
+                toastSuccess('Thêm phòng chiếu thành công!');
                 router.push('/admin/rooms');
             } else {
                 const error = await res.json();
-                toastError('❌ Lỗi: ' + (error.message || 'Không thể tạo phòng'));
+                toastError('Lỗi: ' + (error.message || 'Không thể tạo phòng'));
             }
-        } catch (error) {
-            toastError('❌ Không thể kết nối đến server!');
+        } catch {
+            toastError('Không thể kết nối đến server!');
         } finally {
             setIsSubmitting(false);
         }

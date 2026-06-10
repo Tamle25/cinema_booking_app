@@ -8,7 +8,7 @@ export class User {
   @Prop({ required: true })
   full_name: string;
 
-  @Prop({ required: true, unique: true }) // Email không được trùng
+  @Prop({ required: true, unique: true })
   email: string;
 
   @Prop() 
@@ -17,26 +17,26 @@ export class User {
   @Prop({ required: true })
   password: string;
 
-  @Prop({ default: 'user' }) // 'user' hoặc 'admin'
+  @Prop({ default: 'user' })
   role: string;
 
   @Prop({ default: 0 })
-  availablePoints: number; // Điểm khả dụng để đổi voucher
+  availablePoints: number;
 
   @Prop({ default: 0 })
-  lifetimePoints: number; // Tổng điểm tích lũy trọn đời (dùng xét hạng)
+  lifetimePoints: number;
 
   @Prop({ default: 'Member', enum: ['Member', 'Silver', 'Gold', 'Platinum', 'Diamond'] })
-  membershipRank: string; // Hạng thành viên hiện tại
+  membershipRank: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
 
 UserSchema.set('toJSON', {
-  flattenObjectIds: true, // Chuyển _id (Object) thành id (String) cho đẹp
-  versionKey: false,      // Bỏ field __v (version key của Mongoose)
+  flattenObjectIds: true,
+  versionKey: false,
   transform: (doc, ret: any) => {
-    delete ret.password;  // <--- Quan trọng nhất: Xóa mật khẩu
+    delete ret.password;
     return ret;
   },
 });

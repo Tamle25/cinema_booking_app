@@ -27,7 +27,6 @@ export const CloudinaryProvider = {
         'Upload anh se THAT BAI cho den khi cau hinh Cloudinary dung trong file .env',
       );
     } else {
-      // Kiểm tra placeholder values
       if (
         apiSecret.includes('<INSERT') ||
         apiSecret === 'your_cloudinary_api_secret_here'

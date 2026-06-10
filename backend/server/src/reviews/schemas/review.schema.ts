@@ -28,7 +28,6 @@ export class Review {
 
 export const ReviewSchema = SchemaFactory.createForClass(Review);
 
-// Indexes
 ReviewSchema.index({ movie: 1, createdAt: -1 });
-ReviewSchema.index({ user: 1, movie: 1 }, { unique: true }); // Mỗi user chỉ review 1 lần/phim
-ReviewSchema.index({ is_verified: 1, rating: -1 }); // Cho query featured
+ReviewSchema.index({ user: 1, movie: 1 }, { unique: true });
+ReviewSchema.index({ is_verified: 1, rating: -1 });

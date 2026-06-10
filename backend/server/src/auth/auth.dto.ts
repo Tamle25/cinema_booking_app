@@ -1,19 +1,16 @@
-// src/auth/auth.dto.ts
 import { IsEmail, IsNotEmpty, MinLength } from 'class-validator';
 
-// Khuôn mẫu cho dữ liệu Đăng ký
 export class RegisterDto {
   @IsNotEmpty()
   full_name: string;
 
-  @IsEmail({}, { message: 'Email không hợp lệ' }) // Kiểm tra phải là email
+  @IsEmail({}, { message: 'Email không hợp lệ' })
   email: string;
 
-  @MinLength(6, { message: 'Mật khẩu phải dài hơn 6 ký tự' }) // Kiểm tra độ dài
+  @MinLength(6, { message: 'Mật khẩu phải dài hơn 6 ký tự' })
   password: string;
 }
 
-// Khuôn mẫu cho dữ liệu Đăng nhập
 export class LoginDto {
   @IsEmail()
   email: string;

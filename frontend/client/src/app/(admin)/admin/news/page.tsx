@@ -5,6 +5,7 @@ import { INews } from '@/types';
 import Pagination from '@/components/Pagination';
 import { authHeaders } from '@/lib/api';
 import { toastError, toastWarning, toastSuccess } from '@/utils/toast';
+import ConfirmModal from '@/components/ConfirmModal';
 
 const emptyForm = {
   title: '',
@@ -27,6 +28,9 @@ export default function AdminNewsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [formData, setFormData] = useState(emptyForm);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<INews | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -147,17 +151,24 @@ export default function AdminNewsPage() {
     }
   };
 
-  const handleDelete = async (news: INews) => {
-    if (!window.confirm(`Bạn chắc chắn muốn xóa tin "${news.title}"?`)) return;
+  const handleDelete = (news: INews) => {
+    setDeleteTarget(news);
+    setIsConfirmOpen(true);
+  };
 
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
     try {
-      const res = await fetch(`${API_URL}/news/${news._id}`, {
+      const res = await fetch(`${API_URL}/news/${deleteTarget._id}`, {
         method: 'DELETE',
         headers: authHeaders(),
       });
 
       if (res.ok) {
+        toastSuccess('Xóa tin tức thành công!');
         fetchNews();
+        setIsConfirmOpen(false);
       } else {
         const error = await res.json();
         toastError(error.message || 'Xóa tin tức thất bại');
@@ -165,6 +176,8 @@ export default function AdminNewsPage() {
     } catch (error) {
       console.error('Lỗi xóa tin tức:', error);
       toastError('Xóa tin tức thất bại');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -376,6 +389,17 @@ export default function AdminNewsPage() {
           }}
         />
       </div>
+
+      <ConfirmModal
+        open={isConfirmOpen}
+        title="Xác nhận xóa tin tức"
+        message={`Bạn có chắc chắn muốn xóa bài viết "${deleteTarget?.title}" không? Hành động này không thể hoàn tác.`}
+        confirmText="Xóa"
+        cancelText="Hủy"
+        loading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setIsConfirmOpen(false)}
+      />
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">

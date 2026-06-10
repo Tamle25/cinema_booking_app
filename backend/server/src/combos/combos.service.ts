@@ -13,7 +13,6 @@ export class CombosService {
     @InjectModel(Cinema.name) private cinemaModel: Model<Cinema>,
   ) {}
 
-  // Tạo combo mới
   async create(createComboDto: CreateComboDto): Promise<Combo> {
     const data: any = { ...createComboDto };
     if (createComboDto.cinema_system_id) {
@@ -23,7 +22,6 @@ export class CombosService {
     return newCombo.save();
   }
 
-  // Lấy danh sách combo đang active (cho user)
   async findActive(cinemaSystemId?: string, cinemaId?: string): Promise<Combo[]> {
     const query: any = { is_active: true };
     
@@ -42,7 +40,6 @@ export class CombosService {
       .exec();
   }
 
-  // Lấy tất cả combo (cho admin)
   async findAll(cinemaSystemId?: string): Promise<Combo[]> {
     const query: any = {};
     if (cinemaSystemId) {
@@ -55,7 +52,6 @@ export class CombosService {
       .exec();
   }
 
-  // Lấy combo theo ID
   async findOne(id: string): Promise<Combo> {
     const combo = await this.comboModel.findById(id).exec();
     if (!combo) {
@@ -64,7 +60,6 @@ export class CombosService {
     return combo;
   }
 
-  // Cập nhật combo
   async update(id: string, updateComboDto: UpdateComboDto): Promise<Combo> {
     const data: any = { ...updateComboDto };
     if (updateComboDto.cinema_system_id) {
@@ -79,7 +74,6 @@ export class CombosService {
     return updated;
   }
 
-  // Xóa combo
   async remove(id: string): Promise<{ message: string }> {
     const result = await this.comboModel.findByIdAndDelete(id).exec();
     if (!result) {
@@ -88,7 +82,6 @@ export class CombosService {
     return { message: 'Xóa combo thành công' };
   }
 
-  // Validate danh sách combo từ request booking
   async validateCombos(
     combos: Array<{ combo_id: string; quantity: number }>,
     cinemaId?: string,

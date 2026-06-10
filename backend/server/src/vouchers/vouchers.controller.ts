@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Put, Patch, Delete,
-  Body, Query, Req, Param, UseGuards, BadRequestException,
+  Body, Query, Req, Param, UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { VouchersService } from './vouchers.service';
@@ -14,14 +14,6 @@ import { ValidateVoucherDto } from './dto/validate-voucher.dto';
 export class VouchersController {
   constructor(private readonly vouchersService: VouchersService) {}
 
-  // ==========================================
-  // USER APIs
-  // ==========================================
-
-  /**
-   * Lấy danh sách voucher có thể đổi bằng điểm
-   * GET /vouchers/exchangeable
-   */
   @UseGuards(AuthGuard('jwt'))
   @Get('exchangeable')
   async getExchangeableVouchers(@Req() req: any) {
@@ -29,10 +21,6 @@ export class VouchersController {
     return this.vouchersService.getExchangeableVouchers(userId);
   }
 
-  /**
-   * Đổi điểm lấy voucher
-   * POST /vouchers/exchange/:templateId
-   */
   @UseGuards(AuthGuard('jwt'))
   @Post('exchange/:templateId')
   async exchangeVoucher(
@@ -43,10 +31,6 @@ export class VouchersController {
     return this.vouchersService.exchangeVoucher(userId, templateId);
   }
 
-  /**
-   * Lấy danh sách voucher cá nhân
-   * GET /vouchers/my-vouchers
-   */
   @UseGuards(AuthGuard('jwt'))
   @Get('my-vouchers')
   async getMyVouchers(@Req() req: any) {
@@ -54,11 +38,6 @@ export class VouchersController {
     return this.vouchersService.getUserVouchers(userId);
   }
 
-  /**
-   * Kiểm tra mã voucher
-   * POST /vouchers/validate
-   * Body: { code, cinemaId, orderAmount }
-   */
   @UseGuards(AuthGuard('jwt'))
   @Post('validate')
   async validateVoucher(
@@ -69,34 +48,23 @@ export class VouchersController {
     return this.vouchersService.validateVoucher(body.code, userId, body.cinemaId, body.orderAmount);
   }
 
-  // ==========================================
-  // ADMIN APIs
-  // ==========================================
+  @Get('active-promotions')
+  async getActivePromotions() {
+    return this.vouchersService.getActivePromotions();
+  }
 
-  /**
-   * Tạo voucher admin (nhập mã)
-   * POST /vouchers/admin/create
-   */
   @AdminOnly()
   @Post('admin/create')
   async createAdminVoucher(@Body() body: CreateVoucherDto) {
     return this.vouchersService.createAdminVoucher(body);
   }
 
-  /**
-   * Tạo mẫu voucher đổi điểm
-   * POST /vouchers/admin/create-template
-   */
   @AdminOnly()
   @Post('admin/create-template')
   async createPointExchangeTemplate(@Body() body: CreateVoucherDto) {
     return this.vouchersService.createPointExchangeTemplate(body);
   }
 
-  /**
-   * Cập nhật voucher
-   * PUT /vouchers/admin/:id
-   */
   @AdminOnly()
   @Put('admin/:id')
   async updateVoucher(
@@ -106,30 +74,18 @@ export class VouchersController {
     return this.vouchersService.updateVoucher(id, body);
   }
 
-  /**
-   * Xóa voucher
-   * DELETE /vouchers/admin/:id
-   */
   @AdminOnly()
   @Delete('admin/:id')
   async deleteVoucher(@Param('id', ParseObjectIdPipe) id: string) {
     return this.vouchersService.deleteVoucher(id);
   }
 
-  /**
-   * Bật/tắt voucher
-   * PATCH /vouchers/admin/:id/toggle
-   */
   @AdminOnly()
   @Patch('admin/:id/toggle')
   async toggleVoucher(@Param('id', ParseObjectIdPipe) id: string) {
     return this.vouchersService.toggleVoucherStatus(id);
   }
 
-  /**
-   * Danh sách voucher (admin)
-   * GET /vouchers/admin/list?voucherType=&status=&page=1&limit=20
-   */
   @AdminOnly()
   @Get('admin/list')
   async getVoucherList(
@@ -146,10 +102,6 @@ export class VouchersController {
     });
   }
 
-  /**
-   * Lịch sử sử dụng voucher (admin)
-   * GET /vouchers/admin/usage-history?voucherId=&page=1&limit=20
-   */
   @AdminOnly()
   @Get('admin/usage-history')
   async getUsageHistory(

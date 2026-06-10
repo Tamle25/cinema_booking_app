@@ -7,27 +7,23 @@ export type RoomDocument = HydratedDocument<Room>;
 @Schema({ timestamps: true })
 export class Room {
   @Prop({ required: true })
-  name: string; // VD: "Phòng 01", "IMAX Theater"
+  name: string;
 
-  // Liên kết: Phòng này thuộc Rạp nào?
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Cinema', required: true })
   cinema: Cinema;
 
   @Prop({ required: true })
-  type: string; // VD: "2D", "3D", "4DX"
-
-  // Để vẽ sơ đồ ghế
-  @Prop({ required: true })
-  rows: number; // Tổng số hàng (VD: 10 hàng A->J)
+  type: string;
 
   @Prop({ required: true })
-  columns: number; // Tổng số ghế mỗi hàng (VD: 12 ghế 1->12)
+  rows: number;
 
-  // Tự động tính: rows * columns
+  @Prop({ required: true })
+  columns: number;
+
   @Prop()
   total_seats: number;
 
-  // Trạng thái phòng: true = hoạt động, false = bảo trì
   @Prop({ default: true })
   is_active: boolean;
 }

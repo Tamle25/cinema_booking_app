@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { ICombo } from '@/types';
+import { ICombo, ICinemaSystem } from '@/types';
 import Pagination from '@/components/Pagination';
 import { authHeaders } from '@/lib/api';
 import { toastSuccess, toastWarning, toastError } from '@/utils/toast';
+import ConfirmModal from '@/components/ConfirmModal';
 
 export default function AdminCombosPage() {
   const [combos, setCombos] = useState<ICombo[]>([]);
@@ -14,10 +15,13 @@ export default function AdminCombosPage() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [cinemaSystems, setCinemaSystems] = useState<any[]>([]);
+  const [cinemaSystems, setCinemaSystems] = useState<ICinemaSystem[]>([]);
   const [filterCategory, setFilterCategory] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ICombo | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -32,7 +36,6 @@ export default function AdminCombosPage() {
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-  // Fetch combos and cinema systems
   const fetchCombos = async () => {
     try {
       const [combosRes, systemsRes] = await Promise.all([
@@ -55,12 +58,10 @@ export default function AdminCombosPage() {
     fetchCombos();
   }, []);
 
-  // Format currency
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
   };
 
-  // Handle form input change
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     
@@ -76,7 +77,6 @@ export default function AdminCombosPage() {
     }
   };
 
-  // Upload ảnh
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -106,7 +106,6 @@ export default function AdminCombosPage() {
     }
   };
 
-  // Open modal
   const openModal = (combo?: ICombo) => {
     if (combo) {
       setEditingCombo(combo);
@@ -136,13 +135,11 @@ export default function AdminCombosPage() {
     setShowModal(true);
   };
 
-  // Close modal
   const closeModal = () => {
     setShowModal(false);
     setEditingCombo(null);
   };
 
-  // Save combo
   const handleSave = async () => {
     if (!formData.name.trim()) {
       toastWarning('Vui lòng nhập tên combo!');
@@ -185,12 +182,16 @@ export default function AdminCombosPage() {
     }
   };
 
-  // Delete combo
-  const handleDelete = async (combo: ICombo) => {
-    if (!confirm(`Bạn có chắc muốn xóa combo "${combo.name}"?`)) return;
+  const handleDelete = (combo: ICombo) => {
+    setDeleteTarget(combo);
+    setIsConfirmOpen(true);
+  };
 
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
     try {
-      const res = await fetch(`${API_URL}/combos/${combo._id}`, {
+      const res = await fetch(`${API_URL}/combos/${deleteTarget._id}`, {
         method: 'DELETE',
         headers: authHeaders(),
       });
@@ -198,6 +199,7 @@ export default function AdminCombosPage() {
       if (res.ok) {
         toastSuccess('Xóa thành công!');
         fetchCombos();
+        setIsConfirmOpen(false);
       } else {
         const error = await res.json();
         toastError(`Lỗi: ${error.message}`);
@@ -205,10 +207,11 @@ export default function AdminCombosPage() {
     } catch (error) {
       console.error('Lỗi xóa:', error);
       toastError('Có lỗi xảy ra!');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  // Toggle active status
   const handleToggleActive = async (combo: ICombo) => {
     try {
       const res = await fetch(`${API_URL}/combos/${combo._id}`, {
@@ -225,7 +228,6 @@ export default function AdminCombosPage() {
     }
   };
 
-  // Toggle popular
   const handleTogglePopular = async (combo: ICombo) => {
     try {
       const res = await fetch(`${API_URL}/combos/${combo._id}`, {
@@ -242,7 +244,6 @@ export default function AdminCombosPage() {
     }
   };
 
-  // Category helpers
   const getCategoryLabel = (cat: string) => {
     switch (cat) {
       case 'combo': return 'Combo';
@@ -261,7 +262,6 @@ export default function AdminCombosPage() {
     }
   };
 
-  // Filter
   const filteredCombos = combos.filter(combo => {
     const matchSearch = combo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                        combo.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -269,12 +269,10 @@ export default function AdminCombosPage() {
     return matchSearch && matchCategory;
   });
 
-  // Reset page on filter change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, filterCategory]);
 
-  // Pagination
   const totalPages = Math.ceil(filteredCombos.length / itemsPerPage);
   const paginatedCombos = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -291,7 +289,7 @@ export default function AdminCombosPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Quản lý Combo Bắp Nước</h1>
@@ -308,7 +306,7 @@ export default function AdminCombosPage() {
         </button>
       </div>
 
-      {/* Stats */}
+      
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
           <p className="text-sm text-gray-500">Tổng combo</p>
@@ -334,7 +332,7 @@ export default function AdminCombosPage() {
         </div>
       </div>
 
-      {/* Search & Filter */}
+      
       <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
         <div className="flex flex-wrap items-center gap-4">
           <div className="relative flex-1 min-w-[200px]">
@@ -365,7 +363,7 @@ export default function AdminCombosPage() {
         </div>
       </div>
 
-      {/* Table */}
+      
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full table-fixed min-w-[800px]">
@@ -398,8 +396,8 @@ export default function AdminCombosPage() {
                             className="w-12 h-12 object-cover rounded-lg shadow-sm"
                           />
                         ) : (
-                          <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-xl">
-                            {combo.category === 'combo' ? '🍿' : combo.category === 'drink' ? '🥤' : '🥨'}
+                          <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-[10px] font-semibold uppercase text-gray-500">
+                            {combo.category === 'drink' ? 'Drink' : combo.category}
                           </div>
                         )}
                         <div>
@@ -422,10 +420,10 @@ export default function AdminCombosPage() {
                     <td className="px-6 py-4 text-center">
                       <button
                         onClick={() => handleTogglePopular(combo)}
-                        className={`text-xl transition-transform hover:scale-125 ${combo.is_popular ? '' : 'opacity-30 grayscale'}`}
+                        className={`text-xs font-semibold transition ${combo.is_popular ? 'text-red-600' : 'text-gray-400'}`}
                         title={combo.is_popular ? 'Bỏ đánh dấu bán chạy' : 'Đánh dấu bán chạy'}
                       >
-                        🔥
+                        Bán chạy
                       </button>
                     </td>
                     <td className="px-6 py-4 text-center">
@@ -471,7 +469,7 @@ export default function AdminCombosPage() {
           </table>
         </div>
 
-        {/* Pagination */}
+        
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
@@ -485,7 +483,18 @@ export default function AdminCombosPage() {
         />
       </div>
 
-      {/* Modal thêm/sửa Combo */}
+      
+      <ConfirmModal
+        open={isConfirmOpen}
+        title="Xác nhận xóa combo"
+        message={`Bạn có chắc chắn muốn xóa combo "${deleteTarget?.name}" không? Hành động này không thể hoàn tác.`}
+        confirmText="Xóa"
+        cancelText="Hủy"
+        loading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setIsConfirmOpen(false)}
+      />
+
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
@@ -495,7 +504,7 @@ export default function AdminCombosPage() {
               </h3>
             </div>
             <div className="p-6 space-y-4">
-              {/* Hãng rạp */}
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Hãng rạp <span className="text-red-500">*</span>
@@ -513,7 +522,7 @@ export default function AdminCombosPage() {
                 </select>
               </div>
 
-              {/* Tên combo */}
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Tên combo <span className="text-red-500">*</span>
@@ -528,7 +537,7 @@ export default function AdminCombosPage() {
                 />
               </div>
 
-              {/* Mô tả */}
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Mô tả <span className="text-red-500">*</span>
@@ -543,7 +552,7 @@ export default function AdminCombosPage() {
                 />
               </div>
 
-              {/* Giá + Loại */}
+              
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -573,7 +582,7 @@ export default function AdminCombosPage() {
                 </div>
               </div>
 
-              {/* Upload ảnh */}
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Hình ảnh</label>
                 <div className="flex items-center gap-4">
@@ -611,7 +620,7 @@ export default function AdminCombosPage() {
                 </div>
               </div>
 
-              {/* Toggles */}
+              
               <div className="flex items-center gap-6">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -631,12 +640,12 @@ export default function AdminCombosPage() {
                     onChange={handleInputChange}
                     className="w-4 h-4 text-orange-600 rounded"
                   />
-                  <span className="text-sm text-gray-700">🔥 Bán chạy</span>
+                  <span className="text-sm text-gray-700">Bán chạy</span>
                 </label>
               </div>
             </div>
 
-            {/* Footer */}
+            
             <div className="p-6 border-t border-gray-100 flex justify-end gap-3">
               <button
                 onClick={closeModal}

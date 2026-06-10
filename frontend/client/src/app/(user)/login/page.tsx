@@ -1,12 +1,23 @@
-// src/app/(user)/login/page.tsx
 'use client';
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/context/AuthContext'; // <--- Import Context
+import { useAuth } from '@/context/AuthContext';
+import { getErrorMessage, getResponseMessage } from '@/utils/errorMessage';
+
+interface LoginResponse {
+  access_token: string;
+  message?: unknown;
+}
+
+interface LoginUser {
+  full_name: string;
+  email: string;
+  role?: string;
+}
 
 export default function LoginPage() {
-  const { login } = useAuth(); // <--- Lấy hàm login từ Context
+  const { login } = useAuth();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,41 +32,35 @@ export default function LoginPage() {
     setError('');
 
     try {
-      // BƯỚC 1: GỌI API LOGIN ĐỂ LẤY TOKEN
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
 
-      const data = await res.json();
+      const data = await res.json() as LoginResponse;
 
-      if (!res.ok) throw new Error(data.message || 'Email hoặc mật khẩu không đúng');
+      if (!res.ok) throw new Error(getResponseMessage(data.message, 'Email hoặc mật khẩu không đúng'));
 
-      // BƯỚC 2: GỌI TIẾP API PROFILE ĐỂ LẤY TÊN USER (QUAN TRỌNG)
-      // Vì API login chưa trả về tên, ta phải dùng token vừa có để hỏi server "Tôi là ai?"
       const profileRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/profile`, {
         headers: { 
           'Authorization': `Bearer ${data.access_token}` 
         },
       });
 
-      let userData;
+      let userData: LoginUser;
       if (profileRes.ok) {
-        userData = await profileRes.json(); // { full_name: "...", email: "..." }
+        userData = await profileRes.json();
       } else {
-        // Nếu lỗi lấy profile, ta tạm thời dùng email làm tên để không bị crash
         userData = { full_name: 'Người dùng', email: formData.email };
       }
       
-      // BƯỚC 3: CẬP NHẬT CONTEXT (Context sẽ tự lưu vào localStorage)
-      // Truyền cả token và thông tin user vừa lấy được vào hàm login
       if (login) {
          login(data.access_token, userData);
       }
       
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(getErrorMessage(err, 'Không thể đăng nhập'));
     } finally {
       setLoading(false);
     }

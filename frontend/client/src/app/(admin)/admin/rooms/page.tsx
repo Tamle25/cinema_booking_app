@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Pagination from '@/components/Pagination';
 import { authHeaders } from '@/lib/api';
 import { toastSuccess, toastError } from '@/utils/toast';
+import ConfirmModal from '@/components/ConfirmModal';
 
 interface IRoom {
     _id: string;
@@ -38,6 +39,9 @@ export default function AdminRoomsPage() {
     const [totalPages, setTotalPages] = useState(1);
     const [total, setTotal] = useState(0);
     const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Fetch cinemas (for filter dropdown)
     useEffect(() => {
@@ -87,24 +91,31 @@ export default function AdminRoomsPage() {
         setCurrentPage(1);
     }, [filterCinema]);
 
-    const handleDelete = async (id: string, name: string) => {
-        if (!confirm(`Bạn có chắc muốn xóa phòng "${name}"?`)) return;
+    const handleDelete = (id: string, name: string) => {
+        setDeleteTarget({ id, name });
+        setIsConfirmOpen(true);
+    };
 
+    const handleConfirmDelete = async () => {
+        if (!deleteTarget) return;
+        setIsDeleting(true);
         try {
-            const res = await fetch(`${API_URL}/rooms/${id}`, {
+            const res = await fetch(`${API_URL}/rooms/${deleteTarget.id}`, {
                 method: 'DELETE',
                 headers: authHeaders(),
             });
             if (res.ok) {
-                toastSuccess('✅ Đã xóa phòng chiếu!');
-                // Xóa khỏi danh sách UI
-                setRooms(prev => prev.filter(r => r._id !== id));
+                toastSuccess('Đã xóa phòng chiếu!');
+                setRooms(prev => prev.filter(r => r._id !== deleteTarget.id));
                 setTotal(prev => prev - 1);
+                setIsConfirmOpen(false);
             } else {
-                toastError('❌ Không thể xóa phòng!');
+                toastError('Không thể xóa phòng!');
             }
-        } catch (error) {
-            toastError('❌ Lỗi kết nối!');
+        } catch {
+            toastError('Lỗi kết nối!');
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -227,6 +238,17 @@ export default function AdminRoomsPage() {
                     setItemsPerPage(limit);
                     setCurrentPage(1);
                 }}
+            />
+            {/* Confirm Modal */}
+            <ConfirmModal
+                open={isConfirmOpen}
+                title="Xác nhận xóa phòng chiếu"
+                message={`Bạn có chắc chắn muốn xóa phòng chiếu "${deleteTarget?.name}" không? Hành động này không thể hoàn tác.`}
+                confirmText="Xóa"
+                cancelText="Hủy"
+                loading={isDeleting}
+                onConfirm={handleConfirmDelete}
+                onCancel={() => setIsConfirmOpen(false)}
             />
         </div>
     );

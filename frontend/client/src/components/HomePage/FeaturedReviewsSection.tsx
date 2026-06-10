@@ -8,7 +8,6 @@ import axios from "axios";
 import TrailerModal from "@/components/TrailerModal";
 import { getCloudinaryImageUrl, movieImagePresets } from "@/lib/cloudinary";
 
-// Format số lượng: 1000 → 1K, 8200 → 8.2K
 const formatCount = (count: number): string => {
   if (count >= 1000) {
     const k = count / 1000;
@@ -29,7 +28,6 @@ const FeaturedReviewsSection = () => {
         const res = await axios.get(`${API_URL}/reviews/featured`);
         setFeatured(res.data);
       } catch {
-        // Silently fail — section just won't show
       } finally {
         setLoading(false);
       }
@@ -37,7 +35,6 @@ const FeaturedReviewsSection = () => {
     fetchFeatured();
   }, []);
 
-  // Skeleton loading
   if (loading) {
     return (
       <section className="max-w-7xl mx-auto px-4 py-12">
@@ -75,7 +72,7 @@ const FeaturedReviewsSection = () => {
   return (
     <section id="featured-reviews" className="bg-[#F5F5F5] py-12 md:py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Section Header */}
+        
         <div className="flex items-center justify-between mb-8 md:mb-10">
           <div className="flex items-center gap-4">
             <div className="w-1.5 h-10 bg-[#E50914] rounded-full" />
@@ -109,14 +106,14 @@ const FeaturedReviewsSection = () => {
           </Link>
         </div>
 
-        {/* Reviews Grid */}
+        
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {featured.map((item) => (
             <div
               key={item.movie._id}
               className="group bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300"
             >
-              {/* Movie Thumbnail */}
+              
               <div 
                 className="relative h-48 overflow-hidden cursor-pointer"
                 onClick={() => setActiveTrailer(item.movie.trailer_url || "")}
@@ -130,10 +127,10 @@ const FeaturedReviewsSection = () => {
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                   loading="lazy"
                 />
-                {/* Overlay */}
+                
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
 
-                {/* Play Icon */}
+                
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                   <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border-2 border-white/40">
                     <svg
@@ -150,13 +147,13 @@ const FeaturedReviewsSection = () => {
                   </div>
                 </div>
 
-                {/* Movie Info on overlay */}
+                
                 <div className="absolute bottom-0 left-0 right-0 p-4">
                   <h3 className="text-white font-bold text-lg leading-tight line-clamp-1">
                     {item.movie.title}
                   </h3>
                   <div className="flex items-center gap-3 mt-2">
-                    {/* Rating */}
+                    
                     <span className="flex items-center gap-1 text-yellow-400 font-bold text-sm">
                       <svg
                         className="w-4 h-4"
@@ -167,7 +164,7 @@ const FeaturedReviewsSection = () => {
                       </svg>
                       {item.rating_avg || 0}
                     </span>
-                    {/* Review count */}
+                    
                     <span className="text-gray-300 text-xs">
                       {formatCount(item.review_count)} đánh giá
                     </span>
@@ -175,7 +172,7 @@ const FeaturedReviewsSection = () => {
                 </div>
               </div>
 
-              {/* Reviews Preview */}
+              
               <div className="p-4">
                 <div className="divide-y divide-gray-100">
                   {item.reviews.slice(0, 2).map((review) => (
@@ -187,7 +184,7 @@ const FeaturedReviewsSection = () => {
                   ))}
                 </div>
 
-                {/* "Xem thêm" Button */}
+                
                 <Link
                   href={`/review/${item.movie._id}`}
                   className="mt-3 flex items-center justify-center w-full py-2.5 bg-red-50 text-red-600 font-medium text-sm rounded-lg hover:bg-red-100 transition-colors"
@@ -200,7 +197,7 @@ const FeaturedReviewsSection = () => {
         </div>
       </div>
 
-      {/* Trailer Modal */}
+      
       <TrailerModal
         isOpen={!!activeTrailer}
         onClose={() => setActiveTrailer(null)}

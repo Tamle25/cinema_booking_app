@@ -5,6 +5,7 @@ import { ICinemaSystem, ICinema } from '@/types';
 import Pagination from '@/components/Pagination';
 import { authHeaders } from '@/lib/api';
 import { toastSuccess, toastWarning, toastError } from '@/utils/toast';
+import ConfirmModal from '@/components/ConfirmModal';
 
 export default function CinemasPage() {
   const [cinemas, setCinemas] = useState<ICinema[]>([]);
@@ -25,6 +26,9 @@ export default function CinemasPage() {
   const [filterCity, setFilterCity] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ICinema | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -140,11 +144,16 @@ export default function CinemasPage() {
   };
 
   // Delete cinema
-  const handleDelete = async (cinema: ICinema) => {
-    if (!confirm(`Bạn có chắc muốn xóa rạp "${cinema.name}"?`)) return;
+  const handleDelete = (cinema: ICinema) => {
+    setDeleteTarget(cinema);
+    setIsConfirmOpen(true);
+  };
 
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
     try {
-      const res = await fetch(`${API_URL}/cinemas/${cinema._id}`, {
+      const res = await fetch(`${API_URL}/cinemas/${deleteTarget._id}`, {
         method: 'DELETE',
         headers: authHeaders(),
       });
@@ -152,6 +161,7 @@ export default function CinemasPage() {
       if (res.ok) {
         toastSuccess('Xóa thành công!');
         fetchData();
+        setIsConfirmOpen(false);
       } else {
         const error = await res.json();
         toastError(`Lỗi: ${error.message}`);
@@ -159,6 +169,8 @@ export default function CinemasPage() {
     } catch (error) {
       console.error('Lỗi xóa:', error);
       toastError('Có lỗi xảy ra!');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -455,6 +467,17 @@ export default function CinemasPage() {
           </div>
         </div>
       )}
+      {/* Confirm Modal */}
+      <ConfirmModal
+        open={isConfirmOpen}
+        title="Xác nhận xóa rạp chiếu"
+        message={`Bạn có chắc chắn muốn xóa rạp chiếu "${deleteTarget?.name}" không? Hành động này không thể hoàn tác.`}
+        confirmText="Xóa"
+        cancelText="Hủy"
+        loading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setIsConfirmOpen(false)}
+      />
     </div>
   );
 }

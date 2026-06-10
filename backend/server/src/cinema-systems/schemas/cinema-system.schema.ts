@@ -6,13 +6,13 @@ export type CinemaSystemDocument = HydratedDocument<CinemaSystem>;
 @Schema({ timestamps: true })
 export class CinemaSystem {
   @Prop({ required: true })
-  name: string; // VD: "CGV Cinemas", "Beta Cinemas"
+  name: string;
 
   @Prop({ required: true, unique: true })
-  slug: string; // VD: "cgv", "beta-cinemas"
+  slug: string;
 
   @Prop()
-  logo_url: string; // Logo thương hiệu
+  logo_url: string;
 
   @Prop()
   color_code: string;

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import ChatMessage from './ChatMessage';
 import './ChatWidget.css';
@@ -10,30 +11,28 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  /** True nếu message này là lỗi (hiển thị khác) */
   isError?: boolean;
-  /** Nguồn xử lý: gemini, rule, fallback */
   source?: 'gemini' | 'fallback' | 'rule';
-  /** Mã lỗi nếu có */
   errorCode?: string;
+  actions?: { type: string; label: string; url: string }[];
 }
 
-const SUGGESTIONS = [
+const DEFAULT_SUGGESTIONS = [
   'Hôm nay có phim gì?',
   'Phim sắp chiếu?',
   'Xem lịch chiếu',
-  'Combo bắp nước?',
+  'Voucher khuyến mãi?',
   'Hướng dẫn đặt vé',
 ];
 
 const CHATBOT_API_URL =
   process.env.NEXT_PUBLIC_CHATBOT_API_URL || 'http://localhost:5005';
 
-/** Timeout cho fetch request tới chatbot API (ms) */
 const FETCH_TIMEOUT_MS = 35_000;
 
 export default function ChatWidget() {
   const { user } = useAuth();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [isOpening, setIsOpening] = useState(false);
@@ -41,10 +40,20 @@ export default function ChatWidget() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [unread, setUnread] = useState(0);
+  const [conversationId, setConversationId] = useState<string>('');
+  const [botSuggestions, setBotSuggestions] = useState<string[]>([]);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto scroll khi có tin nhắn mới
+  useEffect(() => {
+    let cid = sessionStorage.getItem('chatbot_conversation_id');
+    if (!cid) {
+      cid = crypto.randomUUID();
+      sessionStorage.setItem('chatbot_conversation_id', cid);
+    }
+    setConversationId(cid);
+  }, []);
+
   const scrollToBottom = useCallback((behavior: 'smooth' | 'auto' = 'smooth') => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTo({
@@ -58,7 +67,6 @@ export default function ChatWidget() {
     scrollToBottom('smooth');
   }, [messages, isLoading, scrollToBottom]);
 
-  // Scroll tức thì khi vừa mở panel
   useEffect(() => {
     if (isOpen) {
       const timer = setTimeout(() => {
@@ -76,7 +84,6 @@ export default function ChatWidget() {
     setIsOpening(true);
     setIsClosing(false);
     setUnread(0);
-    // Gỡ class opening sau khi kết thúc animation (280ms)
     setTimeout(() => {
       setIsOpening(false);
     }, 300);
@@ -93,6 +100,10 @@ export default function ChatWidget() {
   const handleClearChat = () => {
     setMessages([]);
     setInput('');
+    setBotSuggestions([]);
+    const newCid = crypto.randomUUID();
+    sessionStorage.setItem('chatbot_conversation_id', newCid);
+    setConversationId(newCid);
     if (inputRef.current) {
       inputRef.current.style.height = 'auto';
     }
@@ -102,7 +113,6 @@ export default function ChatWidget() {
     const trimmed = text.trim();
     if (!trimmed || isLoading) return;
 
-    // Thêm tin nhắn user
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -111,8 +121,9 @@ export default function ChatWidget() {
     };
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
+    setBotSuggestions([]);
     if (inputRef.current) {
-      inputRef.current.style.height = 'auto'; // Reset lại chiều cao textarea
+      inputRef.current.style.height = 'auto';
     }
     setIsLoading(true);
 
@@ -125,7 +136,6 @@ export default function ChatWidget() {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      // Tạo AbortController cho timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
@@ -135,6 +145,7 @@ export default function ChatWidget() {
           method: 'POST',
           headers,
           body: JSON.stringify({
+            conversationId,
             message: trimmed,
             userId: user?._id || user?.id || undefined,
             isAuthenticated: !!user,
@@ -145,9 +156,7 @@ export default function ChatWidget() {
         clearTimeout(timeoutId);
       }
 
-      // Kiểm tra HTTP status trước khi parse JSON
       if (!res.ok) {
-        // Cố gắng parse response body (có thể chứa structured error từ guard)
         try {
           const errorData = await res.json();
           if (errorData?.reply) {
@@ -155,7 +164,6 @@ export default function ChatWidget() {
             return;
           }
         } catch {
-          // Không parse được JSON → dùng message mặc định
         }
 
         const errorReply = getHttpErrorMessage(res.status);
@@ -173,11 +181,12 @@ export default function ChatWidget() {
         isError: data.success === false,
         source: data.source,
         errorCode: data.errorCode,
+        actions: data.actions || [],
       };
 
       setMessages((prev) => [...prev, botMsg]);
+      setBotSuggestions(data.suggestions || []);
 
-      // Nếu panel đóng, tăng unread
       if (!isOpen) {
         setUnread((prev) => prev + 1);
       }
@@ -185,13 +194,11 @@ export default function ChatWidget() {
       let errorContent: string;
 
       if (error instanceof DOMException && error.name === 'AbortError') {
-        // Timeout
-        errorContent = 'Hệ thống phản hồi chậm hơn bình thường. Vui lòng thử lại. ⏱️';
+        errorContent = 'Hệ thống phản hồi chậm hơn bình thường. Vui lòng thử lại.';
       } else if (error instanceof TypeError && (error.message.includes('fetch') || error.message.includes('Failed'))) {
-        // Network error / CORS error
-        errorContent = 'Không thể kết nối đến chatbot. Vui lòng kiểm tra lại kết nối mạng. 🌐';
+        errorContent = 'Không thể kết nối đến chatbot. Vui lòng kiểm tra lại kết nối mạng.';
       } else {
-        errorContent = 'Xin lỗi, không thể kết nối đến chatbot. Vui lòng thử lại sau. 🙏';
+        errorContent = 'Xin lỗi, không thể kết nối đến chatbot. Vui lòng thử lại sau.';
       }
 
       addBotMessage(errorContent, true);
@@ -200,7 +207,6 @@ export default function ChatWidget() {
     }
   };
 
-  /** Helper: thêm bot message vào danh sách */
   const addBotMessage = (
     content: string,
     isError = false,
@@ -215,6 +221,7 @@ export default function ChatWidget() {
       isError,
       source,
       errorCode,
+      actions: [],
     };
     setMessages((prev) => [...prev, msg]);
   };
@@ -243,9 +250,12 @@ export default function ChatWidget() {
     }
   };
 
+  const handleActionClick = (url: string) => {
+    router.push(url);
+  };
+
   return (
     <>
-      {/* Floating Action Button */}
       <button
         id="chatbot-fab"
         className={`chat-fab ${isOpen ? 'chat-fab--open' : ''}`}
@@ -267,16 +277,14 @@ export default function ChatWidget() {
         )}
       </button>
 
-      {/* Chat Panel */}
       {isOpen && (
         <div
           id="chatbot-panel"
           className={`chat-panel ${isOpening ? 'chat-panel--opening' : ''} ${isClosing ? 'chat-panel--closing' : ''}`}
         >
-          {/* Header */}
           <div className="chat-header">
             <div className="chat-header__info">
-              <div className="chat-header__avatar">🤖</div>
+              <div className="chat-header__avatar">CB</div>
               <div className="chat-header__text">
                 <h3>CineMax Bot</h3>
                 <p>Hỗ trợ đặt vé xem phim</p>
@@ -306,18 +314,16 @@ export default function ChatWidget() {
             </div>
           </div>
 
-          {/* Messages */}
           <div className="chat-messages" ref={messagesContainerRef}>
             {messages.length === 0 && !isLoading ? (
               <div className="chat-welcome">
-                <h4>Xin chào! 👋</h4>
-
+                <h4>Xin chào!</h4>
                 <p>
-                  Tôi là trợ lý CineMax. Tôi có thể giúp bạn tìm phim, xem
-                  lịch chiếu, đặt vé và nhiều hơn nữa!
+                  Mình có thể giúp bạn tìm phim, xem lịch chiếu, đặt vé và
+                  kiểm tra khuyến mãi.
                 </p>
                 <div className="chat-welcome__suggestions">
-                  {SUGGESTIONS.map((s) => (
+                  {DEFAULT_SUGGESTIONS.map((s) => (
                     <button
                       key={s}
                       className="chat-welcome__chip"
@@ -331,7 +337,11 @@ export default function ChatWidget() {
             ) : (
               <>
                 {messages.map((msg) => (
-                  <ChatMessage key={msg.id} message={msg} />
+                  <ChatMessage
+                    key={msg.id}
+                    message={msg}
+                    onActionClick={handleActionClick}
+                  />
                 ))}
                 {isLoading && (
                   <div className="chat-typing">
@@ -344,7 +354,21 @@ export default function ChatWidget() {
             )}
           </div>
 
-          {/* Input */}
+          {botSuggestions.length > 0 && !isLoading && (
+            <div className="chat-suggestions">
+              {botSuggestions.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  className="chat-suggestions__chip"
+                  onClick={() => handleSuggestion(s)}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+
           <form className="chat-input" onSubmit={handleSubmit}>
             <textarea
               ref={inputRef}
@@ -375,21 +399,17 @@ export default function ChatWidget() {
   );
 }
 
-/**
- * Trả message thân thiện dựa trên HTTP status code.
- * Không hiển thị stack trace, quotaMetric, hoặc raw error cho user.
- */
 function getHttpErrorMessage(status: number): string {
   switch (status) {
     case 400:
-      return 'Tin nhắn không hợp lệ. Vui lòng thử lại. 📝';
+      return 'Tin nhắn không hợp lệ. Vui lòng thử lại.';
     case 429:
-      return 'Bạn đang gửi tin nhắn quá nhanh. Vui lòng chờ vài giây và thử lại. ⏳';
+      return 'Bạn đang gửi tin nhắn quá nhanh hoặc vượt quá giới hạn lượt hỏi. Vui lòng chờ và thử lại sau ít phút.';
     case 500:
     case 502:
     case 503:
-      return 'Hệ thống chatbot đang gặp sự cố. Vui lòng thử lại sau ít phút. 🔧';
+      return 'Hệ thống chatbot đang gặp sự cố. Vui lòng thử lại sau ít phút.';
     default:
-      return 'Đã xảy ra lỗi. Vui lòng thử lại sau. 🙏';
+      return 'Đã xảy ra lỗi. Vui lòng thử lại sau.';
   }
 }

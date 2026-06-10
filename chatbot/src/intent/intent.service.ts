@@ -3,149 +3,123 @@ import { ChatIntent, IntentResult } from '../chatbot/types/chatbot.types';
 
 @Injectable()
 export class IntentService {
-  /**
-   * Phân loại intent từ tin nhắn người dùng (rule-based làm fallback)
-   */
   classify(message: string): IntentResult {
     const normalized = this.normalize(message);
     const noAccent = this.removeAccents(normalized);
 
-    // --- GREETING ---
-    if (
-      this.match(normalized, ['xin chào', 'chào bạn', 'hello', 'hi', 'bạn là ai', 'chatbot là ai', 'chào bot', 'bot ơi']) ||
-      this.match(noAccent, ['xin chao', 'chao ban', 'ban la ai', 'chatbot la ai', 'chao bot', 'bot oi'])
-    ) {
-      return { intent: ChatIntent.GREETING };
+    const movieName = this.extractMovieName(normalized);
+    const cinemaName = this.extractCinemaName(normalized);
+    const date = this.extractDate(normalized);
+
+    const genres = ['hành động', 'kinh dị', 'hoạt hình', 'tình cảm', 'hài', 'viễn tưởng', 'tài liệu', 'phiêu lưu', 'tâm lý', 'gia đình', 'anime', 'drama'];
+    const noAccentGenres = ['hanh dong', 'kinh di', 'hoat hinh', 'tinh cam', 'hai', 'vien tuong', 'tai lieu', 'phieu luu', 'tam ly', 'gia dinh', 'anime', 'drama'];
+    
+    let genre: string | undefined = undefined;
+    for (let i = 0; i < genres.length; i++) {
+      if (normalized.includes(genres[i]) || noAccent.includes(noAccentGenres[i])) {
+        genre = genres[i];
+        break;
+      }
     }
 
-    // --- BOOKING_GUIDE ---
+    let intent = ChatIntent.OUT_OF_SCOPE;
+
     if (
-      this.match(normalized, ['đặt vé', 'mua vé', 'book vé', 'muốn đặt vé', 'muốn mua vé', 'muốn xem phim', 'đặt vé xem phim']) ||
-      this.match(noAccent, ['dat ve', 'mua ve', 'book ve', 'muon dat ve', 'muon mua ve', 'muon xem phim', 'dat ve xem phim'])
+      this.match(normalized, ['xin chào', 'chào bạn', 'hello', 'hi', 'bạn là ai', 'chatbot là ai', 'chào bot', 'bot ơi', 'chào']) ||
+      this.match(noAccent, ['xin chao', 'chao ban', 'ban la ai', 'chatbot la ai', 'chao bot', 'bot oi', 'chao'])
     ) {
-      const movieName = this.extractMovieName(normalized);
-      return { intent: ChatIntent.BOOKING_GUIDE, movieName, extractedKeyword: movieName };
+      intent = ChatIntent.GREETING;
+    }
+    else if (
+      this.match(normalized, ['hoàn vé', 'hoan ve', 'đổi vé', 'doi ve', 'hủy vé', 'huy ve', 'chính sách', 'chinh sach', 'điều khoản', 'dieu khoan', 'quy định', 'quy dinh', 'quy chế', 'làm sao để hoàn', 'hướng dẫn hoàn', 'trả vé', 'tra ve', 'hoàn tiền', 'hoan tien', 'hoàn lại', 'hoan lai', 'thanh toán thế nào', 'thanh toan the nao', 'thanh toan ra sao']) ||
+      this.match(noAccent, ['hoan ve', 'doi ve', 'huy ve', 'chinh sach', 'dieu khoan', 'quy dinh', 'tra ve', 'hoan tien'])
+    ) {
+      intent = ChatIntent.FAQ_POLICY;
+    }
+    else if (
+      this.match(normalized, ['khuyến mãi', 'khuyen mai', 'voucher', 'mã giảm giá', 'ma giam gia', 'giảm giá', 'giam gia', 'ưu đãi', 'uu dai', 'đổi điểm', 'doi diem', 'tích lũy', 'tich luy', 'coupon']) ||
+      this.match(noAccent, ['khuyen mai', 'voucher', 'ma giam gia', 'giam gia', 'uu dai', 'doi diem', 'tich luy', 'coupon'])
+    ) {
+      intent = ChatIntent.PROMOTION;
+    }
+    else if (
+      this.match(normalized, ['vé của tôi', 'vé đã đặt', 'lịch sử đặt vé', 'booking của tôi', 'vé đã mua', 'xem vé', 'tra cứu vé', 'trạng thái đặt', 'trạng thái đơn', 'lịch sử mua', 'my ticket', 'vé tôi', 'vé đã thanh toán', 've da dat', 've cua toi']) ||
+      this.match(noAccent, ['ve cua toi', 've da dat', 'lich su dat ve', 'booking cua toi', 've da mua', 'xem ve', 'tra cuu ve', 'trang thai dat', 'trang thai don', 've toi'])
+    ) {
+      intent = ChatIntent.BOOKING_STATUS;
+    }
+    else if (
+      this.match(normalized, ['ghế trống', 'ghe trong', 'còn ghế', 'con ghe', 'chỗ ngồi', 'cho ngoi', 'ghế đôi', 'ghe doi', 'còn chỗ', 'con cho', 'sơ đồ ghế', 'so do ghe', 'chọn ghế', 'chon ghe', 'vị trí ngồi', 'ghế vip', 'ghe vip']) ||
+      this.match(noAccent, ['ghe trong', 'con ghe', 'cho ngoi', 'ghe doi', 'con cho', 'so do ghe', 'chon ghe'])
+    ) {
+      intent = ChatIntent.SEAT_STATUS;
+    }
+    else if (
+      this.match(normalized, ['giá vé', 'gia ve', 'bao nhiêu tiền', 'bao nhieu tien', 'vé bao nhiêu', 've bao nhieu', 'giá tiền vé', 'gia tien ve', 'tiền vé', 'tien ve', 'giá cả', 'gia ca', 'bảng giá', 'bang gia', 'bao nhiêu 1 vé', 'gia ve xem phim', 'giá vé phim']) ||
+      this.match(noAccent, ['gia ve', 'bao nhieu tien', 've bao nhieu', 'gia tien ve', 'tien ve', 'gia ca', 'bang gia'])
+    ) {
+      intent = ChatIntent.TICKET_PRICE;
+    }
+    else if (
+      this.match(normalized, ['đặt vé', 'dat ve', 'mua vé', 'mua ve', 'book vé', 'book ve', 'muốn đặt vé', 'muon dat ve', 'muốn mua vé', 'muon mua ve', 'đặt vé xem phim', 'dat ve xem phim', 'hướng dẫn đặt', 'huong dan dat', 'cách đặt', 'cach dat', 'đặt phim']) ||
+      this.match(noAccent, ['dat ve', 'mua ve', 'book ve', 'muon dat ve', 'muon mua ve', 'dat ve xem phim', 'huong dan dat', 'cach dat'])
+    ) {
+      intent = ChatIntent.BOOKING_GUIDE;
+    }
+    else if (
+      this.match(normalized, ['tóm tắt', 'tom tat', 'nội dung', 'noi dung', 'trailer', 'cốt truyện', 'cot truyen', 'review', 'giới thiệu phim', 'gioi thieu phim', 'phim này nói về', 'phim nay noi ve', 'trailer phim', 'nói về cái gì', 'phim đó có gì', 'xem chi tiết', 'xem chi tiet', 'thông tin của phim', 'thông tin chi tiết', 'thong tin chi tiet', 'hay không', 'hay ko', 'có hay', 'co hay']) ||
+      this.match(noAccent, ['tom tat', 'noi dung', 'trailer', 'cot truyen', 'review', 'xem chi tiet'])
+    ) {
+      intent = ChatIntent.MOVIE_DETAIL;
+    }
+    else if (genre) {
+      intent = ChatIntent.MOVIE_BY_GENRE;
+    }
+    else if (
+      this.match(normalized, ['phim sắp chiếu', 'sắp ra mắt', 'coming soon', 'phim sắp ra', 'phim mới sắp', 'sắp chiếu', 'sap chieu', 'sap ra mat']) ||
+      this.match(noAccent, ['phim sap chieu', 'sap ra mat', 'phim sap ra', 'phim moi sap', 'sap chieu'])
+    ) {
+      intent = ChatIntent.UPCOMING_MOVIES;
+    }
+    else if (
+      this.match(normalized, ['phim đang chiếu', 'đang chiếu', 'dang chieu', 'phim nào đang', 'phim dang chieu', 'danh sách phim', 'danh sach phim', 'phim hot', 'hôm nay có phim gì', 'hom nay co phim gi', 'hôm nay chiếu phim gì', 'hom nay chieu phim gi']) ||
+      this.match(noAccent, ['phim dang chieu', 'dang chieu', 'phim nao dang', 'danh sach phim', 'phim hot', 'hom nay co phim gi'])
+    ) {
+      intent = ChatIntent.NOW_SHOWING;
+    }
+    else if (
+      this.match(normalized, ['rạp nào', 'rap nao', 'ở rạp nào', 'o rap nao', 'rạp chiếu', 'rap chieu', 'hệ thống rạp', 'he thong rap', 'địa chỉ rạp', 'dia chi rap', 'cinema nào', 'rạp có', 'rap co']) ||
+      this.match(noAccent, ['rap nao', 'o rap nao', 'rap chieu', 'he thong rap', 'dia chi rap', 'rap co'])
+    ) {
+      intent = ChatIntent.CINEMA_QUERY;
+    }
+    else if (
+      this.match(normalized, ['lịch chiếu', 'lich chieu', 'suất chiếu', 'suat chieu', 'giờ chiếu', 'gio chieu', 'suất tối nay', 'suat toi nay', 'suất chiếu hôm nay', 'lịch hôm nay']) ||
+      this.match(noAccent, ['lich chieu', 'suat chieu', 'gio chieu', 'suat toi nay', 'suat chieu hom nay'])
+    ) {
+      intent = ChatIntent.SHOWTIMES;
+    }
+    else if (
+      this.match(normalized, ['thành viên', 'thanh vien', 'trang cá nhân', 'trang ca nhan', 'profile', 'đăng ký', 'dang ky', 'đăng nhập', 'dang nhap', 'checkout', 'tin tức', 'tin tuc', 'thanh toán', 'thanh toan', 'ví của tôi', 'vi cua toi']) ||
+      this.match(noAccent, ['thanh vien', 'trang ca nhan', 'profile', 'dang ky', 'dang nhap', 'checkout', 'tin tuc', 'thanh toan'])
+    ) {
+      intent = ChatIntent.NAVIGATION_REQUEST;
     }
 
-    // --- BOOKING_STATUS ---
-    if (
-      this.match(normalized, ['vé của tôi', 'vé đã đặt', 'lịch sử đặt vé', 'booking của tôi', 'vé đã mua', 'xem vé', 'tra cứu vé', 'trạng thái đặt', 'trạng thái đơn', 'lịch sử mua']) ||
-      this.match(noAccent, ['ve cua toi', 've da dat', 'lich su dat ve', 'booking cua toi', 've da mua', 'xem ve', 'tra cuu ve', 'trang thai dat', 'trang thai don'])
-    ) {
-      return { intent: ChatIntent.BOOKING_STATUS };
-    }
-
-    // --- SEAT_AVAILABILITY ---
-    if (
-      this.match(normalized, ['ghế', 'ghế trống', 'còn ghế', 'chỗ ngồi', 'ghế đôi', 'bao nhiêu ghế', 'còn chỗ', 'sơ đồ ghế', 'vị trí ngồi']) ||
-      this.match(noAccent, ['ghe', 'ghe trong', 'con ghe', 'cho ngoi', 'ghe doi', 'bao nhieu ghe', 'con cho', 'so do ghe'])
-    ) {
-      return { intent: ChatIntent.SEAT_AVAILABILITY };
-    }
-
-    // --- TICKET_PRICE ---
-    if (
-      this.match(normalized, ['giá vé', 'bao nhiêu tiền', 'vé bao nhiêu', 'giá tiền vé', 'tiền vé', 'giá cả', 'bảng giá']) ||
-      this.match(noAccent, ['gia ve', 'bao nhieu tien', 've bao nhieu', 'gia tien ve', 'tien ve', 'gia ca'])
-    ) {
-      const movieName = this.extractMovieName(normalized);
-      return { intent: ChatIntent.TICKET_PRICE, movieName, extractedKeyword: movieName };
-    }
-
-    // --- FOOD_COMBO / COMBO ---
-    if (
-      this.match(normalized, ['combo', 'bắp', 'nước', 'đồ ăn', 'bắp nước', 'snack', 'popcorn', 'combo bắp', 'thức uống']) ||
-      this.match(noAccent, ['combo', 'bap', 'nuoc', 'do an', 'bap nuoc', 'snack', 'popcorn'])
-    ) {
-      return { intent: ChatIntent.COMBO };
-    }
-
-    // --- MOVIE_DETAIL (trailer, tóm tắt, cốt truyện, review) ---
-    if (
-      this.match(normalized, ['tóm tắt', 'nội dung', 'trailer', 'cốt truyện', 'review', 'thông tin phim', 'giới thiệu phim', 'phim này nói về', 'trailer phim', 'tóm tắt phim']) ||
-      this.match(noAccent, ['tom tat', 'noi dung', 'trailer', 'cot truyen', 'review', 'thong tin phim', 'gioi thieu phim', 'phim nay noi ve', 'trailer phim', 'tom tat phim'])
-    ) {
-      const movieName = this.extractMovieName(normalized);
-      return { intent: ChatIntent.MOVIE_DETAIL, movieName, extractedKeyword: movieName };
-    }
-
-    // --- MOVIE_BY_GENRE ---
-    if (
-      this.match(normalized, ['phim hành động', 'phim kinh dị', 'phim hoạt hình', 'phim tình cảm', 'phim hài', 'phim viễn tưởng', 'phim tài liệu', 'phim phiêu lưu']) ||
-      this.match(noAccent, ['phim hanh dong', 'phim kinh di', 'phim hoat hinh', 'phim tinh cam', 'phim hai', 'phim vien tuong', 'phim tai lieu', 'phim phieu luu'])
-    ) {
-      return { intent: ChatIntent.MOVIE_BY_GENRE };
-    }
-
-    // --- SHOWTIMES_BY_MOVIE ---
-    if (
-      this.match(normalized, ['lịch chiếu phim', 'suất chiếu phim', 'mấy giờ chiếu', 'phim chiếu mấy giờ', 'phim chiếu khi nào', 'lịch chiếu cho phim']) ||
-      this.match(noAccent, ['lich chieu phim', 'suat chieu phim', 'may gio chieu', 'phim chieu may gio', 'phim chieu khi nao'])
-    ) {
-      const movieName = this.extractMovieName(normalized);
-      return { intent: ChatIntent.SHOWTIMES_BY_MOVIE, movieName, extractedKeyword: movieName };
-    }
-
-    // --- SHOWTIMES_BY_CINEMA ---
-    if (
-      this.match(normalized, ['lịch chiếu rạp', 'suất chiếu rạp', 'rạp đang chiếu', 'ở rạp', 'lịch chiếu của rạp']) ||
-      this.match(noAccent, ['lich chieu rap', 'suat chieu rap', 'rap dang chieu', 'o rap'])
-    ) {
-      const cinemaName = this.extractCinemaName(normalized);
-      return { intent: ChatIntent.SHOWTIMES_BY_CINEMA, cinemaName, extractedKeyword: cinemaName };
-    }
-
-    // --- SHOWTIMES_BY_DATE ---
-    if (
-      this.match(normalized, ['lịch chiếu ngày', 'suất chiếu ngày', 'chiếu ngày', 'suất chiếu ngày mai', 'lịch chiếu ngày mai']) ||
-      this.match(noAccent, ['lich chieu ngay', 'suat chieu ngay', 'chieu ngay'])
-    ) {
-      const date = this.extractDate(normalized);
-      return { intent: ChatIntent.SHOWTIMES_BY_DATE, date };
-    }
-
-    // --- UPCOMING_MOVIES ---
-    if (
-      this.match(normalized, ['phim sắp chiếu', 'sắp ra mắt', 'coming soon', 'phim sắp ra', 'phim mới sắp', 'sắp chiếu']) ||
-      this.match(noAccent, ['phim sap chieu', 'sap ra mat', 'phim sap ra', 'phim moi sap'])
-    ) {
-      return { intent: ChatIntent.UPCOMING_MOVIES };
-    }
-
-    // --- TODAY_MOVIES ---
-    if (
-      this.match(normalized, ['hôm nay chiếu phim gì', 'phim chiếu hôm nay', 'tối nay có suất', 'tối nay chiếu', 'suất chiếu tối nay']) ||
-      this.match(noAccent, ['hom nay chieu phim gi', 'phim chieu hom nay', 'toi nay co suat', 'toi nay chieu'])
-    ) {
-      return { intent: ChatIntent.TODAY_MOVIES };
-    }
-
-    // --- SHOWTIMES (Lịch chiếu rạp nói chung) ---
-    if (
-      this.match(normalized, ['lịch chiếu', 'suất chiếu', 'lịch chiếu hôm nay', 'suất chiếu hôm nay']) ||
-      this.match(noAccent, ['lich chieu', 'suat chieu', 'lich chieu hom nay', 'suat chieu hom nay'])
-    ) {
-      return { intent: ChatIntent.SHOWTIMES };
-    }
-
-    // --- NOW_SHOWING ---
-    if (
-      this.match(normalized, ['phim đang chiếu', 'hôm nay có phim gì', 'đang chiếu', 'phim nào đang', 'danh sách phim', 'có phim gì đang']) ||
-      this.match(noAccent, ['phim dang chieu', 'dang chieu', 'phim nao dang', 'danh sach phim', 'co phim'])
-    ) {
-      return { intent: ChatIntent.NOW_SHOWING };
-    }
-
-    // Mặc định là OUT_OF_SCOPE
-    return { intent: ChatIntent.OUT_OF_SCOPE };
+    return {
+      intent,
+      movieName,
+      cinemaName,
+      date,
+      genre,
+      extractedKeyword: movieName || cinemaName || genre || normalized
+    };
   }
 
-  /** Chuẩn hóa: lowercase + trim */
   private normalize(text: string): string {
     return text.toLowerCase().trim();
   }
 
-  /** Bỏ dấu tiếng Việt */
   private removeAccents(text: string): string {
     return text
       .normalize('NFD')
@@ -154,10 +128,8 @@ export class IntentService {
       .replace(/Đ/g, 'D');
   }
 
-  /** Kiểm tra message có chứa bất kỳ keyword nào không */
   private match(text: string, keywords: string[]): boolean {
     return keywords.some((kw) => {
-      // Đối với từ khóa rất ngắn (như 'hi'), sử dụng RegExp để khớp đúng nguyên từ, tránh khớp con (như 'phim' chứa 'hi')
       if (kw.length <= 2) {
         const regex = new RegExp(`(^|\\s|[^a-zA-Z0-9])${kw}($|\\s|[^a-zA-Z0-9])`, 'i');
         return regex.test(text);
@@ -166,7 +138,6 @@ export class IntentService {
     });
   }
 
-  /** Cố gắng trích xuất tên phim từ tin nhắn */
   private extractMovieName(text: string): string | undefined {
     const patterns = [
       /phim\s+["'](.+?)[""]/,
@@ -174,6 +145,7 @@ export class IntentService {
       /chi tiết phim\s+(.+?)$/,
       /nội dung phim\s+(.+?)$/,
       /giới thiệu phim\s+(.+?)$/,
+      /thông tin phim\s+(.+?)$/,
       /phim\s+(.+?)$/,
     ];
 
@@ -187,7 +159,6 @@ export class IntentService {
     }
 
     if (name) {
-      // Loại bỏ các hậu từ tiếng Việt xã giao/yêu cầu phổ biến ở cuối
       const suffixes = [
         /\s+cho\s+tôi$/i,
         /\s+cho\s+mình$/i,
@@ -196,6 +167,7 @@ export class IntentService {
         /\s+giùm\s+mình$/i,
         /\s+với\s+ạ$/i,
         /\s+với$/i,
+        /\s+nhá$/i,
         /\s+nhé$/i,
         /\s+nha$/i,
         /\s+ạ$/i,
@@ -211,7 +183,6 @@ export class IntentService {
     return undefined;
   }
 
-  /** Trích xuất tên rạp */
   private extractCinemaName(text: string): string | undefined {
     const patterns = [
       /rạp\s+["'](.+?)[""]/,
@@ -230,15 +201,12 @@ export class IntentService {
     return undefined;
   }
 
-  /** Trích xuất ngày */
   private extractDate(text: string): string | undefined {
-    // Tìm định dạng YYYY-MM-DD
     const ymdMatch = text.match(/(\d{4})[-/](\d{2})[-/](\d{2})/);
     if (ymdMatch) {
       return `${ymdMatch[1]}-${ymdMatch[2]}-${ymdMatch[3]}`;
     }
 
-    // Tìm định dạng DD/MM/YYYY hoặc DD-MM-YYYY
     const dmyMatch = text.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
     if (dmyMatch) {
       const day = dmyMatch[1].padStart(2, '0');
@@ -247,17 +215,20 @@ export class IntentService {
       return `${year}-${month}-${day}`;
     }
 
-    if (text.includes('hôm nay')) {
+    if (text.includes('hôm nay') || text.includes('hom nay')) {
       return new Date().toISOString().split('T')[0];
     }
 
-    if (text.includes('ngày mai')) {
+    if (text.includes('ngày mai') || text.includes('ngay mai')) {
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       return tomorrow.toISOString().split('T')[0];
     }
 
+    if (text.includes('tối nay') || text.includes('toi nay')) {
+      return new Date().toISOString().split('T')[0];
+    }
+
     return undefined;
   }
 }
-

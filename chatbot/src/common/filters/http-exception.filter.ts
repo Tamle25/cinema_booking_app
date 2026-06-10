@@ -25,14 +25,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
       } else if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
         const res = exceptionResponse as any;
         message = res.message || message;
-        // Nếu message là array (từ class-validator), join lại
         if (Array.isArray(message)) {
           message = message.join(', ');
         }
       }
     }
 
-    // Không trả stack trace cho client
     response.status(status).json({
       success: false,
       reply: message,

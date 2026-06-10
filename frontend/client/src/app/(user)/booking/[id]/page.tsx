@@ -15,7 +15,6 @@ interface ILockedSeat {
   socketId: string;
 }
 
-// Hàm chuyển đổi số thành chữ (0 -> A, 1 -> B...)
 const getRowLabel = (index: number) => {
   return String.fromCharCode(65 + index);
 };
@@ -31,9 +30,7 @@ export default function BookingPage() {
 
   const [showtime, setShowtime] = useState<IShowtime | null>(null);
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
-  // Lưu danh sách các ghế đang bị người khác khóa realtime
   const [lockedSeats, setLockedSeats] = useState<Record<string, ILockedSeat>>({});
-  // Ghế đang chờ lock (chọn khi offline, chưa emit được)
   const [pendingLockSeats, setPendingLockSeats] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
@@ -45,7 +42,6 @@ export default function BookingPage() {
   const [pendingAction, setPendingAction] = useState(false);
   const [showComboModal, setShowComboModal] = useState(false);
 
-  // States cho loyalty & voucher
   const [membershipDiscountPercent, setMembershipDiscountPercent] = useState<number>(0);
   const [membershipRank, setMembershipRank] = useState<string>('Member');
   const [voucherCode, setVoucherCode] = useState<string>('');
@@ -56,35 +52,26 @@ export default function BookingPage() {
   const [voucherError, setVoucherError] = useState<string>('');
   const [showVoucherDropdown, setShowVoucherDropdown] = useState<boolean>(false);
 
-  // Toast ID cố định để tránh spam
   const DISCONNECT_TOAST_ID = 'ws-disconnect-toast';
-  // Ref để track trạng thái đã hiện toast disconnect chưa
   const disconnectToastShownRef = useRef(false);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-  // Realtime Socket event listeners
   useEffect(() => {
     if (!socket || !showtimeId) return;
 
-    // Join room theo showtimeId
     if (socket.connected) {
       socket.emit('join_showtime', { showtimeId, userId });
-      console.log(`[BookingPage] Joined room showtime_${showtimeId}`);
     }
 
-    // Nhận danh sách ghế đang bị khóa khi vừa join room
     const handleSeatStateSync = (data: { showtimeId: string; lockedSeats: Record<string, ILockedSeat> }) => {
       if (data.showtimeId === showtimeId) {
-        console.log('[BookingPage] Received seat_state_sync:', Object.keys(data.lockedSeats || {}).length, 'locked seats');
         setLockedSeats(data.lockedSeats || {});
       }
     };
 
-    // Nhận thông báo một ghế bị khóa
     const handleSeatLocked = (data: { showtimeId: string; seatName: string; lockedBy: string; userId?: string; expiresAt: number }) => {
       if (data.showtimeId === showtimeId) {
-        console.log(`[BookingPage] Seat ${data.seatName} locked by ${data.lockedBy}`);
         setLockedSeats(prev => ({
           ...prev,
           [data.seatName]: {
@@ -93,7 +80,6 @@ export default function BookingPage() {
             socketId: data.lockedBy
           }
         }));
-        // Nếu là ghế mình đang pending lock → xóa khỏi pending (lock thành công)
         setPendingLockSeats(prev => {
           if (prev.has(data.seatName) && data.lockedBy === socket.id) {
             const next = new Set(prev);
@@ -105,10 +91,8 @@ export default function BookingPage() {
       }
     };
 
-    // Nhận thông báo một ghế được mở khóa
     const handleSeatUnlocked = (data: { showtimeId: string; seatName: string }) => {
       if (data.showtimeId === showtimeId) {
-        console.log(`[BookingPage] Seat ${data.seatName} unlocked`);
         setLockedSeats(prev => {
           const next = { ...prev };
           delete next[data.seatName];
@@ -117,18 +101,14 @@ export default function BookingPage() {
       }
     };
 
-    // Nhận thông báo một ghế bị hết hạn giữ
     const handleSeatLockExpired = (data: { showtimeId: string; seatName: string }) => {
       if (data.showtimeId === showtimeId) {
-        console.log(`[BookingPage] Seat ${data.seatName} lock expired`);
-        // Giải phóng khỏi lockedSeats
         setLockedSeats(prev => {
           const next = { ...prev };
           delete next[data.seatName];
           return next;
         });
 
-        // Nếu ghế bị hết hạn là ghế của chính mình đang chọn
         setSelectedSeats(prev => {
           if (prev.includes(data.seatName)) {
             toastWarning(`Ghế ${data.seatName} đã hết thời gian giữ và tự động giải phóng!`);
@@ -139,11 +119,8 @@ export default function BookingPage() {
       }
     };
 
-    // Nhận thông báo ghế đã được đặt thành công (booked) qua DB
     const handleSeatBooked = (data: { showtimeId: string; seats: string[] }) => {
       if (data.showtimeId === showtimeId) {
-        console.log(`[BookingPage] Seats booked:`, data.seats);
-        // Cập nhật trạng thái booked_seats cho showtime
         setShowtime(prev => {
           if (!prev) return null;
           const updatedBooked = [...new Set([...(prev.booked_seats || []), ...data.seats])];
@@ -153,14 +130,12 @@ export default function BookingPage() {
           };
         });
 
-        // Xóa khỏi lockedSeats
         setLockedSeats(prev => {
           const next = { ...prev };
           data.seats.forEach(seat => delete next[seat]);
           return next;
         });
 
-        // Xóa khỏi selectedSeats nếu mình cũng đang chọn ghế đó
         setSelectedSeats(prev => {
           const filtered = prev.filter(seat => !data.seats.includes(seat));
           if (prev.length !== filtered.length) {
@@ -169,7 +144,6 @@ export default function BookingPage() {
           return filtered;
         });
 
-        // Xóa khỏi pending nếu có
         setPendingLockSeats(prev => {
           const next = new Set(prev);
           data.seats.forEach(seat => next.delete(seat));
@@ -178,11 +152,8 @@ export default function BookingPage() {
       }
     };
 
-    // Nhận lỗi từ websocket server (ví dụ lock trùng ghế)
     const handleSeatLockError = (data: { seatName: string; message: string }) => {
-      console.warn(`[BookingPage] Seat lock error for ${data.seatName}: ${data.message}`);
       toastError(data.message);
-      // Revert: xóa khỏi selectedSeats và pendingLockSeats
       setSelectedSeats(prev => prev.filter(s => s !== data.seatName));
       setPendingLockSeats(prev => {
         const next = new Set(prev);
@@ -205,17 +176,13 @@ export default function BookingPage() {
       socket.off('seat_lock_expired', handleSeatLockExpired);
       socket.off('seat_booked', handleSeatBooked);
       socket.off('seat_lock_error', handleSeatLockError);
-      // Unlock tất cả ghế đang chọn trước khi rời room
       const currentSeats = selectedSeatsRef.current;
       if (socket.connected && currentSeats.length > 0) {
         currentSeats.forEach(seatName => {
           socket.emit('unlock_seat', { showtimeId, seatName });
         });
-        console.log(`[BookingPage] Unlocked ${currentSeats.length} seats before leaving room`);
       }
       socket.emit('leave_showtime', { showtimeId });
-      console.log(`[BookingPage] Left room showtime_${showtimeId}`);
-      // Dismiss toast disconnect nếu còn
       toast.dismiss(DISCONNECT_TOAST_ID);
       disconnectToastShownRef.current = false;
     };
@@ -230,29 +197,25 @@ export default function BookingPage() {
   const showtimeIdRef = useRef(showtimeId);
   showtimeIdRef.current = showtimeId;
 
-  // === Disconnect toast logic ===
-  // Hiển thị toast mất kết nối CHỈ KHI socket đã từng connected rồi mới bị mất
   useEffect(() => {
-    if (!hasEverConnected) return; // Chưa từng connected → đang connecting lần đầu → không hiện toast
+    if (!hasEverConnected) return;
 
     if (!isConnected) {
-      // Socket đã từng connected nhưng giờ mất → hiện toast (có delay nhỏ tránh flicker)
       const timer = setTimeout(() => {
         if (!disconnectToastShownRef.current) {
           disconnectToastShownRef.current = true;
           toast.warn('Đang mất kết nối với máy chủ. Đang thử kết nối lại...', {
             toastId: DISCONNECT_TOAST_ID,
-            autoClose: 30000, // Tự đóng sau 30s nếu không reconnect, dismiss sớm hơn khi reconnect
+            autoClose: 30000,
             closeOnClick: false,
             closeButton: false,
             hideProgressBar: true,
             icon: false,
           });
         }
-      }, 2000); // Delay 2s: nếu reconnect trong 2s thì không hiện toast
+      }, 2000);
       return () => clearTimeout(timer);
     } else {
-      // Reconnected → dismiss toast nếu đang hiện
       if (disconnectToastShownRef.current) {
         toast.dismiss(DISCONNECT_TOAST_ID);
         disconnectToastShownRef.current = false;
@@ -261,18 +224,13 @@ export default function BookingPage() {
     }
   }, [isConnected, hasEverConnected]);
 
-  // === Reconnect: re-join room + re-lock ghế ===
   useEffect(() => {
     if (socket && isConnected && showtimeId) {
       const currentUserId = userIdRef.current;
-      console.log('[BookingPage] Socket reconnected, re-joining room and re-locking seats');
       socket.emit('join_showtime', { showtimeId, userId: currentUserId });
 
-      // Re-lock tất cả ghế đang chọn (bao gồm cả pending)
       const seatsToLock = [...new Set([...selectedSeatsRef.current, ...pendingLockSeatsRef.current])];
       if (seatsToLock.length > 0) {
-        console.log(`[BookingPage] Re-locking ${seatsToLock.length} seats:`, seatsToLock);
-        // Đánh dấu tất cả là pending cho đến khi nhận được seat_locked confirmation
         setPendingLockSeats(new Set(seatsToLock));
         seatsToLock.forEach(seatName => {
           socket.emit('lock_seat', { showtimeId, seatName, userId: currentUserId });
@@ -281,7 +239,6 @@ export default function BookingPage() {
     }
   }, [socket, isConnected, showtimeId]);
 
-  // === Cleanup khi user refresh/đóng tab: unlock ghế + leave room ===
   useEffect(() => {
     const handleBeforeUnload = () => {
       const currentSocket = socket;
@@ -289,13 +246,10 @@ export default function BookingPage() {
       const currentSeats = selectedSeatsRef.current;
 
       if (currentSocket && currentSocket.connected && currentShowtimeId) {
-        // Unlock từng ghế
         currentSeats.forEach(seatName => {
           currentSocket.emit('unlock_seat', { showtimeId: currentShowtimeId, seatName });
         });
-        // Leave room
         currentSocket.emit('leave_showtime', { showtimeId: currentShowtimeId });
-        console.log(`[BookingPage] beforeunload: unlocked ${currentSeats.length} seats, left room`);
       }
     };
 
@@ -303,7 +257,6 @@ export default function BookingPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [socket]);
 
-  // 1. Lấy dữ liệu suất chiếu
   useEffect(() => {
     const fetchShowtime = async () => {
       try {
@@ -319,7 +272,6 @@ export default function BookingPage() {
     if (showtimeId) fetchShowtime();
   }, [showtimeId, API_URL]);
 
-  // 1b. Kiểm tra xem user có booking pending cho suất chiếu này không
   useEffect(() => {
     const checkPendingBooking = async () => {
       const token = localStorage.getItem('access_token');
@@ -332,7 +284,6 @@ export default function BookingPage() {
         if (!res.ok) return;
         const bookings: IBooking[] = await res.json();
 
-        // Tìm booking pending cho showtime này
         const pending = bookings.find(
           (b) => b.status === 'pending' &&
             (typeof b.showtime === 'object' && b.showtime !== null
@@ -351,7 +302,6 @@ export default function BookingPage() {
     checkPendingBooking();
   }, [showtimeId, API_URL]);
 
-  // Xử lý Thanh Toán Lại booking pending
   const handleRetryPending = async () => {
     if (!pendingBooking) return;
     const token = localStorage.getItem('access_token');
@@ -395,7 +345,6 @@ export default function BookingPage() {
     }
   };
 
-  // Xử lý Hủy booking pending
   const handleCancelPending = async () => {
     if (!pendingBooking) return;
     const token = localStorage.getItem('access_token');
@@ -422,7 +371,6 @@ export default function BookingPage() {
       if (res.ok) {
         setShowPendingModal(false);
         setPendingBooking(null);
-        // Reload dữ liệu showtime để cập nhật ghế đã được release
         const showtimeRes = await fetch(`${API_URL}/showtimes/${showtimeId}`);
         const showtimeData = await showtimeRes.json();
         setShowtime(showtimeData);
@@ -438,11 +386,9 @@ export default function BookingPage() {
     }
   };
 
-  // 2. Xử lý chọn ghế
   const handleSeatClick = (seatName: string, isBooked: boolean) => {
     if (isBooked) return;
 
-    // Kiểm tra xem ghế có đang bị người khác khóa không
     const isLockedByOthers = lockedSeats[seatName] && lockedSeats[seatName].socketId !== socket?.id;
     if (isLockedByOthers) {
       toastWarning("Ghế này đang được giữ bởi người dùng khác!");
@@ -450,46 +396,32 @@ export default function BookingPage() {
     }
 
     if (selectedSeats.includes(seatName)) {
-      // === BỎ CHỌN GHẾ ===
-      // 1. Optimistic update: Bỏ chọn local
       setSelectedSeats(prev => prev.filter(s => s !== seatName));
-      // 2. Xóa khỏi pending nếu có
       setPendingLockSeats(prev => {
         const next = new Set(prev);
         next.delete(seatName);
         return next;
       });
-      // 3. Emit unlock cho websocket server
       if (socket && isConnected) {
         socket.emit('unlock_seat', { showtimeId, seatName });
-        console.log(`[BookingPage] Emitted unlock_seat for ${seatName}`);
       }
     } else {
-      // === CHỌN GHẾ MỚI ===
       if (selectedSeats.length >= 8) {
         toastWarning("Bạn chỉ được chọn tối đa 8 ghế!");
         return;
       }
 
-      // 1. Optimistic update: Chọn local
       setSelectedSeats(prev => [...prev, seatName]);
 
-      // 2. Emit lock hoặc queue pending
       if (socket && isConnected) {
-        // Đánh dấu pending cho đến khi nhận seat_locked confirmation
         setPendingLockSeats(prev => new Set(prev).add(seatName));
         socket.emit('lock_seat', { showtimeId, seatName, userId });
-        console.log(`[BookingPage] Emitted lock_seat for ${seatName}`);
       } else {
-        // Offline: chọn local, đánh dấu pending, sẽ lock khi reconnect
         setPendingLockSeats(prev => new Set(prev).add(seatName));
-        console.log(`[BookingPage] Socket offline, queued pending lock for ${seatName}`);
-        // KHÔNG hiện toast ở đây → toast disconnect đã được xử lý riêng bởi useEffect ở trên
       }
     }
   };
 
-  // 3. Mở modal chọn combo thay vì payment
   const handleProceedToPayment = () => {
     if (selectedSeats.length === 0) {
       toastWarning("Vui lòng chọn ít nhất 1 ghế!");
@@ -511,14 +443,12 @@ export default function BookingPage() {
     setShowPaymentModal(true);
   };
 
-  // Load thông tin loyalty & voucher của user
   useEffect(() => {
     const fetchUserData = async () => {
       const token = localStorage.getItem('access_token');
       if (!token || !userId) return;
 
       try {
-        // Fetch membership discount
         const resDiscount = await fetch(`${API_URL}/loyalty/membership-discount`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -528,7 +458,6 @@ export default function BookingPage() {
           setMembershipRank(data.membershipRank || 'Member');
         }
 
-        // Fetch user vouchers
         const resVouchers = await fetch(`${API_URL}/vouchers/my-vouchers`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -546,7 +475,6 @@ export default function BookingPage() {
     }
   }, [userId, showtime, API_URL]);
 
-  // Áp dụng voucher
   const handleApplyVoucher = async (codeToApply?: string) => {
     if (!showtime) return;
     const code = (codeToApply || voucherCode).trim().toUpperCase();
@@ -593,7 +521,7 @@ export default function BookingPage() {
         setAppliedVoucherCode('');
         toastError(data.message || 'Mã voucher không hợp lệ');
       }
-    } catch (error) {
+    } catch {
       setVoucherError('Lỗi kiểm tra voucher');
       toastError('Không thể kết nối tới server');
     } finally {
@@ -601,7 +529,6 @@ export default function BookingPage() {
     }
   };
 
-  // Hủy voucher
   const handleRemoveVoucher = () => {
     setVoucherCode('');
     setAppliedVoucherCode('');
@@ -609,7 +536,6 @@ export default function BookingPage() {
     setVoucherError('');
   };
 
-  // 4. Xử lý thanh toán MoMo
   const handleMomoPayment = async () => {
     const token = localStorage.getItem('access_token');
     setProcessing(true);
@@ -630,7 +556,7 @@ export default function BookingPage() {
             combo_id: sc.combo._id,
             quantity: sc.quantity,
           })),
-          voucherCode: appliedVoucherCode || undefined, // Gửi mã voucher lên backend
+          voucherCode: appliedVoucherCode || undefined,
         })
       });
 
@@ -644,7 +570,6 @@ export default function BookingPage() {
       }
 
       if (res.ok && data.payUrl) {
-        // Redirect đến trang thanh toán MoMo
         window.location.href = data.payUrl;
       } else {
         toastError(`Lỗi: ${data.message || 'Không thể tạo thanh toán MoMo'}`);
@@ -660,7 +585,6 @@ export default function BookingPage() {
   if (loading) return <div className="text-center py-20 text-white">Đang tải sơ đồ ghế...</div>;
   if (!showtime) return <div className="text-center py-20 text-white">Không tìm thấy suất chiếu</div>;
 
-  // --- THÊM ĐOẠN KIỂM TRA NÀY ---
   if (!showtime.room) {
     return (
       <div className="text-center py-20 text-red-500">
@@ -669,11 +593,9 @@ export default function BookingPage() {
       </div>
     );
   }
-  // ------------------------------
 
   const { room, price, booked_seats } = showtime;
 
-  // Tính tổng tiền combo
   const comboTotal = selectedCombos.reduce((sum, sc) => sum + sc.combo.price * sc.quantity, 0);
   const ticketTotal = selectedSeats.length * price;
   const grandTotal = ticketTotal + comboTotal;
@@ -681,7 +603,6 @@ export default function BookingPage() {
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center py-10">
 
-      {/* Header Info */}
       <div className="text-center mb-8">
         <h1 className="text-2xl font-bold text-yellow-500 mb-2">{showtime.movie?.title || "Tên Phim"}</h1>
         <p className="text-gray-400">
@@ -689,25 +610,21 @@ export default function BookingPage() {
         </p>
       </div>
 
-      {/* MÀN HÌNH (SCREEN) */}
       <div className="w-full max-w-3xl mb-10 px-4">
         <div className="w-full h-2 bg-white shadow-[0_10px_30px_rgba(255,255,255,0.3)] rounded-full mb-2"></div>
         <p className="text-center text-gray-500 text-sm uppercase tracking-widest">Màn hình</p>
       </div>
 
-      {/* SƠ ĐỒ GHẾ (SEAT GRID) */}
       <div className="flex flex-col gap-2 mb-10 overflow-x-auto max-w-full px-4">
         {Array.from({ length: room.rows }).map((_, rowIndex) => {
           const rowLabel = getRowLabel(rowIndex);
 
           return (
             <div key={rowIndex} className="flex gap-2 justify-center min-w-max">
-              {/* Cột số ghế */}
               {Array.from({ length: room.columns }).map((_, colIndex) => {
                 const seatNumber = colIndex + 1;
-                const seatName = `${rowLabel}${seatNumber}`; // VD: A1, A2
+                const seatName = `${rowLabel}${seatNumber}`;
 
-                // Kiểm tra trạng thái
                 const isBooked = booked_seats.includes(seatName);
                 const isSelected = selectedSeats.includes(seatName);
                 const isLockedByOthers = lockedSeats[seatName] && lockedSeats[seatName].socketId !== socket?.id;
@@ -722,14 +639,14 @@ export default function BookingPage() {
                       w-10 h-10 rounded-t-lg text-xs font-bold transition
                       flex items-center justify-center
                       ${isBooked
-                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed' // Đã bán (Xám đậm)
+                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
                         : isSelected && isPendingLock
-                          ? 'bg-green-400 text-white shadow-[0_0_10px_#4ade80] transform scale-110 animate-pulse' // Đang chờ lock (Xanh nhạt + pulse)
+                          ? 'bg-green-400 text-white shadow-[0_0_10px_#4ade80] transform scale-110 animate-pulse'
                           : isSelected
-                            ? 'bg-green-500 text-white shadow-[0_0_10px_#22c55e] transform scale-110' // Đã lock thành công (Xanh lá)
+                            ? 'bg-green-500 text-white shadow-[0_0_10px_#22c55e] transform scale-110'
                             : isLockedByOthers
-                              ? 'bg-amber-500 text-white cursor-not-allowed shadow-[0_0_10px_#f59e0b]' // Đang bị người khác khóa (Cam/Vàng)
-                              : 'bg-gray-200 text-gray-900 hover:bg-white' // Trống (Xám nhạt)
+                              ? 'bg-amber-500 text-white cursor-not-allowed shadow-[0_0_10px_#f59e0b]'
+                              : 'bg-gray-200 text-gray-900 hover:bg-white'
                       }
                     `}
                   >
@@ -750,7 +667,6 @@ export default function BookingPage() {
         })}
       </div>
 
-      {/* CHÚ THÍCH (LEGEND) */}
       <div className="flex gap-6 mb-8 text-sm">
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 bg-gray-200 rounded"></div>
@@ -772,7 +688,6 @@ export default function BookingPage() {
 
       <div className="mb-24"></div>
 
-      {/* FOOTER THANH TOÁN (STICKY) */}
       <div className="fixed bottom-0 left-0 w-full bg-gray-800 border-t border-gray-700 p-4 z-40">
         <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
 
@@ -814,14 +729,12 @@ export default function BookingPage() {
         </div>
       </div>
 
-      {/* MODAL CHỌN COMBO (UP-SELLING) */}
       {showComboModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-gray-900 rounded-3xl max-w-4xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-gray-800">
-            {/* Header Modal */}
             <div className="flex justify-between items-center p-6 border-b border-gray-800">
               <div>
-                <h2 className="text-2xl font-bold text-yellow-500 leading-tight">Thêm chút bỏng nước nhé? 🍿</h2>
+                <h2 className="text-2xl font-bold text-yellow-500 leading-tight">Thêm bắp nước?</h2>
                 <p className="text-gray-400 text-sm mt-1">Hoàn thiện trải nghiệm xem phim của bạn.</p>
               </div>
               <button 
@@ -834,7 +747,6 @@ export default function BookingPage() {
               </button>
             </div>
             
-            {/* Body - Combo Selector */}
             <div className="flex-1 overflow-y-auto custom-scrollbar">
               <ComboSelector
                 selectedCombos={selectedCombos}
@@ -843,18 +755,17 @@ export default function BookingPage() {
               />
             </div>
 
-            {/* Footer Modal */}
             <div className="p-6 bg-gray-900 border-t border-gray-800 flex flex-col sm:flex-row items-center gap-3 justify-between flex-shrink-0">
               <button
                 onClick={handleProceedFromComboToPayment}
                 className="w-full sm:w-auto px-6 py-3 bg-transparent border-2 border-gray-600 text-gray-300 rounded-xl font-bold hover:bg-gray-800 hover:text-white transition-colors order-2 sm:order-1"
               >
-                Bỏ qua & Thanh toán
+                Bỏ qua và thanh toán
               </button>
               
               <div className="w-full sm:w-auto flex items-center gap-4 relative order-1 sm:order-2">
                  <div className="hidden sm:block text-right">
-                   <div className="text-xs text-gray-400 font-medium">Tổng (Vé + Combo)</div>
+                   <div className="text-xs text-gray-400 font-medium">Tổng vé và combo</div>
                    <div className="text-xl font-bold text-green-400">{grandTotal.toLocaleString()} đ</div>
                  </div>
                  <button
@@ -872,23 +783,19 @@ export default function BookingPage() {
         </div>
       )}
 
-      {/* MODAL XÁC NHẬN THANH TOÁN MOMO */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            {/* Header */}
             <div className="bg-gradient-to-r from-pink-500 to-pink-600 px-6 py-4 flex-shrink-0">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                 </svg>
-                Thanh Toán Online
+                Thanh toán online
               </h2>
             </div>
 
-            {/* Content */}
             <div className="p-6 flex-1 overflow-y-auto">
-              {/* Order Summary */}
               <div className="bg-gray-50 rounded-xl p-4 mb-4">
                 <h3 className="text-sm font-semibold text-gray-700 mb-3">Thông tin đơn hàng</h3>
                 <div className="space-y-2">
@@ -906,7 +813,6 @@ export default function BookingPage() {
                     <span className="text-gray-600">Ghế:</span>
                     <span className="font-semibold text-gray-900">{selectedSeats.join(', ')}</span>
                   </div>
-                  {/* Chi tiết combo trong modal */}
                   {selectedCombos.length > 0 && (
                     <>
                       <div className="border-t pt-2 mt-2">
@@ -925,7 +831,6 @@ export default function BookingPage() {
                     </>
                   )}
                   
-                  {/* Chi tiết giá gốc và ưu đãi */}
                   <div className="border-t pt-2 mt-2 space-y-1.5">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Tiền vé:</span>
@@ -942,7 +847,6 @@ export default function BookingPage() {
                       </div>
                     )}
                     
-                    {/* Giảm giá thành viên */}
                     {membershipDiscountPercent > 0 && (
                       <div className="flex justify-between text-sm text-green-600 font-medium">
                         <span>Thành viên ({membershipRank} -{membershipDiscountPercent}%):</span>
@@ -952,7 +856,6 @@ export default function BookingPage() {
                       </div>
                     )}
 
-                    {/* Giảm giá voucher */}
                     {voucherDiscount > 0 && (
                       <div className="flex justify-between text-sm text-green-600 font-medium">
                         <span>Voucher giảm giá ({appliedVoucherCode}):</span>
@@ -962,7 +865,6 @@ export default function BookingPage() {
                       </div>
                     )}
 
-                    {/* Tổng cộng thanh toán cuối cùng */}
                     <div className="flex justify-between mt-2 pt-2 border-t">
                       <span className="font-bold text-gray-700">Tổng thanh toán:</span>
                       <span className="font-black text-red-600 text-xl">
@@ -978,10 +880,9 @@ export default function BookingPage() {
                 </div>
               </div>
 
-              {/* Nhập mã giảm giá */}
               <div className="border border-gray-200 rounded-xl p-4 mb-6 relative">
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
-                  Ưu đãi & Khuyến mãi (Voucher)
+                  Ưu đãi và voucher
                 </label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
@@ -1018,7 +919,6 @@ export default function BookingPage() {
                 </div>
                 {voucherError && <p className="text-xs text-red-500 mt-1">{voucherError}</p>}
                 
-                {/* Nút chọn nhanh voucher cá nhân */}
                 {myVouchers.filter(v => v.status === 'UNUSED' && new Date(v.expiredAt) > new Date()).length > 0 && !appliedVoucherCode && (
                   <div className="mt-2">
                     <button
@@ -1059,11 +959,9 @@ export default function BookingPage() {
                 )}
               </div>
 
-              {/* Payment Methods Selection */}
               <div className="space-y-3 mb-4">
                 <h3 className="text-sm font-semibold text-gray-700">Chọn phương thức thanh toán</h3>
 
-                {/* Option 1: QR / Ví MoMo */}
                 <label
                   className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedPaymentType === 'captureWallet'
                     ? 'border-pink-500 bg-pink-50'
@@ -1082,12 +980,11 @@ export default function BookingPage() {
                     MoMo
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm">Ví MoMo / QR Code</p>
+                    <p className="font-semibold text-gray-900 text-sm">Ví MoMo hoặc QR</p>
                     <p className="text-xs text-gray-500">Quét QR hoặc mở app MoMo</p>
                   </div>
                 </label>
 
-                {/* Option 2: Thẻ ATM nội địa */}
                 <label
                   className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedPaymentType === 'payWithATM'
                     ? 'border-blue-500 bg-blue-50'
@@ -1111,7 +1008,6 @@ export default function BookingPage() {
                   </div>
                 </label>
 
-                {/* Option 3: Thẻ quốc tế */}
                 <label
                   className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedPaymentType === 'payWithCC'
                     ? 'border-purple-500 bg-purple-50'
@@ -1137,24 +1033,8 @@ export default function BookingPage() {
                   </div>
                 </label>
               </div>
-
-              {/* Test Account Info - Dynamic based on selection */}
-              <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                <p className="text-xs text-gray-600">
-                  {selectedPaymentType === 'captureWallet' && (
-                    <><strong>🧪 Test MoMo:</strong> SĐT: 0900000000-9 | OTP: 000000</>
-                  )}
-                  {selectedPaymentType === 'payWithATM' && (
-                    <><strong>🧪 Test ATM (NCB):</strong> Số thẻ: 9704198526191432198 | Tên: NGUYEN VAN A | Ngày: 07/15 | OTP: 123456</>
-                  )}
-                  {selectedPaymentType === 'payWithCC' && (
-                    <><strong>🧪 Test Visa:</strong> Số thẻ: 4111111111111111 | Tên: NGUYEN VAN A | Hết hạn: 01/28 | CVV: 100</>
-                  )}
-                </p>
-              </div>
             </div>
 
-            {/* Footer */}
             <div className="px-6 py-4 bg-gray-50 border-t flex gap-3 flex-shrink-0">
               <button
                 onClick={() => setShowPaymentModal(false)}
@@ -1180,7 +1060,7 @@ export default function BookingPage() {
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
-                    Thanh Toán Ngay
+                    Thanh toán ngay
                   </>
                 )}
               </button>
@@ -1189,21 +1069,18 @@ export default function BookingPage() {
         </div>
       )}
 
-      {/* MODAL CẢNH BÁO BOOKING PENDING */}
       {showPendingModal && pendingBooking && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden">
-            {/* Header */}
             <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
-                Đơn Hàng Chưa Thanh Toán
+                Đơn hàng chưa thanh toán
               </h2>
             </div>
 
-            {/* Content */}
             <div className="p-6">
               <p className="text-gray-700 mb-4">
                 Bạn có đơn hàng chưa hoàn tất thanh toán cho suất chiếu này:
@@ -1231,7 +1108,6 @@ export default function BookingPage() {
               </p>
             </div>
 
-            {/* Footer */}
             <div className="px-6 py-4 bg-gray-50 border-t flex flex-col gap-3">
               <button
                 onClick={handleRetryPending}
@@ -1247,7 +1123,7 @@ export default function BookingPage() {
                     Đang xử lý...
                   </>
                 ) : (
-                  'Thanh Toán Tiếp'
+                  'Thanh toán tiếp'
                 )}
               </button>
               <button
@@ -1255,14 +1131,14 @@ export default function BookingPage() {
                 disabled={pendingAction}
                 className="w-full px-4 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50"
               >
-                Hủy Đơn & Đặt Vé Mới
+                Hủy đơn và đặt vé mới
               </button>
               <button
                 onClick={() => setShowPendingModal(false)}
                 disabled={pendingAction}
                 className="w-full px-4 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-colors disabled:opacity-50"
               >
-                Để Sau
+                Để sau
               </button>
             </div>
           </div>

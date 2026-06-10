@@ -7,7 +7,7 @@ export interface SeatLock {
 
 export interface ShowtimeRoomState {
   showtimeId: string;
-  locks: Map<string, SeatLock>; // Map seatName -> SeatLock
+  locks: Map<string, SeatLock>;
 }
 
 export interface JoinShowtimePayload {

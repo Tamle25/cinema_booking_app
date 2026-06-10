@@ -11,26 +11,25 @@ export class PointTransaction {
   user: User;
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Booking' })
-  order: Booking; // Đơn hàng liên quan (nếu type = EARN)
+  order: Booking;
 
   @Prop({ required: true, enum: ['EARN', 'REDEEM', 'EXPIRE', 'REFUND', 'ADJUST'] })
   type: string;
 
   @Prop({ required: true })
-  points: number; // Dương: cộng, Âm: trừ
+  points: number;
 
   @Prop({ required: true })
   description: string;
 
   @Prop()
-  expiredAt: Date; // Thời điểm điểm hết hạn (12 tháng sau khi earn)
+  expiredAt: Date;
 
   @Prop({ default: false })
-  isExpired: boolean; // Đã hết hạn chưa
+  isExpired: boolean;
 }
 
 export const PointTransactionSchema = SchemaFactory.createForClass(PointTransaction);
 
-// Index cho query lịch sử điểm và kiểm tra hết hạn
 PointTransactionSchema.index({ user: 1, createdAt: -1 });
 PointTransactionSchema.index({ type: 1, isExpired: 1, expiredAt: 1 });

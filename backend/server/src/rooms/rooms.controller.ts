@@ -29,19 +29,16 @@ export class RoomsController {
     });
   }
 
-  // API không phân trang (dùng cho dropdown)
   @Get()
   findAll() {
     return this.roomsService.findAll();
   }
 
-  // API lấy phòng theo Rạp (tất cả phòng)
   @Get('cinema/:cinemaId')
   findByCinema(@Param('cinemaId', ParseObjectIdPipe) cinemaId: string) {
     return this.roomsService.findByCinema(cinemaId);
   }
 
-  // API lấy phòng đang hoạt động theo Rạp (dùng cho tạo suất chiếu)
   @Get('cinema/:cinemaId/active')
   findByCinemaActive(@Param('cinemaId', ParseObjectIdPipe) cinemaId: string) {
     return this.roomsService.findByCinemaActive(cinemaId);

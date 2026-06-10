@@ -5,8 +5,8 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { IComparedCinema } from '@/types';
+import { getErrorMessage } from '@/utils/errorMessage';
 
-// Dynamic import bản đồ (ssr: false vì Leaflet cần window)
 const CinemaMap = dynamic(() => import('@/components/CinemaMap'), {
   ssr: false,
   loading: () => (
@@ -43,7 +43,6 @@ interface CompareCinemaSectionProps {
 export default function CompareCinemaSection({ movieId }: CompareCinemaSectionProps) {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-  // States
   const [cinemas, setCinemas] = useState<IComparedCinema[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,13 +50,10 @@ export default function CompareCinemaSection({ movieId }: CompareCinemaSectionPr
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [highlightedCinemaId, setHighlightedCinemaId] = useState<string | null>(null);
 
-  // Geolocation
   const { coords, status, errorMessage, requestLocation, hasLocation } = useGeolocation();
 
-  // Ref cho scroll đến card rạp
   const cinemaCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // Generate 7 ngày tới
   const dateTabs = useMemo(() => {
     const tabs: { dateISO: string; dayName: string; dayOfMonth: number; month: number }[] = [];
     const today = new Date();
@@ -79,14 +75,12 @@ export default function CompareCinemaSection({ movieId }: CompareCinemaSectionPr
     return tabs;
   }, []);
 
-  // Mặc định chọn ngày hôm nay
   useEffect(() => {
     if (dateTabs.length > 0 && !selectedDate) {
       setSelectedDate(dateTabs[0].dateISO);
     }
   }, [dateTabs, selectedDate]);
 
-  // Fetch dữ liệu so sánh
   const fetchCompare = useCallback(async () => {
     if (!movieId || !selectedDate) return;
 
@@ -105,9 +99,9 @@ export default function CompareCinemaSection({ movieId }: CompareCinemaSectionPr
       }
       const data = await res.json();
       setCinemas(data);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Lỗi khi tải so sánh rạp:', err);
-      setError(err.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
+      setError(getErrorMessage(err, 'Có lỗi xảy ra. Vui lòng thử lại.'));
       setCinemas([]);
     } finally {
       setLoading(false);
@@ -118,18 +112,15 @@ export default function CompareCinemaSection({ movieId }: CompareCinemaSectionPr
     fetchCompare();
   }, [fetchCompare]);
 
-  // Scroll đến card rạp khi click trên bản đồ
   const handleSelectCinemaFromMap = (cinemaId: string) => {
     setHighlightedCinemaId(cinemaId);
     const el = cinemaCardRefs.current[cinemaId];
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-    // Reset highlight sau 3s
     setTimeout(() => setHighlightedCinemaId(null), 3000);
   };
 
-  // Status text cho geolocation
   const getLocationStatusUI = () => {
     switch (status) {
       case 'requesting':
@@ -154,7 +145,7 @@ export default function CompareCinemaSection({ movieId }: CompareCinemaSectionPr
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
-      {/* Header */}
+      
       <div className="text-center mb-8">
         <h2 className="text-2xl md:text-3xl font-bold text-gray-900 inline-block relative pb-2">
           So sánh rạp chiếu
@@ -165,10 +156,10 @@ export default function CompareCinemaSection({ movieId }: CompareCinemaSectionPr
         </p>
       </div>
 
-      {/* Controls Bar */}
+      
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
         <div className="flex flex-col gap-4">
-          {/* Row 1: Chọn ngày */}
+          
           <div className="flex overflow-x-auto scrollbar-hide gap-2 pb-1">
             {dateTabs.map(tab => {
               const isActive = selectedDate === tab.dateISO;
@@ -190,9 +181,9 @@ export default function CompareCinemaSection({ movieId }: CompareCinemaSectionPr
             })}
           </div>
 
-          {/* Row 2: Vị trí + Sort */}
+          
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            {/* Nút lấy vị trí */}
+            
             <div className="flex items-center gap-3 flex-wrap">
               <button
                 onClick={requestLocation}
@@ -212,7 +203,7 @@ export default function CompareCinemaSection({ movieId }: CompareCinemaSectionPr
               {getLocationStatusUI()}
             </div>
 
-            {/* Bộ lọc sắp xếp */}
+            
             <div className="flex gap-2 overflow-x-auto scrollbar-hide">
               {SORT_OPTIONS.map(opt => {
                 const isDisabled = opt.requiresLocation && !hasLocation;
@@ -240,9 +231,8 @@ export default function CompareCinemaSection({ movieId }: CompareCinemaSectionPr
         </div>
       </div>
 
-      {/* Main Content */}
+      
       {loading ? (
-        // Loading Skeleton
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           <div className="lg:col-span-3 space-y-4">
             {[1, 2, 3].map(i => (
@@ -271,7 +261,6 @@ export default function CompareCinemaSection({ movieId }: CompareCinemaSectionPr
           </div>
         </div>
       ) : error ? (
-        // Error State
         <div className="text-center py-16 bg-white rounded-xl border border-red-100">
           <svg className="w-14 h-14 mx-auto text-red-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -286,7 +275,6 @@ export default function CompareCinemaSection({ movieId }: CompareCinemaSectionPr
           </button>
         </div>
       ) : cinemas.length === 0 ? (
-        // Empty State
         <div className="text-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
           <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 4V2m0 2a2 2 0 012-2h6a2 2 0 012 2m-10 0h10m0 0v12a2 2 0 01-2 2H9a2 2 0 01-2-2V4" />
@@ -300,9 +288,8 @@ export default function CompareCinemaSection({ movieId }: CompareCinemaSectionPr
           </p>
         </div>
       ) : (
-        // Main: List + Map
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* Danh sách rạp */}
+          
           <div className="lg:col-span-3 space-y-4">
             {cinemas.map(cinema => (
               <div
@@ -314,10 +301,10 @@ export default function CompareCinemaSection({ movieId }: CompareCinemaSectionPr
                     : 'border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200'
                 }`}
               >
-                {/* Cinema Header */}
+                
                 <div className="p-4 sm:p-5">
                   <div className="flex items-start gap-3 mb-3">
-                    {/* Brand Logo */}
+                    
                     <div className="w-10 h-10 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0 p-1">
                       {cinema.brandLogo ? (
                         <img src={cinema.brandLogo} alt={cinema.brand} className="w-full h-full object-contain" />
@@ -329,7 +316,7 @@ export default function CompareCinemaSection({ movieId }: CompareCinemaSectionPr
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-bold text-gray-900 text-base leading-tight">{cinema.cinemaName}</h3>
-                        {/* Labels */}
+                        
                         {cinema.labels.map(label => (
                           <span
                             key={label}
@@ -343,7 +330,7 @@ export default function CompareCinemaSection({ movieId }: CompareCinemaSectionPr
                     </div>
                   </div>
 
-                  {/* Stats Row */}
+                  
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm mb-4">
                     {cinema.minPrice != null && (
                       <div className="flex items-center gap-1">
@@ -372,7 +359,7 @@ export default function CompareCinemaSection({ movieId }: CompareCinemaSectionPr
                     )}
                   </div>
 
-                  {/* Showtimes Grid */}
+                  
                   <div className="flex flex-wrap gap-2">
                     {cinema.showtimes.map(st => (
                       <Link
@@ -397,7 +384,7 @@ export default function CompareCinemaSection({ movieId }: CompareCinemaSectionPr
             ))}
           </div>
 
-          {/* Bản đồ */}
+          
           <div className="lg:col-span-2">
             <div className="sticky top-20">
               <CinemaMap
@@ -405,7 +392,7 @@ export default function CompareCinemaSection({ movieId }: CompareCinemaSectionPr
                 userCoords={coords}
                 onSelectCinema={handleSelectCinemaFromMap}
               />
-              {/* Chú thích */}
+              
               <div className="mt-3 flex items-center gap-4 text-xs text-gray-500 justify-center">
                 <div className="flex items-center gap-1">
                   <div className="w-3 h-3 rounded-full bg-blue-500"></div>

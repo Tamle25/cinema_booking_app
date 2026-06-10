@@ -29,10 +29,10 @@ const Footer = () => {
 
   return (
     <footer className="bg-gradient-to-b from-gray-900 to-gray-950 text-gray-300">
-      {/* Main Footer Content */}
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
-          {/* Brand Section */}
+          
           <div className="lg:col-span-1">
             <Link href="/" className="flex items-center gap-2.5 mb-4">
               <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg">
@@ -48,7 +48,7 @@ const Footer = () => {
               Trải nghiệm đặt vé nhanh chóng, tiện lợi với hàng ngàn suất chiếu mỗi ngày.
             </p>
             
-            {/* Social Links */}
+            
             <div className="flex items-center gap-3">
               <a 
                 href="#" 
@@ -89,7 +89,7 @@ const Footer = () => {
             </div>
           </div>
 
-          {/* Quick Links */}
+          
           <div>
             <h3 className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
               <div className="w-1 h-5 bg-red-500 rounded-full"></div>
@@ -109,7 +109,7 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Support */}
+          
           <div>
             <h3 className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
               <div className="w-1 h-5 bg-red-500 rounded-full"></div>
@@ -129,7 +129,7 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Contact & Partners */}
+          
           <div>
             <h3 className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
               <div className="w-1 h-5 bg-red-500 rounded-full"></div>
@@ -161,7 +161,7 @@ const Footer = () => {
               </li>
             </ul>
 
-            {/* Partners */}
+            
             <div className="mt-6">
               <p className="text-xs text-gray-500 uppercase tracking-wider mb-3">Đối tác rạp chiếu</p>
               <div className="flex flex-wrap gap-2">
@@ -180,17 +180,17 @@ const Footer = () => {
         </div>
       </div>
 
-      {/* Bottom Bar */}
+      
       <div className="border-t border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            {/* Copyright */}
+            
             <div className="text-sm text-gray-500 text-center md:text-left">
               <p>© {currentYear} <span className="text-red-500 font-semibold">CINEMAX</span></p>
               <p className="text-xs mt-1">Đại học Bách Khoa Hà Nội</p>
             </div>
 
-            {/* Payment Methods */}
+            
             <div className="flex items-center gap-4">
               <span className="text-xs text-gray-500">Thanh toán:</span>
               <div className="flex items-center gap-2">

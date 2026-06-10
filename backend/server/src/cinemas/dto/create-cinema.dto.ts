@@ -3,15 +3,15 @@ import { IsNotEmpty, IsString, IsMongoId, IsUrl, IsOptional, IsNumber, IsBoolean
 export class CreateCinemaDto {
   @IsNotEmpty()
   @IsString()
-  name: string; // VD: "Beta Mỹ Đình"
+  name: string;
 
   @IsNotEmpty()
   @IsString()
-  slug: string; // VD: "beta-my-dinh"
+  slug: string;
 
   @IsNotEmpty()
   @IsMongoId()
-  cinema_system_id: string; // ID của hãng rạp (Beta, CGV...)
+  cinema_system_id: string;
 
   @IsNotEmpty()
   @IsString()
@@ -19,7 +19,7 @@ export class CreateCinemaDto {
 
   @IsNotEmpty()
   @IsString()
-  city: string; // Hà Nội, TP.HCM...
+  city: string;
 
   @IsOptional()
   @IsUrl()

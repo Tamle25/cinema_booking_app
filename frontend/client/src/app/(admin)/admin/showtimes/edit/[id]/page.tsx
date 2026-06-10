@@ -47,7 +47,6 @@ export default function EditShowtimePage() {
         is_active: true,
     });
 
-    // Fetch options and showtime data
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -67,7 +66,6 @@ export default function EditShowtimePage() {
                 setCinemas(cinemasData);
                 setRooms(roomsData);
 
-                // Pre-fill form with existing data
                 const startTime = showtimeData.start_time
                     ? new Date(showtimeData.start_time).toISOString().slice(0, 16)
                     : '';
@@ -83,7 +81,7 @@ export default function EditShowtimePage() {
 
             } catch (error) {
                 console.error('Lỗi tải dữ liệu:', error);
-                toastError('❌ Không thể tải thông tin suất chiếu!');
+                toastError('Không thể tải thông tin suất chiếu!');
                 router.push('/admin/showtimes');
             } finally {
                 setIsLoading(false);
@@ -93,7 +91,6 @@ export default function EditShowtimePage() {
         if (showtimeId) fetchData();
     }, [API_URL, showtimeId, router]);
 
-    // Filter rooms when cinema changes
     useEffect(() => {
         if (formData.cinema_id) {
             setFilteredRooms(rooms.filter(r => r.cinema === formData.cinema_id));
@@ -121,25 +118,24 @@ export default function EditShowtimePage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Validation
         if (!formData.movie_id) {
-            toastWarning('❌ Vui lòng chọn phim!');
+            toastWarning('Vui lòng chọn phim!');
             return;
         }
         if (!formData.cinema_id) {
-            toastWarning('❌ Vui lòng chọn rạp!');
+            toastWarning('Vui lòng chọn rạp!');
             return;
         }
         if (!formData.room_id) {
-            toastWarning('❌ Vui lòng chọn phòng chiếu!');
+            toastWarning('Vui lòng chọn phòng chiếu!');
             return;
         }
         if (!formData.start_time) {
-            toastWarning('❌ Vui lòng chọn thời gian chiếu!');
+            toastWarning('Vui lòng chọn thời gian chiếu!');
             return;
         }
         if (!formData.price || formData.price <= 0) {
-            toastWarning('❌ Vui lòng nhập giá vé hợp lệ!');
+            toastWarning('Vui lòng nhập giá vé hợp lệ!');
             return;
         }
 
@@ -153,15 +149,15 @@ export default function EditShowtimePage() {
             });
 
             if (res.ok) {
-                toastSuccess('✅ Cập nhật suất chiếu thành công!');
+                toastSuccess('Cập nhật suất chiếu thành công!');
                 router.push('/admin/showtimes');
             } else {
                 const error = await res.json();
-                toastError('❌ Lỗi: ' + (error.message || 'Không thể cập nhật suất chiếu'));
+                toastError('Lỗi: ' + (error.message || 'Không thể cập nhật suất chiếu'));
             }
         } catch (error) {
             console.error('Lỗi:', error);
-            toastError('❌ Không thể kết nối đến server!');
+            toastError('Không thể kết nối đến server!');
         } finally {
             setIsSubmitting(false);
         }
@@ -195,7 +191,7 @@ export default function EditShowtimePage() {
             </div>
 
             <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-md space-y-5">
-                {/* Movie Selection */}
+                
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Chọn phim <span className="text-red-500">*</span>
@@ -220,7 +216,7 @@ export default function EditShowtimePage() {
                     )}
                 </div>
 
-                {/* Cinema Selection */}
+                
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Chọn rạp <span className="text-red-500">*</span>
@@ -240,7 +236,7 @@ export default function EditShowtimePage() {
                     </select>
                 </div>
 
-                {/* Room Selection */}
+                
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Chọn phòng chiếu <span className="text-red-500">*</span>
@@ -263,7 +259,7 @@ export default function EditShowtimePage() {
                     </select>
                 </div>
 
-                {/* Start Time */}
+                
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Thời gian chiếu <span className="text-red-500">*</span>
@@ -277,7 +273,7 @@ export default function EditShowtimePage() {
                     />
                 </div>
 
-                {/* Price */}
+                
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Giá vé (VNĐ) <span className="text-red-500">*</span>
@@ -293,7 +289,7 @@ export default function EditShowtimePage() {
                     />
                 </div>
 
-                {/* Active Status */}
+                
                 <div className="flex items-center gap-2">
                     <input
                         type="checkbox"
@@ -308,7 +304,7 @@ export default function EditShowtimePage() {
                     </label>
                 </div>
 
-                {/* Submit */}
+                
                 <div className="flex justify-end gap-3 pt-4">
                     <button
                         type="button"

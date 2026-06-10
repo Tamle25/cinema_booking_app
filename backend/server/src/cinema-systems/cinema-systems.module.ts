@@ -6,13 +6,12 @@ import { CinemaSystem, CinemaSystemSchema } from './schemas/cinema-system.schema
 
 @Module({
   imports: [
-    // Đăng ký Schema để Service có thể dùng được (InjectModel)
     MongooseModule.forFeature([
       { name: CinemaSystem.name, schema: CinemaSystemSchema },
     ]),
   ],
   controllers: [CinemaSystemsController],
   providers: [CinemaSystemsService],
-  exports: [CinemaSystemsService], // Export nếu sau này module khác cần dùng
+  exports: [CinemaSystemsService],
 })
 export class CinemaSystemsModule {}

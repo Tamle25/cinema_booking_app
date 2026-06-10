@@ -3,11 +3,11 @@ import { IsNotEmpty, IsString, IsUrl, IsOptional } from 'class-validator';
 export class CreateCinemaSystemDto {
   @IsNotEmpty()
   @IsString()
-  name: string; // VD: "Beta Cinemas"
+  name: string;
 
   @IsNotEmpty()
   @IsString()
-  slug: string; // VD: "beta-cinemas"
+  slug: string;
 
   @IsNotEmpty()
   @IsUrl()
@@ -15,5 +15,5 @@ export class CreateCinemaSystemDto {
 
   @IsOptional()
   @IsString()
-  color_code?: string; // VD: "#0055d4" (Để tô màu giao diện theo hãng)
+  color_code?: string;
 }

@@ -13,19 +13,19 @@ export class VoucherUsage {
   user: User;
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Voucher' })
-  voucher: Voucher; // Voucher admin (nếu dùng mã admin)
+  voucher: Voucher;
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'UserVoucher' })
-  userVoucher: UserVoucher; // Voucher cá nhân (nếu dùng voucher đổi điểm)
+  userVoucher: UserVoucher;
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Booking', required: true })
   order: Booking;
 
   @Prop({ required: true })
-  discountAmount: number; // Số tiền giảm thực tế
+  discountAmount: number;
 }
 
 export const VoucherUsageSchema = SchemaFactory.createForClass(VoucherUsage);
 
 VoucherUsageSchema.index({ user: 1, createdAt: -1 });
-VoucherUsageSchema.index({ user: 1, voucher: 1 }, { sparse: true }); // Tra cứu nhanh user đã dùng voucher admin chưa
+VoucherUsageSchema.index({ user: 1, voucher: 1 }, { sparse: true });

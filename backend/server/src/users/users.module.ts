@@ -6,11 +6,10 @@ import { UsersController } from './users.controller';
 
 @Module({
   imports: [
-    // Đăng ký bảng User vào Mongoose
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
   ],
   controllers: [UsersController],
   providers: [UsersService],
-  exports: [UsersService], // Xuất Service này để AuthModule có thể dùng
+  exports: [UsersService],
 })
-export class UsersModule {}
+export class UsersModule {}

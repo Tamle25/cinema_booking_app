@@ -50,20 +50,17 @@ const ReviewList = ({ movieId }: ReviewListProps) => {
     [API_URL, movieId]
   );
 
-  // Fetch initial data
   useEffect(() => {
     setPage(1);
     fetchReviews(1, sortBy, true);
   }, [movieId, sortBy, fetchReviews]);
 
-  // Load more
   const handleLoadMore = () => {
     const nextPage = page + 1;
     setPage(nextPage);
     fetchReviews(nextPage, sortBy);
   };
 
-  // Handle like
   const handleLike = async (reviewId: string) => {
     const token = localStorage.getItem("access_token");
     if (!token) {
@@ -78,7 +75,6 @@ const ReviewList = ({ movieId }: ReviewListProps) => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // Update local state
       setReviews((prev) =>
         prev.map((r) =>
           r._id === reviewId
@@ -97,13 +93,11 @@ const ReviewList = ({ movieId }: ReviewListProps) => {
     }
   };
 
-  // Sort tabs
   const sortOptions = [
     { value: "newest", label: "Mới nhất" },
     { value: "highest_rating", label: "Rating cao" },
   ];
 
-  // Loading skeleton
   if (loading) {
     return (
       <div className="space-y-4">
@@ -131,7 +125,7 @@ const ReviewList = ({ movieId }: ReviewListProps) => {
 
   return (
     <div>
-      {/* Sort Tabs + Count */}
+      
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           {sortOptions.map((opt) => (
@@ -153,7 +147,7 @@ const ReviewList = ({ movieId }: ReviewListProps) => {
         </span>
       </div>
 
-      {/* Reviews List */}
+      
       {reviews.length === 0 ? (
         <div className="text-center py-16 bg-gray-50 rounded-xl border border-dashed border-gray-200">
           <svg
@@ -186,7 +180,7 @@ const ReviewList = ({ movieId }: ReviewListProps) => {
         </div>
       )}
 
-      {/* Load More Button */}
+      
       {hasMore && reviews.length > 0 && (
         <div className="text-center mt-8">
           <button

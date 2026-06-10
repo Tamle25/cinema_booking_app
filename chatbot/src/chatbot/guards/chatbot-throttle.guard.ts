@@ -9,25 +9,28 @@ import {
   FALLBACK_RATE_LIMITED,
 } from '../../gemini/gemini.constants';
 
-/**
- * Custom rate limit guard cho chatbot endpoint.
- * Phân biệt giới hạn:
- * - Guest (không có auth header): 10 request/phút
- * - User đã login (có auth header): 30 request/phút
- */
 @Injectable()
 export class ChatbotThrottleGuard extends ThrottlerGuard {
   private readonly customLogger = new Logger(ChatbotThrottleGuard.name);
 
-  /** Tracker key: dùng IP + auth status */
   protected async getTracker(req: Record<string, any>): Promise<string> {
-    const ip = req.ip || req.connection?.remoteAddress || 'unknown';
     const authHeader = req.headers?.['authorization'];
-    const prefix = authHeader ? 'user' : 'guest';
-    return `chatbot:${prefix}:${ip}`;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      try {
+        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+        const userId = payload._id || payload.id || payload.sub;
+        if (userId) {
+          return `chatbot:user:${userId}`;
+        }
+      } catch (err: any) {
+        this.customLogger.warn(`Failed to decode JWT token for rate limiting: ${err.message}`);
+      }
+    }
+    const ip = req.ip || req.connection?.remoteAddress || 'unknown';
+    return `chatbot:guest:${ip}`;
   }
 
-  /** Override để kiểm tra rate limit theo auth status */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest();
     const authHeader = req.headers?.['authorization'];
@@ -36,13 +39,10 @@ export class ChatbotThrottleGuard extends ThrottlerGuard {
     const limit = isAuthenticated ? RATE_LIMIT_USER_MAX : RATE_LIMIT_GUEST_MAX;
     const ttl = isAuthenticated ? RATE_LIMIT_USER_TTL_MS : RATE_LIMIT_GUEST_TTL_MS;
 
-    // Lấy tracker key
     const tracker = await this.getTracker(req);
 
-    // Lấy throttler storage từ parent
     const storageService = (this as any).storageService as ThrottlerStorage;
     if (!storageService) {
-      // Nếu không có storage, fallback về parent behavior
       return super.canActivate(context);
     }
 
@@ -51,7 +51,7 @@ export class ChatbotThrottleGuard extends ThrottlerGuard {
 
       if (result.totalHits > limit) {
         this.customLogger.warn(
-          `🚫 Rate limited | tracker=${tracker} | hits=${result.totalHits}/${limit} | ttl=${ttl}ms`,
+          `Rate limited | tracker=${tracker} | hits=${result.totalHits}/${limit} | ttl=${ttl}ms`,
         );
 
         throw new HttpException(
@@ -65,18 +65,12 @@ export class ChatbotThrottleGuard extends ThrottlerGuard {
         );
       }
 
-      this.customLogger.debug(
-        `✅ Rate check | tracker=${tracker} | hits=${result.totalHits}/${limit}`,
-      );
-
       return true;
     } catch (error) {
-      // Nếu là HttpException của chúng ta, re-throw
       if (error instanceof HttpException) {
         throw error;
       }
-      // Lỗi khác (storage lỗi, etc.) → cho qua để không block user
-      this.customLogger.error(`❌ Rate limit check failed: ${error}`);
+      this.customLogger.error(`Rate limit check failed: ${error}`);
       return true;
     }
   }

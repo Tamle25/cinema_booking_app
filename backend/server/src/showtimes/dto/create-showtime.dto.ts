@@ -15,7 +15,7 @@ export class CreateShowtimeDto {
 
   @IsNotEmpty()
   @IsDateString()
-  start_time: string; // Dạng ISO: "2024-05-20T19:00:00.000Z"
+  start_time: string;
 
   @IsNotEmpty()
   @IsNumber()

@@ -1,4 +1,3 @@
-// src/types/index.ts
 
 export interface IGenre {
   _id: string;
@@ -82,7 +81,6 @@ export interface IBooking {
   combos?: IBookingCombo[];
 }
 
-// Combo bắp nước
 export interface ICombo {
   _id: string;
   name: string;
@@ -95,13 +93,11 @@ export interface ICombo {
   cinema_system?: ICinemaSystem | string;
 }
 
-// Combo đã chọn (dùng trong state frontend)
 export interface ISelectedCombo {
   combo: ICombo;
   quantity: number;
 }
 
-// Combo lưu trong booking (snapshot)
 export interface IBookingCombo {
   combo_id: string;
   name: string;
@@ -109,7 +105,6 @@ export interface IBookingCombo {
   quantity: number;
 }
 
-// Hệ thống rạp đối tác (alias cho cinema system dùng ở homepage)
 export interface ICinemaChain {
   _id: string;
   name: string;
@@ -118,7 +113,6 @@ export interface ICinemaChain {
   color_code?: string;
 }
 
-// Review phim
 export interface IReviewUser {
   _id: string;
   full_name: string;
@@ -156,7 +150,6 @@ export interface INews {
   updatedAt: string;
 }
 
-// === LOYALTY & VOUCHER TYPES ===
 
 export interface IPointTransaction {
   _id: string;
@@ -226,7 +219,6 @@ export interface IUserVoucher {
   createdAt: string;
 }
 
-// === SO SÁNH RẠP CHIẾU TYPES ===
 
 export interface IComparedShowtime {
   showtimeId: string;

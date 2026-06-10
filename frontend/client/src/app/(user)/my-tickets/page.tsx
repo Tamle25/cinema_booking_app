@@ -43,7 +43,6 @@ interface IBooking {
   }[];
 }
 
-// Format date helper
 const formatDate = (dateStr: string) => {
   const date = new Date(dateStr);
   return date.toLocaleDateString('vi-VN', {
@@ -66,7 +65,6 @@ const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 };
 
-// Status badge component
 const StatusBadge = ({ status }: { status: string }) => {
   const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
     pending: { label: 'Chờ xác nhận', color: 'text-yellow-700', bg: 'bg-yellow-100' },
@@ -84,7 +82,6 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
-// Ticket Card Component
 const TicketCard = ({ booking, onViewDetail }: { booking: IBooking; onViewDetail: (booking: IBooking) => void }) => {
   const isPast = new Date(booking.showtime?.start_time) < new Date();
 
@@ -94,7 +91,7 @@ const TicketCard = ({ booking, onViewDetail }: { booking: IBooking; onViewDetail
         }`}
     >
       <div className="flex flex-col md:flex-row">
-        {/* Poster */}
+        
         <div className="w-full md:w-40 h-48 md:h-auto relative flex-shrink-0">
           {booking.showtime?.movie?.poster_url ? (
             <img
@@ -116,7 +113,7 @@ const TicketCard = ({ booking, onViewDetail }: { booking: IBooking; onViewDetail
           )}
         </div>
 
-        {/* Info */}
+        
         <div className="flex-1 p-5">
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
             <div className="flex-1">
@@ -130,7 +127,7 @@ const TicketCard = ({ booking, onViewDetail }: { booking: IBooking; onViewDetail
               </h3>
 
               <div className="space-y-2 text-sm text-gray-600">
-                {/* Cinema */}
+                
                 <div className="flex items-center gap-2">
                   <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -139,7 +136,7 @@ const TicketCard = ({ booking, onViewDetail }: { booking: IBooking; onViewDetail
                   <span>{booking.showtime?.cinema?.name}</span>
                 </div>
 
-                {/* Date & Time */}
+                
                 <div className="flex items-center gap-2">
                   <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -149,7 +146,7 @@ const TicketCard = ({ booking, onViewDetail }: { booking: IBooking; onViewDetail
                   </span>
                 </div>
 
-                {/* Room & Seats */}
+                
                 <div className="flex items-center gap-2">
                   <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
@@ -159,10 +156,9 @@ const TicketCard = ({ booking, onViewDetail }: { booking: IBooking; onViewDetail
                   </span>
                 </div>
 
-                {/* Combos (nếu có) */}
                 {booking.combos && booking.combos.length > 0 && (
                   <div className="flex items-start gap-2">
-                    <span className="w-4 h-4 flex flex-shrink-0 items-center justify-center text-sm grayscale mt-0.5">🍿</span>
+                    <span className="text-xs font-semibold text-gray-500 mt-0.5">Combo</span>
                     <span className="flex-1">
                       Kèm <span className="font-semibold text-gray-900">{booking.combos.reduce((sum, c) => sum + c.quantity, 0)}</span> phần bắp nước
                     </span>
@@ -171,7 +167,7 @@ const TicketCard = ({ booking, onViewDetail }: { booking: IBooking; onViewDetail
               </div>
             </div>
 
-            {/* Price & Action */}
+            
             <div className="flex md:flex-col items-center md:items-end justify-between md:justify-start gap-3">
               <div className="text-right">
                 <p className="text-sm text-gray-500">Tổng tiền</p>
@@ -196,19 +192,17 @@ const TicketCard = ({ booking, onViewDetail }: { booking: IBooking; onViewDetail
   );
 };
 
-// Ticket Detail Modal
 const TicketDetailModal = ({ booking, onClose }: { booking: IBooking; onClose: () => void }) => {
-  // Generate simple QR code placeholder (in production, use a QR library)
   const ticketCode = booking._id.slice(-8).toUpperCase();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
+      
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Modal */}
+      
       <div className="relative bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-        {/* Close button */}
+        
         <button
           onClick={onClose}
           className="absolute top-4 right-4 z-10 w-10 h-10 bg-white/80 backdrop-blur rounded-full flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-white transition"
@@ -218,7 +212,7 @@ const TicketDetailModal = ({ booking, onClose }: { booking: IBooking; onClose: (
           </svg>
         </button>
 
-        {/* Movie Poster Header */}
+        
         <div className="relative h-48 overflow-hidden rounded-t-3xl">
           {booking.showtime?.movie?.poster_url ? (
             <img
@@ -240,18 +234,18 @@ const TicketDetailModal = ({ booking, onClose }: { booking: IBooking; onClose: (
           </div>
         </div>
 
-        {/* Ticket Content */}
+        
         <div className="p-6">
-          {/* Ticket Code */}
+          
           <div className="text-center mb-6">
             <p className="text-sm text-gray-500 mb-1">Mã vé</p>
             <p className="text-3xl font-mono font-bold text-gray-900 tracking-widest">{ticketCode}</p>
           </div>
 
-          {/* QR Code Placeholder */}
+          
           <div className="bg-gray-100 rounded-2xl p-6 mb-6 text-center">
             <div className="w-40 h-40 mx-auto bg-white rounded-xl flex items-center justify-center border-2 border-dashed border-gray-300">
-              {/* Simple QR placeholder - in production use qrcode.react */}
+              
               <div className="text-center">
                 <svg className="w-20 h-20 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
@@ -263,14 +257,14 @@ const TicketDetailModal = ({ booking, onClose }: { booking: IBooking; onClose: (
             <p className="text-xs text-gray-500 mt-3">Đưa mã này cho nhân viên rạp để nhận vé</p>
           </div>
 
-          {/* Divider with scissors */}
+          
           <div className="relative my-6">
             <div className="absolute left-0 top-1/2 w-4 h-8 bg-gray-100 rounded-r-full -translate-y-1/2 -translate-x-full" />
             <div className="absolute right-0 top-1/2 w-4 h-8 bg-gray-100 rounded-l-full -translate-y-1/2 translate-x-full" />
             <div className="border-t-2 border-dashed border-gray-200" />
           </div>
 
-          {/* Details Grid */}
+          
           <div className="space-y-4">
             <div className="flex justify-between items-start">
               <div>
@@ -307,7 +301,7 @@ const TicketDetailModal = ({ booking, onClose }: { booking: IBooking; onClose: (
               </div>
             </div>
 
-            {/* Chi tiết Bắp nước */}
+            
             {booking.combos && booking.combos.length > 0 && (
               <div className="pt-4 border-t border-gray-100">
                 <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Bắp Nước Đã Chọn</p>
@@ -337,7 +331,7 @@ const TicketDetailModal = ({ booking, onClose }: { booking: IBooking; onClose: (
               </div>
             </div>
 
-            {/* Booking time */}
+            
             <div className="pt-4 border-t border-gray-100 text-center">
               <p className="text-xs text-gray-400">
                 Đặt vé lúc: {new Date(booking.createdAt).toLocaleString('vi-VN')}
@@ -366,10 +360,8 @@ export default function MyTicketsPage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
   useEffect(() => {
-    // Wait for auth to load
     if (authLoading) return;
 
-    // Check if user is logged in
     if (!user) {
       const token = localStorage.getItem('access_token');
       if (!token) {
@@ -378,7 +370,6 @@ export default function MyTicketsPage() {
       }
     }
 
-    // Fetch user's bookings
     const fetchBookings = async () => {
       try {
         const token = localStorage.getItem('access_token');
@@ -404,7 +395,6 @@ export default function MyTicketsPage() {
     fetchBookings();
   }, [user, authLoading, router, API_URL]);
 
-  // Filter bookings
   const filteredBookings = bookings.filter(booking => {
     const showtime = new Date(booking.showtime?.start_time);
     const now = new Date();
@@ -414,17 +404,14 @@ export default function MyTicketsPage() {
     return true;
   });
 
-  // Pagination logic
   const totalPages = Math.ceil(filteredBookings.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedBookings = filteredBookings.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-  // Reset page when filter changes
   useEffect(() => {
     setCurrentPage(1);
   }, [filter]);
 
-  // Stats
   const upcomingCount = bookings.filter(b => new Date(b.showtime?.start_time) >= new Date()).length;
   const pastCount = bookings.filter(b => new Date(b.showtime?.start_time) < new Date()).length;
 
@@ -444,13 +431,13 @@ export default function MyTicketsPage() {
   return (
     <div className="min-h-screen bg-gray-50 pt-20">
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
+        
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Vé đã đặt</h1>
           <p className="text-gray-500 mt-1">Quản lý và theo dõi các vé xem phim của bạn</p>
         </div>
 
-        {/* Stats */}
+        
         <div className="grid grid-cols-3 gap-4 mb-6">
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
             <p className="text-sm text-gray-500">Tổng vé</p>
@@ -466,7 +453,7 @@ export default function MyTicketsPage() {
           </div>
         </div>
 
-        {/* Filter Tabs */}
+        
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
           <button
             onClick={() => setFilter('all')}
@@ -497,7 +484,7 @@ export default function MyTicketsPage() {
           </button>
         </div>
 
-        {/* Ticket List */}
+        
         {paginatedBookings.length > 0 ? (
           <>
             <div className="space-y-4">
@@ -510,10 +497,10 @@ export default function MyTicketsPage() {
               ))}
             </div>
 
-            {/* Pagination */}
+            
             {totalPages > 1 && (
               <div className="flex items-center justify-center gap-2 mt-8">
-                {/* Previous Button */}
+                
                 <button
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                   disabled={currentPage === 1}
@@ -527,7 +514,7 @@ export default function MyTicketsPage() {
                   </svg>
                 </button>
 
-                {/* Page Numbers */}
+                
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                   <button
                     key={page}
@@ -541,7 +528,7 @@ export default function MyTicketsPage() {
                   </button>
                 ))}
 
-                {/* Next Button */}
+                
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                   disabled={currentPage === totalPages}
@@ -557,7 +544,7 @@ export default function MyTicketsPage() {
               </div>
             )}
 
-            {/* Page Info */}
+            
             <p className="text-center text-sm text-gray-500 mt-4">
               Hiển thị {startIndex + 1} - {Math.min(startIndex + ITEMS_PER_PAGE, filteredBookings.length)} trong tổng số {filteredBookings.length} vé
             </p>
@@ -592,7 +579,7 @@ export default function MyTicketsPage() {
         )}
       </div>
 
-      {/* Detail Modal */}
+      
       {
         selectedBooking && (
           <TicketDetailModal

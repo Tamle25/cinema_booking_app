@@ -8,11 +8,6 @@ interface GeolocationState {
   errorMessage: string | null;
 }
 
-/**
- * Custom hook để lấy vị trí người dùng qua Browser Geolocation API.
- * Xử lý đầy đủ các trạng thái: idle, requesting, granted, denied, unsupported, error.
- * Cấu trúc sẵn sàng mở rộng geocoding địa chỉ sau này.
- */
 export function useGeolocation() {
   const [state, setState] = useState<GeolocationState>({
     coords: null,
@@ -21,7 +16,6 @@ export function useGeolocation() {
   });
 
   const requestLocation = useCallback(() => {
-    // Kiểm tra browser support
     if (!navigator.geolocation) {
       setState({
         coords: null,
@@ -34,7 +28,6 @@ export function useGeolocation() {
     setState(prev => ({ ...prev, status: 'requesting', errorMessage: null }));
 
     navigator.geolocation.getCurrentPosition(
-      // Success
       (position) => {
         setState({
           coords: {
@@ -45,7 +38,6 @@ export function useGeolocation() {
           errorMessage: null,
         });
       },
-      // Error
       (error) => {
         let errorMessage = 'Không thể lấy vị trí.';
         let status: GeolocationState['status'] = 'error';
@@ -69,11 +61,10 @@ export function useGeolocation() {
           errorMessage,
         });
       },
-      // Options
       {
         enableHighAccuracy: true,
         timeout: 10000,
-        maximumAge: 300000, // Cache 5 phút
+        maximumAge: 300000,
       },
     );
   }, []);

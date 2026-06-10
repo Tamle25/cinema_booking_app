@@ -9,6 +9,7 @@ import axios from "axios";
 import Link from "next/link";
 import { toastSuccess, toastWarning, toastError } from "@/utils/toast";
 import { getCloudinaryImageUrl, movieImagePresets } from "@/lib/cloudinary";
+import { getErrorMessage, getResponseMessage } from "@/utils/errorMessage";
 
 export default function ReviewDetailPage() {
   const params = useParams();
@@ -18,7 +19,6 @@ export default function ReviewDetailPage() {
   const [movie, setMovie] = useState<IMovie | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Review form states
   const [showForm, setShowForm] = useState(false);
   const [canReview, setCanReview] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
@@ -31,7 +31,6 @@ export default function ReviewDetailPage() {
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-  // Fetch movie data
   useEffect(() => {
     const fetchMovie = async () => {
       try {
@@ -47,7 +46,6 @@ export default function ReviewDetailPage() {
     if (movieId) fetchMovie();
   }, [movieId, API_URL, refreshKey]);
 
-  // Check review status
   useEffect(() => {
     const checkStatus = async () => {
       if (!user) {
@@ -74,7 +72,6 @@ export default function ReviewDetailPage() {
     if (movieId) checkStatus();
   }, [movieId, user, API_URL, refreshKey]);
 
-  // Submit review
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -111,11 +108,11 @@ export default function ReviewDetailPage() {
       setShowForm(false);
       setHasReviewed(true);
       setCanReview(false);
-      // Refresh data
       setRefreshKey((k) => k + 1);
-    } catch (error: any) {
-      const msg =
-        error.response?.data?.message || "Có lỗi xảy ra khi gửi đánh giá";
+    } catch (error) {
+      const msg = axios.isAxiosError(error)
+        ? getResponseMessage(error.response?.data?.message, "Có lỗi xảy ra khi gửi đánh giá")
+        : getErrorMessage(error, "Có lỗi xảy ra khi gửi đánh giá");
       toastError(msg);
     } finally {
       setSubmitting(false);
@@ -145,7 +142,7 @@ export default function ReviewDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Banner */}
+      
       <div
         className="relative w-full -mt-16 pt-16 bg-cover bg-center"
         style={{ backgroundImage: `url(${reviewBannerUrl})` }}
@@ -153,7 +150,7 @@ export default function ReviewDetailPage() {
         <div className="bg-gradient-to-t from-gray-900 via-gray-900/80 to-gray-900/60 py-12 md:py-16">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-end gap-6">
-              {/* Poster */}
+              
               <div className="hidden md:block flex-shrink-0">
                 <img
                   src={getCloudinaryImageUrl(movie.poster_url, movieImagePresets.posterDetail)}
@@ -162,7 +159,7 @@ export default function ReviewDetailPage() {
                 />
               </div>
 
-              {/* Info */}
+              
               <div className="flex-1 pb-2">
                 <Link
                   href={`/movie/${movie._id}`}
@@ -178,7 +175,7 @@ export default function ReviewDetailPage() {
                 </h1>
 
                 <div className="flex items-center gap-4 mt-4">
-                  {/* Rating */}
+                  
                   <div className="flex items-center gap-2 bg-black/40 backdrop-blur-sm px-4 py-2 rounded-xl">
                     <svg
                       className="w-6 h-6 text-yellow-400"
@@ -206,9 +203,9 @@ export default function ReviewDetailPage() {
         </div>
       </div>
 
-      {/* Main Content */}
+      
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Write Review Section */}
+        
         <div className="mb-8">
           {!user ? (
             <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
@@ -274,7 +271,7 @@ export default function ReviewDetailPage() {
             </button>
           ) : null}
 
-          {/* Review Form */}
+          
           {showForm && canReview && (
             <form
               onSubmit={handleSubmitReview}
@@ -284,7 +281,7 @@ export default function ReviewDetailPage() {
                 Đánh giá phim
               </h3>
 
-              {/* Rating Selector */}
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Điểm đánh giá
@@ -323,7 +320,7 @@ export default function ReviewDetailPage() {
                 </div>
               </div>
 
-              {/* Content */}
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Nội dung đánh giá
@@ -341,7 +338,7 @@ export default function ReviewDetailPage() {
                 </p>
               </div>
 
-              {/* Actions */}
+              
               <div className="flex items-center gap-3 justify-end">
                 <button
                   type="button"
@@ -369,7 +366,7 @@ export default function ReviewDetailPage() {
           )}
         </div>
 
-        {/* Reviews List */}
+        
         <ReviewList key={refreshKey} movieId={movieId} />
       </div>
     </div>

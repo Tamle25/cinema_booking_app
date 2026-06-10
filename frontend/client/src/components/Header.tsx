@@ -17,7 +17,6 @@ interface IMovie {
   release_date: string;
 }
 
-// Debounce hook
 const useDebounce = (value: string, delay: number) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
   
@@ -37,7 +36,6 @@ const Header = () => {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  // Search states
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<IMovie[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -56,7 +54,6 @@ const Header = () => {
   
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-  // Search function
   const performSearch = useCallback(async (query: string, isMobile = false) => {
     if (!query.trim()) {
       if (isMobile) {
@@ -79,7 +76,6 @@ const Header = () => {
       const res = await fetch(`${API_URL}/movies`);
       if (res.ok) {
         const movies: IMovie[] = await res.json();
-        // Filter movies by search query
         const filtered = movies.filter(movie => 
           movie.title.toLowerCase().includes(query.toLowerCase()) ||
           movie.genres?.some(g => g.name.toLowerCase().includes(query.toLowerCase()))
@@ -104,17 +100,14 @@ const Header = () => {
     }
   }, [API_URL]);
 
-  // Desktop search effect
   useEffect(() => {
     performSearch(debouncedSearch, false);
   }, [debouncedSearch, performSearch]);
 
-  // Mobile search effect
   useEffect(() => {
     performSearch(debouncedMobileSearch, true);
   }, [debouncedMobileSearch, performSearch]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
@@ -129,7 +122,6 @@ const Header = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Handle movie click
   const handleMovieClick = (movieId: string) => {
     setShowResults(false);
     setShowMobileResults(false);
@@ -139,19 +131,20 @@ const Header = () => {
     router.push(`/movie/${movieId}`);
   };
 
-  // Handle search submit
-  const handleSearchSubmit = (e: React.FormEvent, query: string) => {
-    e.preventDefault();
+  const submitSearch = (query: string) => {
     if (query.trim()) {
       setShowResults(false);
       setShowMobileResults(false);
       setMobileMenuOpen(false);
-      // Navigate to search results page or filter on homepage
       router.push(`/?search=${encodeURIComponent(query.trim())}`);
     }
   };
 
-  // Search Result Item Component
+  const handleSearchSubmit = (e: React.FormEvent, query: string) => {
+    e.preventDefault();
+    submitSearch(query);
+  };
+
   const SearchResultItem = ({ movie, onClick }: { movie: IMovie; onClick: () => void }) => (
     <button
       onClick={onClick}
@@ -188,7 +181,6 @@ const Header = () => {
     </button>
   );
 
-  // Search Results Dropdown
   const SearchResultsDropdown = ({ 
     results, 
     isLoading, 
@@ -200,7 +192,7 @@ const Header = () => {
     isLoading: boolean;
     query: string;
     onMovieClick: (id: string) => void;
-    onSubmit: (e: React.FormEvent) => void;
+    onSubmit: () => void;
   }) => (
     <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50">
       {isLoading ? (
@@ -220,13 +212,13 @@ const Header = () => {
             ))}
           </div>
           <button
-            onClick={onSubmit as any}
+            onClick={onSubmit}
             className="w-full px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 border-t border-gray-100 transition-colors flex items-center justify-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            Xem tất cả kết quả cho "{query}"
+            Xem tất cả kết quả cho &quot;{query}&quot;
           </button>
         </div>
       ) : (
@@ -242,7 +234,7 @@ const Header = () => {
     <header className="fixed top-0 left-0 right-0 h-16 bg-white shadow-sm z-50">
       <div className="max-w-7xl mx-auto h-full px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-full">
-          {/* LEFT: Logo */}
+          
           <div className="flex-shrink-0">
             <Link href="/" className="flex items-center gap-2.5">
               <div className="w-9 h-9 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-red-500/30">
@@ -255,7 +247,7 @@ const Header = () => {
             </Link>
           </div>
 
-          {/* CENTER: Navigation Menu (Desktop) */}
+          
           <nav className="hidden lg:flex items-center justify-center flex-1 px-8">
             <div className="flex items-center gap-1">
               <Link href="/" className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
@@ -273,9 +265,9 @@ const Header = () => {
             </div>
           </nav>
 
-          {/* RIGHT: Search + User Actions */}
+          
           <div className="flex items-center gap-3">
-            {/* Search (Desktop) */}
+            
             <div className="hidden md:flex items-center" ref={searchRef}>
               <form onSubmit={(e) => handleSearchSubmit(e, searchQuery)} className="relative">
                 <input
@@ -296,7 +288,7 @@ const Header = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 
-                {/* Clear button */}
+                
                 {searchQuery && (
                   <button
                     type="button"
@@ -313,26 +305,26 @@ const Header = () => {
                   </button>
                 )}
                 
-                {/* Search Results Dropdown */}
+                
                 {showResults && searchQuery && (
                   <SearchResultsDropdown
                     results={searchResults}
                     isLoading={isSearching}
                     query={searchQuery}
                     onMovieClick={handleMovieClick}
-                    onSubmit={(e) => handleSearchSubmit(e, searchQuery)}
+                    onSubmit={() => submitSearch(searchQuery)}
                   />
                 )}
               </form>
             </div>
 
-            {/* Divider */}
+            
             <div className="hidden md:block h-6 w-px bg-gray-200" />
 
-            {/* User Section */}
+            
             {user ? (
               <div className="flex items-center gap-2 sm:gap-3">
-                {/* My Tickets Button */}
+                
                 <Link 
                   href="/my-tickets"
                   className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -344,7 +336,7 @@ const Header = () => {
                   <span className="hidden sm:inline">Vé của tôi</span>
                 </Link>
 
-                {/* User Info Dropdown */}
+                
                 <div className="flex items-center gap-2 pl-2 border-l border-gray-200">
                   <Link href="/profile" className="flex items-center gap-2 group" title="Hồ sơ cá nhân">
                     <div className="hidden sm:block text-right">
@@ -391,7 +383,7 @@ const Header = () => {
               </div>
             )}
 
-            {/* Mobile Menu Button */}
+            
             <button 
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="lg:hidden p-2 text-gray-600 hover:text-red-600 hover:bg-gray-100 rounded-lg transition-colors ml-1"
@@ -408,10 +400,10 @@ const Header = () => {
         </div>
       </div>
 
-      {/* Mobile Menu Dropdown */}
+      
       {mobileMenuOpen && (
         <div className="lg:hidden absolute top-16 left-0 right-0 bg-white border-t border-gray-100 shadow-lg max-h-[calc(100vh-4rem)] overflow-y-auto">
-          {/* Mobile Search */}
+          
           <div className="px-4 pt-4 pb-2" ref={mobileSearchRef}>
             <form onSubmit={(e) => handleSearchSubmit(e, mobileSearchQuery)} className="relative">
               <input
@@ -431,7 +423,7 @@ const Header = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               
-              {/* Clear button */}
+              
               {mobileSearchQuery && (
                 <button
                   type="button"
@@ -448,7 +440,7 @@ const Header = () => {
               )}
             </form>
             
-            {/* Mobile Search Results */}
+            
             {showMobileResults && mobileSearchQuery && (
               <div className="mt-2 bg-gray-50 rounded-xl overflow-hidden">
                 {isMobileSearching ? (

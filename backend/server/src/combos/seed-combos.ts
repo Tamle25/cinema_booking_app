@@ -1,19 +1,11 @@
-/**
- * Script seed dữ liệu combo bắp nước mẫu
- * Chạy: npx ts-node src/combos/seed-combos.ts
- * Hoặc: npx tsx src/combos/seed-combos.ts
- */
-
 import mongoose from 'mongoose';
 import * as dotenv from 'dotenv';
 import { resolve } from 'path';
 
-// Load .env
 dotenv.config({ path: resolve(__dirname, '../../.env') });
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/cinema';
 
-// Schema đơn giản cho seed
 const ComboSchema = new mongoose.Schema(
   {
     name: String,
@@ -106,26 +98,15 @@ const combosData = [
 
 async function seed() {
   try {
-    console.log('🔌 Đang kết nối MongoDB:', MONGO_URI);
     await mongoose.connect(MONGO_URI);
-    console.log('✅ Kết nối thành công!');
 
-    // Xóa dữ liệu cũ
     await Combo.deleteMany({});
-    console.log('🗑️  Đã xóa combos cũ');
-
-    // Thêm dữ liệu mới
-    const result = await Combo.insertMany(combosData);
-    console.log(`🌱 Đã seed ${result.length} combos:`);
-    result.forEach((combo) => {
-      console.log(`   - ${combo.name}: ${combo.price.toLocaleString()}đ`);
-    });
+    await Combo.insertMany(combosData);
 
     await mongoose.disconnect();
-    console.log('✅ Hoàn tất!');
     process.exit(0);
   } catch (error) {
-    console.error('❌ Lỗi:', error);
+    console.error('Lỗi seed combos:', error);
     process.exit(1);
   }
 }

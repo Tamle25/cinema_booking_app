@@ -1,4 +1,3 @@
-// File: src/movies/schemas/movie.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
 import { Genre } from '../../genres/schemas/genre.schema';
@@ -62,6 +61,5 @@ MovieSchema.virtual('status').get(function (this: MovieDocument) {
   const now = new Date();
   const releaseDate = new Date(this.release_date);
 
-  // So sánh: Nếu ngày phát hành <= hiện tại -> Đang chiếu
   return releaseDate <= now ? 'Đang chiếu' : 'Sắp chiếu';
 });

@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { toastSuccess, toastError } from '@/utils/toast';
 import { authHeaders, API_URL } from '@/lib/api';
 import Pagination from '@/components/Pagination';
+import ConfirmModal from '@/components/ConfirmModal';
 import type { IVoucher } from '@/types';
 
 interface ICinema {
@@ -22,28 +23,54 @@ interface IUsageHistory {
   createdAt: string;
 }
 
+type VoucherTab = IVoucher['voucherType'];
+type DiscountType = IVoucher['discountType'];
+type VoucherCinemaRef = string | { _id: string };
+
+interface VoucherPayload {
+  name: string;
+  description: string;
+  voucherType: VoucherTab;
+  discountType: DiscountType;
+  discountValue: number;
+  minOrderAmount: number;
+  isUnlimited: boolean;
+  usageLimit: number;
+  isAllCinemas: boolean;
+  applicableCinemaIds: string[];
+  requiredMembershipRank: string;
+  status?: string;
+  code?: string;
+  startDate?: string;
+  endDate?: string;
+  requiredPoints?: number;
+  validDaysAfterExchange?: number;
+  exchangeLimit?: number;
+  maxDiscountAmount?: number;
+}
+
 export default function AdminVouchersPage() {
-  const [activeTab, setActiveTab] = useState<'ADMIN_CODE' | 'POINT_EXCHANGE_TEMPLATE'>('ADMIN_CODE');
+  const [activeTab, setActiveTab] = useState<VoucherTab>('ADMIN_CODE');
   const [vouchers, setVouchers] = useState<IVoucher[]>([]);
   const [cinemas, setCinemas] = useState<ICinema[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Pagination & filter
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Modal create/edit states
   const [showModal, setShowModal] = useState(false);
   const [editingVoucher, setEditingVoucher] = useState<IVoucher | null>(null);
   const [saving, setSaving] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<IVoucher | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  // Form states
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [description, setDescription] = useState('');
-  const [discountType, setDiscountType] = useState<'PERCENT' | 'FIXED_AMOUNT'>('PERCENT');
+  const [discountType, setDiscountType] = useState<DiscountType>('PERCENT');
   const [discountValue, setDiscountValue] = useState(0);
   const [maxDiscountAmount, setMaxDiscountAmount] = useState(0);
   const [minOrderAmount, setMinOrderAmount] = useState(0);
@@ -59,7 +86,6 @@ export default function AdminVouchersPage() {
   const [validDaysAfterExchange, setValidDaysAfterExchange] = useState(30);
   const [exchangeLimit, setExchangeLimit] = useState(0);
 
-  // Usage history modal states
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedVoucher, setSelectedVoucher] = useState<IVoucher | null>(null);
   const [usageHistory, setUsageHistory] = useState<IUsageHistory[]>([]);
@@ -82,7 +108,7 @@ export default function AdminVouchersPage() {
       } else {
         toastError('Lỗi tải danh sách voucher');
       }
-    } catch (error) {
+    } catch {
       toastError('Không thể kết nối đến server');
     } finally {
       setLoading(false);
@@ -101,7 +127,6 @@ export default function AdminVouchersPage() {
     }
   };
 
-  // Filter
   const filteredVouchers = vouchers.filter(v => {
     const matchSearch = v.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (v.code || '').toLowerCase().includes(searchTerm.toLowerCase());
@@ -119,7 +144,6 @@ export default function AdminVouchersPage() {
     return filteredVouchers.slice(start, start + itemsPerPage);
   }, [filteredVouchers, currentPage, itemsPerPage]);
 
-  // Open create modal
   const openCreateModal = () => {
     setEditingVoucher(null);
     setName('');
@@ -143,7 +167,6 @@ export default function AdminVouchersPage() {
     setShowModal(true);
   };
 
-  // Open edit modal
   const openEditModal = (voucher: IVoucher) => {
     setEditingVoucher(voucher);
     setName(voucher.name || '');
@@ -167,7 +190,8 @@ export default function AdminVouchersPage() {
     setIsUnlimited(voucher.isUnlimited !== false);
     setStatus(voucher.status || 'active');
     setIsAllCinemas(voucher.isAllCinemas !== false);
-    const cinemaIds = voucher.applicableCinemaIds?.map((c: any) => typeof c === 'object' ? c._id : c) || [];
+    const cinemaRefs = (voucher.applicableCinemaIds || []) as VoucherCinemaRef[];
+    const cinemaIds = cinemaRefs.map((cinema) => typeof cinema === 'object' ? cinema._id : cinema);
     setApplicableCinemaIds(cinemaIds);
     setRequiredMembershipRank(voucher.requiredMembershipRank || 'Member');
     setRequiredPoints(voucher.requiredPoints || 0);
@@ -181,7 +205,6 @@ export default function AdminVouchersPage() {
     setEditingVoucher(null);
   };
 
-  // Toggle status
   const handleToggleStatus = async (id: string) => {
     try {
       const res = await fetch(`${API_URL}/vouchers/admin/${id}/toggle`, {
@@ -194,32 +217,39 @@ export default function AdminVouchersPage() {
       } else {
         toastError('Lỗi cập nhật trạng thái');
       }
-    } catch (error) {
+    } catch {
       toastError('Không thể kết nối đến server');
     }
   };
 
-  // Delete
-  const handleDelete = async (voucher: IVoucher) => {
-    if (!window.confirm(`Bạn chắc chắn muốn xóa voucher "${voucher.name}"?`)) return;
+  const handleDelete = (voucher: IVoucher) => {
+    setDeleteTarget(voucher);
+    setIsConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
     try {
-      const res = await fetch(`${API_URL}/vouchers/admin/${voucher._id}`, {
+      const res = await fetch(`${API_URL}/vouchers/admin/${deleteTarget._id}`, {
         method: 'DELETE',
         headers: authHeaders(),
       });
       if (res.ok) {
         toastSuccess('Xóa voucher thành công!');
         fetchVouchers();
+        setIsConfirmOpen(false);
       } else {
         const err = await res.json();
         toastError(err.message || 'Không thể xóa voucher đã sử dụng');
       }
-    } catch (error) {
+    } catch {
       toastError('Không thể kết nối đến server');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  // Save (create or edit)
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
@@ -233,7 +263,7 @@ export default function AdminVouchersPage() {
 
     setSaving(true);
 
-    const payload: any = {
+    const payload: VoucherPayload = {
       name,
       description,
       voucherType: activeTab,
@@ -247,7 +277,6 @@ export default function AdminVouchersPage() {
       requiredMembershipRank,
     };
 
-    // Chỉ gửi status khi edit, khi tạo mới để backend tự gán mặc định 'active'
     if (editingVoucher) {
       payload.status = status;
     }
@@ -291,14 +320,13 @@ export default function AdminVouchersPage() {
       } else {
         toastError(data.message || 'Lỗi lưu voucher');
       }
-    } catch (error) {
+    } catch {
       toastError('Không thể kết nối đến server');
     } finally {
       setSaving(false);
     }
   };
 
-  // Usage history
   const openHistoryModal = async (voucher: IVoucher) => {
     setSelectedVoucher(voucher);
     setShowHistoryModal(true);
@@ -326,7 +354,6 @@ export default function AdminVouchersPage() {
     );
   };
 
-  // Helpers
   const colCount = activeTab === 'ADMIN_CODE' ? 8 : 8;
 
   if (loading) {
@@ -339,7 +366,7 @@ export default function AdminVouchersPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Quản lý Voucher & Khuyến mãi</h1>
@@ -356,7 +383,7 @@ export default function AdminVouchersPage() {
         </button>
       </div>
 
-      {/* Stats */}
+      
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
           <p className="text-sm text-gray-500">Tổng voucher</p>
@@ -372,10 +399,10 @@ export default function AdminVouchersPage() {
         </div>
       </div>
 
-      {/* Filter bar */}
+      
       <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
         <div className="flex flex-wrap items-center gap-4">
-          {/* Tabs inline */}
+          
           <div className="flex bg-gray-100 rounded-lg p-0.5">
             <button
               onClick={() => setActiveTab('ADMIN_CODE')}
@@ -425,7 +452,7 @@ export default function AdminVouchersPage() {
         </div>
       </div>
 
-      {/* Table */}
+      
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full table-fixed min-w-[1000px]">
@@ -455,7 +482,7 @@ export default function AdminVouchersPage() {
               ) : (
                 paginatedVouchers.map((voucher) => (
                   <tr key={voucher._id} className="hover:bg-gray-50 transition">
-                    {/* Name + description */}
+                    
                     <td className="px-6 py-4">
                       <div>
                         <p className="font-semibold text-gray-800">{voucher.name}</p>
@@ -465,7 +492,7 @@ export default function AdminVouchersPage() {
                       </div>
                     </td>
 
-                    {/* Code (only ADMIN_CODE) */}
+                    
                     {activeTab === 'ADMIN_CODE' && (
                       <td className="px-6 py-4">
                         <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-mono font-bold bg-gray-100 text-gray-800 border border-gray-200 uppercase">
@@ -474,7 +501,7 @@ export default function AdminVouchersPage() {
                       </td>
                     )}
 
-                    {/* Discount value */}
+                    
                     <td className="px-6 py-4">
                       <span className="text-sm font-semibold text-gray-800">
                         {voucher.discountType === 'PERCENT'
@@ -486,7 +513,7 @@ export default function AdminVouchersPage() {
                       )}
                     </td>
 
-                    {/* Points (only POINT_EXCHANGE_TEMPLATE) */}
+                    
                     {activeTab === 'POINT_EXCHANGE_TEMPLATE' && (
                       <td className="px-6 py-4 text-center">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
@@ -495,7 +522,7 @@ export default function AdminVouchersPage() {
                       </td>
                     )}
 
-                    {/* Usage count */}
+                    
                     <td className="px-6 py-4 text-center">
                       <span className="text-sm text-gray-700">
                         {activeTab === 'ADMIN_CODE'
@@ -504,14 +531,14 @@ export default function AdminVouchersPage() {
                       </span>
                     </td>
 
-                    {/* Rank */}
+                    
                     <td className="px-6 py-4 text-center">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
                         {voucher.requiredMembershipRank}+
                       </span>
                     </td>
 
-                    {/* Status toggle */}
+                    
                     <td className="px-6 py-4 text-center">
                       <button
                         onClick={() => handleToggleStatus(voucher._id)}
@@ -528,7 +555,7 @@ export default function AdminVouchersPage() {
                       </button>
                     </td>
 
-                    {/* Actions */}
+                    
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-1">
                         <button
@@ -567,7 +594,7 @@ export default function AdminVouchersPage() {
           </table>
         </div>
 
-        {/* Pagination */}
+        
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
@@ -581,11 +608,11 @@ export default function AdminVouchersPage() {
         />
       </div>
 
-      {/* CREATE & EDIT MODAL */}
+      
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-            {/* Modal header */}
+            
             <div className="p-6 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
               <h3 className="text-lg font-semibold text-gray-800">
                 {editingVoucher
@@ -604,10 +631,10 @@ export default function AdminVouchersPage() {
               </button>
             </div>
 
-            {/* Modal body */}
+            
             <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Tên voucher */}
+                
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tên Voucher *</label>
                   <input
@@ -620,7 +647,7 @@ export default function AdminVouchersPage() {
                   />
                 </div>
 
-                {/* Mã Code (chỉ hiện với ADMIN_CODE) */}
+                
                 {activeTab === 'ADMIN_CODE' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Mã Code *</label>
@@ -635,7 +662,7 @@ export default function AdminVouchersPage() {
                   </div>
                 )}
 
-                {/* Mô tả */}
+                
                 <div className={activeTab === 'ADMIN_CODE' ? '' : 'md:col-span-2'}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả chi tiết</label>
                   <input
@@ -647,12 +674,12 @@ export default function AdminVouchersPage() {
                   />
                 </div>
 
-                {/* Loại giảm giá */}
+                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Loại giảm giá</label>
                   <select
                     value={discountType}
-                    onChange={(e) => setDiscountType(e.target.value as any)}
+                    onChange={(e) => setDiscountType(e.target.value as DiscountType)}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   >
                     <option value="PERCENT">Phần trăm (%)</option>
@@ -660,7 +687,7 @@ export default function AdminVouchersPage() {
                   </select>
                 </div>
 
-                {/* Giá trị giảm */}
+                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Giá trị giảm *</label>
                   <input
@@ -673,7 +700,7 @@ export default function AdminVouchersPage() {
                   />
                 </div>
 
-                {/* Giảm tối đa (chỉ hiện cho PERCENT) */}
+                
                 {discountType === 'PERCENT' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Mức giảm tối đa (đ)</label>
@@ -687,7 +714,7 @@ export default function AdminVouchersPage() {
                   </div>
                 )}
 
-                {/* Đơn hàng tối thiểu */}
+                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Đơn hàng tối thiểu (đ)</label>
                   <input
@@ -699,7 +726,7 @@ export default function AdminVouchersPage() {
                   />
                 </div>
 
-                {/* Bắt đầu và Kết thúc (chỉ hiện cho ADMIN_CODE) */}
+                
                 {activeTab === 'ADMIN_CODE' && (
                   <>
                     <div>
@@ -723,7 +750,7 @@ export default function AdminVouchersPage() {
                   </>
                 )}
 
-                {/* Yêu cầu điểm + Hạn ngày sử dụng (chỉ hiện cho POINT_EXCHANGE_TEMPLATE) */}
+                
                 {activeTab === 'POINT_EXCHANGE_TEMPLATE' && (
                   <>
                     <div>
@@ -751,7 +778,7 @@ export default function AdminVouchersPage() {
                   </>
                 )}
 
-                {/* Hạng thành viên tối thiểu */}
+                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Hạng thành viên tối thiểu</label>
                   <select
@@ -767,7 +794,7 @@ export default function AdminVouchersPage() {
                   </select>
                 </div>
 
-                {/* Giới hạn sử dụng */}
+                
                 <div className="md:col-span-2">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -793,7 +820,7 @@ export default function AdminVouchersPage() {
                   )}
                 </div>
 
-                {/* Giới hạn rạp áp dụng */}
+                
                 <div className="md:col-span-2">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -824,7 +851,7 @@ export default function AdminVouchersPage() {
                   )}
                 </div>
 
-                {/* Trạng thái kích hoạt - chỉ hiện khi chỉnh sửa */}
+                
                 {editingVoucher && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
@@ -840,7 +867,7 @@ export default function AdminVouchersPage() {
                 )}
               </div>
 
-              {/* Action buttons */}
+              
               <div className="pt-4 border-t border-gray-100 flex justify-end gap-3">
                 <button
                   type="button"
@@ -862,11 +889,22 @@ export default function AdminVouchersPage() {
         </div>
       )}
 
-      {/* USAGE HISTORY MODAL */}
+      
+      <ConfirmModal
+        open={isConfirmOpen}
+        title="Xác nhận xóa voucher"
+        message={`Bạn có chắc chắn muốn xóa voucher "${deleteTarget?.name}" không? Hành động này không thể hoàn tác.`}
+        confirmText="Xóa"
+        cancelText="Hủy"
+        loading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setIsConfirmOpen(false)}
+      />
+
       {showHistoryModal && selectedVoucher && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
-            {/* Header */}
+            
             <div className="p-6 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
               <div>
                 <h3 className="text-lg font-semibold text-gray-800">Lịch sử sử dụng: {selectedVoucher.name}</h3>
@@ -882,7 +920,7 @@ export default function AdminVouchersPage() {
               </button>
             </div>
 
-            {/* Body */}
+            
             <div className="flex-1 overflow-y-auto">
               {loadingHistory ? (
                 <div className="flex items-center justify-center py-20">
@@ -927,7 +965,7 @@ export default function AdminVouchersPage() {
               )}
             </div>
 
-            {/* Footer */}
+            
             <div className="p-4 border-t border-gray-100 flex justify-end flex-shrink-0">
               <button
                 onClick={() => setShowHistoryModal(false)}

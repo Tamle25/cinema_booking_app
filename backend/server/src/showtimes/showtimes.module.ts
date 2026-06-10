@@ -3,8 +3,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ShowtimesController } from './showtimes.controller';
 import { ShowtimesService } from './showtimes.service';
 import { Showtime, ShowtimeSchema } from './schemas/showtime.schema';
-import { MoviesModule } from '../movies/movies.module'; // Import để dùng MoviesService
-import { CinemasModule } from '../cinemas/cinemas.module'; // Import để populate cinema + cinema_system
+import { MoviesModule } from '../movies/movies.module';
+import { CinemasModule } from '../cinemas/cinemas.module';
 
 @Module({
   imports: [

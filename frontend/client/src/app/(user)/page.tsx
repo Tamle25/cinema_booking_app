@@ -12,7 +12,6 @@ import CinemaPartnersSection from "@/components/HomePage/CinemaPartnersSection";
 import { IMovie } from "@/types";
 import { getCloudinaryImageUrl, movieImagePresets } from "@/lib/cloudinary";
 
-// Định nghĩa kiểu dữ liệu (phải khớp với Backend)
 interface Movie {
   _id: string;
   title: string;
@@ -25,14 +24,12 @@ interface Movie {
 export default function HomePage() {
   const [movies, setMovies] = useState<Movie[]>([]);
 
-  // Now Showing scroll state
   const [currentPageNowShowing, setCurrentPageNowShowing] = useState(0);
   const scrollContainerNowShowingRef = useRef<HTMLDivElement>(null);
   const [isDraggingNowShowing, setIsDraggingNowShowing] = useState(false);
   const [startXNowShowing, setStartXNowShowing] = useState(0);
   const [scrollLeftNowShowing, setScrollLeftNowShowing] = useState(0);
 
-  // Coming Soon scroll state
   const [currentPageComingSoon, setCurrentPageComingSoon] = useState(0);
   const scrollContainerComingSoonRef = useRef<HTMLDivElement>(null);
   const [isDraggingComingSoon, setIsDraggingComingSoon] = useState(false);
@@ -41,10 +38,9 @@ export default function HomePage() {
 
   const MOVIES_PER_PAGE = 6;
 
-  // Phân loại phim dựa trên ngày khởi chiếu
   const { nowShowingMovies, comingSoonMovies } = useMemo(() => {
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset thời gian để so sánh chính xác theo ngày
+    today.setHours(0, 0, 0, 0);
 
     const nowShowing: Movie[] = [];
     const comingSoon: Movie[] = [];
@@ -66,10 +62,8 @@ export default function HomePage() {
   const totalPagesNowShowing = Math.ceil(nowShowingMovies.length / MOVIES_PER_PAGE);
   const totalPagesComingSoon = Math.ceil(comingSoonMovies.length / MOVIES_PER_PAGE);
 
-  // State cho dữ liệu IMovie đầy đủ (dùng cho hero banner)
   const [fullMovies, setFullMovies] = useState<IMovie[]>([]);
 
-  // Gọi API lấy danh sách phim
   useEffect(() => {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
     const fetchMovies = async () => {
@@ -84,7 +78,6 @@ export default function HomePage() {
     fetchMovies();
   }, []);
 
-  // ============ NOW SHOWING HANDLERS ============
   const handleMouseDownNowShowing = useCallback((e: React.MouseEvent) => {
     if (!scrollContainerNowShowingRef.current) return;
     setIsDraggingNowShowing(true);
@@ -145,7 +138,6 @@ export default function HomePage() {
     }
   }, [currentPageNowShowing, nowShowingMovies.length, totalPagesNowShowing]);
 
-  // ============ COMING SOON HANDLERS ============
   const handleMouseDownComingSoon = useCallback((e: React.MouseEvent) => {
     if (!scrollContainerComingSoonRef.current) return;
     setIsDraggingComingSoon(true);
@@ -206,7 +198,6 @@ export default function HomePage() {
     }
   }, [currentPageComingSoon, comingSoonMovies.length, totalPagesComingSoon]);
 
-  // Format ngày hiển thị
   const formatReleaseDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -214,12 +205,12 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-gray-100">
-      {/* 1. Hero Banner - Featured Movies Carousel */}
+      
       <FeaturedMoviesSection movies={fullMovies} />
 
-      {/* 2. Phần Danh Sách Phim Đang Chiếu */}
+      
       <div id="now-showing" className="max-w-7xl mx-auto px-4 py-12">
-        {/* Section Header */}
+        
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
             <div className="w-1.5 h-10 bg-red-600 rounded-full" />
@@ -233,7 +224,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Navigation Arrows */}
+          
           <div className="flex items-center gap-3">
             <button
               onClick={() => scrollByAmountNowShowing('left')}
@@ -265,13 +256,13 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Movies Horizontal Scroll Container */}
+        
         <div className="relative">
-          {/* Gradient Overlays for visual scroll hint */}
+          
           <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-gray-100 to-transparent z-10 pointer-events-none" />
           <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-gray-100 to-transparent z-10 pointer-events-none" />
 
-          {/* Scrollable Container */}
+          
           <div
             ref={scrollContainerNowShowingRef}
             onMouseDown={handleMouseDownNowShowing}
@@ -297,7 +288,6 @@ export default function HomePage() {
                 </div>
               ))
             ) : (
-              // Skeleton Loading
               Array.from({ length: 6 }).map((_, index) => (
                 <div
                   key={index}
@@ -316,7 +306,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Pagination Dots */}
+        
         {totalPagesNowShowing > 1 && (
           <div className="flex items-center justify-center gap-2 mt-6">
             {Array.from({ length: totalPagesNowShowing }).map((_, index) => (
@@ -334,10 +324,10 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* 3. Phần Danh Sách Phim Sắp Chiếu */}
+      
       {comingSoonMovies.length > 0 && (
         <div id="coming-soon" className="max-w-7xl mx-auto px-4 py-12 border-t border-gray-200">
-          {/* Section Header */}
+          
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-4">
               <div className="w-1.5 h-10 bg-yellow-500 rounded-full" />
@@ -351,7 +341,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Navigation Arrows */}
+            
             <div className="flex items-center gap-3">
               <button
                 onClick={() => scrollByAmountComingSoon('left')}
@@ -383,13 +373,13 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Movies Horizontal Scroll Container */}
+          
           <div className="relative">
-            {/* Gradient Overlays for visual scroll hint */}
+            
             <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-gray-100 to-transparent z-10 pointer-events-none" />
             <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-gray-100 to-transparent z-10 pointer-events-none" />
 
-            {/* Scrollable Container */}
+            
             <div
               ref={scrollContainerComingSoonRef}
               onMouseDown={handleMouseDownComingSoon}
@@ -410,7 +400,7 @@ export default function HomePage() {
                   className="flex-shrink-0 w-[calc((100%-100px)/6)]"
                   style={{ minWidth: '180px', maxWidth: '220px' }}
                 >
-                  {/* Coming Soon Movie Card */}
+                  
                   <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 group">
                     <div className="relative aspect-[2/3] overflow-hidden">
                       <img
@@ -420,12 +410,12 @@ export default function HomePage() {
                         draggable={false}
                       />
 
-                      {/* Coming Soon Badge */}
+                      
                       <div className="absolute top-2 right-2 bg-yellow-500 text-black text-xs font-bold px-2.5 py-1 rounded-lg shadow-md">
                         SẮP CHIẾU
                       </div>
 
-                      {/* Overlay khi hover */}
+                      
                       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-end pb-6">
                         <a
                           href={`/movie/${movie._id}`}
@@ -436,7 +426,7 @@ export default function HomePage() {
                       </div>
                     </div>
 
-                    {/* Thông tin phim */}
+                    
                     <div className="p-3">
                       <h3 className="text-sm font-bold text-gray-900 truncate leading-tight group-hover:text-yellow-600 transition-colors">
                         {movie.title}
@@ -453,7 +443,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Pagination Dots */}
+          
           {totalPagesComingSoon > 1 && (
             <div className="flex items-center justify-center gap-2 mt-6">
               {Array.from({ length: totalPagesComingSoon }).map((_, index) => (
@@ -472,16 +462,16 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* 4. Phần Lịch Chiếu Phim Tích Hợp */}
+      
       <ShowtimesSection />
 
-      {/* 5. Bình Luận Nổi Bật */}
+      
       <FeaturedReviewsSection />
 
-      {/* 6. Tin tức & Ưu đãi */}
+      
       <NewsSection />
 
-      {/* 7. Hệ Thống Rạp Đối Tác */}
+      
       <CinemaPartnersSection />
     </main>
   );

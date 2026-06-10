@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { IGenre } from '@/types/index';
 import { authHeaders, API_URL } from '@/lib/api';
 import { toastSuccess, toastError } from '@/utils/toast';
+import { getErrorMessage, getResponseMessage } from '@/utils/errorMessage';
+import ConfirmModal from '@/components/ConfirmModal';
 
 export default function GenreListPage() {
   const [genres, setGenres] = useState<IGenre[]>([]);
@@ -14,8 +16,10 @@ export default function GenreListPage() {
   const [selectedGenre, setSelectedGenre] = useState<IGenre | null>(null);
   const [genreName, setGenreName] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  // Fetch genres
   const fetchGenres = async () => {
     try {
       const res = await fetch(`${API_URL}/genres`, {
@@ -24,9 +28,9 @@ export default function GenreListPage() {
       if (!res.ok) throw new Error('Không tải được danh sách thể loại');
       const data = await res.json();
       setGenres(data);
-    } catch (error: any) {
+    } catch (error) {
       console.error(error);
-      toastError(error.message || 'Lỗi tải thể loại');
+      toastError(getErrorMessage(error, 'Lỗi tải thể loại'));
     } finally {
       setLoading(false);
     }
@@ -36,7 +40,6 @@ export default function GenreListPage() {
     fetchGenres();
   }, []);
 
-  // Handle open modal
   const openModal = (mode: 'create' | 'edit', genre: IGenre | null = null) => {
     setModalMode(mode);
     setSelectedGenre(genre);
@@ -44,14 +47,12 @@ export default function GenreListPage() {
     setIsModalOpen(true);
   };
 
-  // Handle close modal
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedGenre(null);
     setGenreName('');
   };
 
-  // Handle submit form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!genreName.trim()) {
@@ -76,23 +77,22 @@ export default function GenreListPage() {
         body: JSON.stringify({ name: genreName.trim() }),
       });
 
-      const data = await res.json();
+      const data = await res.json() as { message?: unknown };
 
       if (!res.ok) {
-        throw new Error(data.message || 'Lỗi khi lưu thể loại');
+        throw new Error(getResponseMessage(data.message, 'Lỗi khi lưu thể loại'));
       }
 
       toastSuccess(modalMode === 'create' ? 'Thêm thể loại thành công!' : 'Cập nhật thể loại thành công!');
       closeModal();
       fetchGenres();
-    } catch (error: any) {
-      toastError(error.message || 'Có lỗi xảy ra');
+    } catch (error) {
+      toastError(getErrorMessage(error, 'Có lỗi xảy ra'));
     } finally {
       setSubmitLoading(false);
     }
   };
 
-  // Toggle active status
   const handleToggleActive = async (id: string) => {
     try {
       const res = await fetch(`${API_URL}/genres/${id}/toggle`, {
@@ -100,42 +100,46 @@ export default function GenreListPage() {
         headers: authHeaders(),
       });
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || 'Lỗi khi cập nhật trạng thái');
+        const data = await res.json() as { message?: unknown };
+        throw new Error(getResponseMessage(data.message, 'Lỗi khi cập nhật trạng thái'));
       }
       toastSuccess('Cập nhật trạng thái thành công!');
       fetchGenres();
-    } catch (error: any) {
-      toastError(error.message || 'Cập nhật trạng thái thất bại');
+    } catch (error) {
+      toastError(getErrorMessage(error, 'Cập nhật trạng thái thất bại'));
     }
   };
 
-  // Delete genre
-  const handleDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa thể loại "${name}"? Hành động này không thể hoàn tác.`)) {
-      return;
-    }
+  const handleDelete = (id: string, name: string) => {
+    setDeleteTarget({ id, name });
+    setIsConfirmOpen(true);
+  };
 
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
     try {
-      const res = await fetch(`${API_URL}/genres/${id}`, {
+      const res = await fetch(`${API_URL}/genres/${deleteTarget.id}`, {
         method: 'DELETE',
         headers: authHeaders(),
       });
 
-      const data = await res.json();
+      const data = await res.json() as { message?: unknown };
 
       if (!res.ok) {
-        throw new Error(data.message || 'Lỗi khi xóa thể loại');
+        throw new Error(getResponseMessage(data.message, 'Lỗi khi xóa thể loại'));
       }
 
       toastSuccess('Xóa thể loại thành công!');
       fetchGenres();
-    } catch (error: any) {
-      toastError(error.message || 'Xóa thất bại');
+      setIsConfirmOpen(false);
+    } catch (error) {
+      toastError(getErrorMessage(error, 'Xóa thất bại'));
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  // Filtered genres
   const filteredGenres = genres.filter(g => 
     g.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     g.slug.toLowerCase().includes(searchTerm.toLowerCase())
@@ -151,7 +155,7 @@ export default function GenreListPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Quản lý Thể loại phim</h1>
@@ -168,7 +172,7 @@ export default function GenreListPage() {
         </button>
       </div>
 
-      {/* Search Bar */}
+      
       <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
         <div className="relative max-w-md">
           <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -184,7 +188,7 @@ export default function GenreListPage() {
         </div>
       </div>
 
-      {/* Table */}
+      
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[700px] table-fixed">
@@ -264,11 +268,22 @@ export default function GenreListPage() {
         </div>
       </div>
 
-      {/* Add / Edit Modal */}
+      
+      <ConfirmModal
+        open={isConfirmOpen}
+        title="Xác nhận xóa thể loại"
+        message={`Bạn có chắc chắn muốn xóa thể loại "${deleteTarget?.name}" không? Hành động này không thể hoàn tác.`}
+        confirmText="Xóa"
+        cancelText="Hủy"
+        loading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setIsConfirmOpen(false)}
+      />
+
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden transform transition-all">
-            {/* Modal Header */}
+            
             <div className="bg-slate-800 text-white px-6 py-4 flex items-center justify-between">
               <h3 className="font-semibold text-lg">
                 {modalMode === 'create' ? 'Thêm thể loại mới' : 'Chỉnh sửa thể loại'}
@@ -283,7 +298,7 @@ export default function GenreListPage() {
               </button>
             </div>
 
-            {/* Modal Body */}
+            
             <form onSubmit={handleSubmit}>
               <div className="p-6 space-y-4">
                 <div>
@@ -308,7 +323,7 @@ export default function GenreListPage() {
                 </div>
               </div>
 
-              {/* Modal Footer */}
+              
               <div className="bg-gray-50 px-6 py-4 flex items-center justify-end gap-3">
                 <button
                   type="button"

@@ -7,6 +7,28 @@ import { toastSuccess, toastWarning, toastError } from '@/utils/toast';
 import { IGenre } from '@/types/index';
 import MovieImageUpload, { UploadedMovieImage } from '@/components/admin/MovieImageUpload';
 
+interface MovieFormData {
+  title: string;
+  slug: string;
+  description: string;
+  poster_url: string;
+  poster_public_id: string;
+  banner_url: string;
+  banner_public_id: string;
+  trailer_url: string;
+  genres: string[];
+  duration: number;
+  release_date: string;
+  is_active: boolean;
+}
+
+interface MovieDetailResponse extends Omit<MovieFormData, 'genres' | 'release_date'> {
+  genres?: Array<string | Pick<IGenre, '_id'>>;
+  release_date?: string;
+  rating?: number;
+  review_count?: number;
+}
+
 export default function EditMoviePage() {
   const router = useRouter();
   const params = useParams();
@@ -20,20 +42,7 @@ export default function EditMoviePage() {
   const [isPosterUploading, setIsPosterUploading] = useState(false);
   const [isBannerUploading, setIsBannerUploading] = useState(false);
 
-  const [formData, setFormData] = useState<{
-    title: string;
-    slug: string;
-    description: string;
-    poster_url: string;
-    poster_public_id: string;
-    banner_url: string;
-    banner_public_id: string;
-    trailer_url: string;
-    genres: string[];
-    duration: number;
-    release_date: string;
-    is_active: boolean;
-  }>({
+  const [formData, setFormData] = useState<MovieFormData>({
     title: '',
     slug: '',
     description: '',
@@ -50,7 +59,6 @@ export default function EditMoviePage() {
   const [movieRating, setMovieRating] = useState(0);
   const [movieReviewCount, setMovieReviewCount] = useState(0);
 
-  // Fetch active genres list
   const fetchActiveGenres = async () => {
     try {
       const res = await fetch(`${API_URL}/genres/active`);
@@ -62,15 +70,13 @@ export default function EditMoviePage() {
     }
   };
 
-  // Load dữ liệu phim hiện tại
   useEffect(() => {
     const fetchMovie = async () => {
       try {
         await fetchActiveGenres();
         const res = await fetch(`${API_URL}/movies/${movieId}`);
         if (res.ok) {
-          const movie = await res.json();
-          // Format lại ngày để hiển thị trong input[type="date"]
+          const movie = await res.json() as MovieDetailResponse;
           const releaseDate = movie.release_date
             ? new Date(movie.release_date).toISOString().split('T')[0]
             : '';
@@ -84,7 +90,7 @@ export default function EditMoviePage() {
             banner_url: movie.banner_url || '',
             banner_public_id: movie.banner_public_id || '',
             trailer_url: movie.trailer_url || '',
-            genres: movie.genres ? movie.genres.map((g: any) => g._id || g) : [],
+            genres: movie.genres ? movie.genres.map((genre) => typeof genre === 'string' ? genre : genre._id) : [],
             duration: movie.duration || 0,
             release_date: releaseDate,
             is_active: movie.is_active ?? true
@@ -92,12 +98,12 @@ export default function EditMoviePage() {
           setMovieRating(movie.rating || 0);
           setMovieReviewCount(movie.review_count || 0);
         } else {
-          toastError('❌ Không tìm thấy phim!');
+          toastError('Không tìm thấy phim!');
           router.push('/admin/movies');
         }
       } catch (error) {
         console.error('Lỗi kết nối:', error);
-        toastError('❌ Không thể kết nối đến server!');
+        toastError('Không thể kết nối đến server!');
       } finally {
         setIsLoading(false);
       }
@@ -110,7 +116,6 @@ export default function EditMoviePage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    // Chuyển đổi số cho đúng kiểu dữ liệu
     setFormData(prev => ({
       ...prev,
       [name]: name === 'duration' ? Number(value) : value
@@ -154,13 +159,12 @@ export default function EditMoviePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate trước khi gửi
     if (!formData.title.trim()) {
-      toastWarning('❌ Vui lòng nhập tên phim!');
+      toastWarning('Vui lòng nhập tên phim!');
       return;
     }
     if (!formData.slug.trim()) {
-      toastWarning('❌ Vui lòng nhập slug!');
+      toastWarning('Vui lòng nhập slug!');
       return;
     }
     if (!formData.poster_url) {
@@ -172,15 +176,15 @@ export default function EditMoviePage() {
       return;
     }
     if (formData.genres.length === 0) {
-      toastWarning('❌ Vui lòng chọn ít nhất một thể loại phim!');
+      toastWarning('Vui lòng chọn ít nhất một thể loại phim!');
       return;
     }
     if (!formData.duration || formData.duration <= 0) {
-      toastWarning('❌ Vui lòng nhập thời lượng phim hợp lệ!');
+      toastWarning('Vui lòng nhập thời lượng phim hợp lệ!');
       return;
     }
     if (!formData.release_date) {
-      toastWarning('❌ Vui lòng chọn ngày công chiếu!');
+      toastWarning('Vui lòng chọn ngày công chiếu!');
       return;
     }
 
@@ -194,22 +198,21 @@ export default function EditMoviePage() {
       });
 
       if (res.ok) {
-        toastSuccess('✅ Cập nhật phim thành công!');
+        toastSuccess('Cập nhật phim thành công!');
         router.push('/admin/movies');
       } else {
         const errorData = await res.json();
-        // Xử lý lỗi validation từ backend
         if (errorData.message && Array.isArray(errorData.message)) {
-          toastError('❌ Lỗi: ' + errorData.message.join('\n'));
+          toastError('Lỗi: ' + errorData.message.join('\n'));
         } else if (errorData.message) {
-          toastError('❌ Lỗi: ' + errorData.message);
+          toastError('Lỗi: ' + errorData.message);
         } else {
-          toastError('❌ Có lỗi xảy ra khi cập nhật phim!');
+          toastError('Có lỗi xảy ra khi cập nhật phim!');
         }
       }
     } catch (error) {
       console.error('Lỗi kết nối:', error);
-      toastError('❌ Không thể kết nối đến server. Vui lòng kiểm tra backend đang chạy!');
+      toastError('Không thể kết nối đến server. Vui lòng kiểm tra backend đang chạy!');
     } finally {
       setIsSubmitting(false);
     }
@@ -231,7 +234,7 @@ export default function EditMoviePage() {
 
       <form onSubmit={handleSubmit} className="bg-white p-8 rounded-lg shadow-md space-y-6">
 
-        {/* Hàng 1: Tên phim & Slug */}
+        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Tên phim</label>
@@ -257,7 +260,7 @@ export default function EditMoviePage() {
           </div>
         </div>
 
-        {/* Hàng 2: URL Hình ảnh */}
+        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <MovieImageUpload
@@ -280,15 +283,15 @@ export default function EditMoviePage() {
           </div>
         </div>
 
-        {/* Hàng 3: Thể loại & Thời lượng & Rating */}
+        
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Thể loại (Multi-Select) */}
+          
           <div className="relative">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Thể loại phim <span className="text-red-500">*</span>
             </label>
             
-            {/* Display Box */}
+            
             <div 
               className="min-h-[42px] w-full border border-gray-300 p-1.5 rounded flex flex-wrap gap-2 items-center bg-white cursor-pointer" 
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -326,7 +329,7 @@ export default function EditMoviePage() {
               </div>
             </div>
 
-            {/* Dropdown Options */}
+            
             {isDropdownOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setIsDropdownOpen(false)}></div>
@@ -391,7 +394,7 @@ export default function EditMoviePage() {
           </div>
         </div>
 
-        {/* Hàng 4: Ngày chiếu & Trailer */}
+        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Ngày công chiếu</label>
@@ -416,7 +419,7 @@ export default function EditMoviePage() {
           </div>
         </div>
 
-        {/* Mô tả */}
+        
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả phim</label>
           <textarea
@@ -429,7 +432,7 @@ export default function EditMoviePage() {
           ></textarea>
         </div>
 
-        {/* Nút Submit */}
+        
         <div className="flex justify-end gap-4 pt-4">
           <button
             type="button"

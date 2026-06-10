@@ -24,10 +24,8 @@ export default function ProfilePage() {
   const { user, updateUser, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  // Tab active state: 'personal' | 'membership' | 'exchange' | 'my-vouchers' | 'tickets'
   const [activeTab, setActiveTab] = useState<'personal' | 'membership' | 'exchange' | 'my-vouchers' | 'tickets'>('personal');
 
-  // Profile & Password states
   const [fullName, setFullName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
@@ -43,32 +41,27 @@ export default function ProfilePage() {
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState({ type: '', text: '' });
 
-  // Membership & Points states
   const [membershipInfo, setMembershipInfo] = useState<IMembershipInfo | null>(null);
   const [pointsHistory, setPointsHistory] = useState<IPointTransaction[]>([]);
   const [isLoadingMembership, setIsLoadingMembership] = useState(false);
   const [isLoadingPoints, setIsLoadingPoints] = useState(false);
 
-  // Vouchers states
   const [exchangeableVouchers, setExchangeableVouchers] = useState<IVoucher[]>([]);
   const [myVouchers, setMyVouchers] = useState<IUserVoucher[]>([]);
   const [isLoadingExchange, setIsLoadingExchange] = useState(false);
   const [isLoadingVouchers, setIsLoadingVouchers] = useState(false);
   const [isExchangingId, setIsExchangingId] = useState<string | null>(null);
 
-  // Exchange confirmation modal
   const [exchangeModal, setExchangeModal] = useState<{
     open: boolean;
     voucher: IVoucher | null;
   }>({ open: false, voucher: null });
 
-  // Bookings states
   const [allBookings, setAllBookings] = useState<IBooking[]>([]);
   const [isLoadingBookings, setIsLoadingBookings] = useState(true);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-  // Helper helper functions
   const getRankGradient = (rank?: string) => {
     switch (rank) {
       case 'Silver': return 'from-slate-400 to-slate-600';
@@ -100,7 +93,6 @@ export default function ProfilePage() {
     }
   };
 
-  // Đồng bộ thông tin cá nhân khi user trong context thay đổi
   useEffect(() => {
     if (user) {
       setFullName(user.full_name || '');
@@ -108,7 +100,6 @@ export default function ProfilePage() {
     }
   }, [user?.full_name, user?.avatar_url]);
 
-  // Load basic profile & bookings khi user đăng nhập (ID thay đổi)
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
@@ -137,7 +128,6 @@ export default function ProfilePage() {
     loadMembershipData();
   }, [user?._id, authLoading, router, API_URL]);
 
-  // Fetch membership & points data
   const loadMembershipData = async () => {
     const token = localStorage.getItem('access_token');
     if (!token) return;
@@ -150,7 +140,6 @@ export default function ProfilePage() {
       if (res.ok) {
         const data = await res.json();
         setMembershipInfo(data);
-        // Sync context
         updateUser({
           availablePoints: data.availablePoints,
           lifetimePoints: data.lifetimePoints,
@@ -164,7 +153,6 @@ export default function ProfilePage() {
     }
   };
 
-  // Load points history
   const loadPointsHistory = async () => {
     const token = localStorage.getItem('access_token');
     if (!token) return;
@@ -185,7 +173,6 @@ export default function ProfilePage() {
     }
   };
 
-  // Load exchangeable vouchers
   const loadExchangeableVouchers = async () => {
     const token = localStorage.getItem('access_token');
     if (!token) return;
@@ -206,7 +193,6 @@ export default function ProfilePage() {
     }
   };
 
-  // Load user vouchers
   const loadMyVouchers = async () => {
     const token = localStorage.getItem('access_token');
     if (!token) return;
@@ -227,7 +213,6 @@ export default function ProfilePage() {
     }
   };
 
-  // Trigger loads based on activeTab
   useEffect(() => {
     if (activeTab === 'membership') {
       loadPointsHistory();
@@ -238,7 +223,6 @@ export default function ProfilePage() {
     }
   }, [activeTab]);
 
-  // Handle Profile Update
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim()) {
@@ -268,14 +252,13 @@ export default function ProfilePage() {
         const err = await res.json();
         toastError(err.message || 'Có lỗi xảy ra');
       }
-    } catch (error) {
+    } catch {
       toastError('Không thể kết nối đến server');
     } finally {
       setIsUpdatingProfile(false);
     }
   };
 
-  // Handle Avatar Upload
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -318,7 +301,7 @@ export default function ProfilePage() {
       } else {
         toastError('Upload ảnh thất bại');
       }
-    } catch (error) {
+    } catch {
       toastError('Lỗi khi upload ảnh');
     } finally {
       setIsUploading(false);
@@ -326,7 +309,6 @@ export default function ProfilePage() {
     }
   };
 
-  // Handle Password Update
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
@@ -362,14 +344,13 @@ export default function ProfilePage() {
         const err = await res.json();
         toastError(err.message || 'Có lỗi xảy ra');
       }
-    } catch (error) {
+    } catch {
       toastError('Không thể kết nối đến server');
     } finally {
       setIsUpdatingPassword(false);
     }
   };
 
-  // Handle Exchange Voucher - Mở modal xác nhận
   const handleOpenExchangeModal = (voucher: IVoucher) => {
     const currentPoints = user?.availablePoints || 0;
     if (currentPoints < voucher.requiredPoints) {
@@ -379,7 +360,6 @@ export default function ProfilePage() {
     setExchangeModal({ open: true, voucher });
   };
 
-  // Xác nhận đổi voucher
   const handleConfirmExchange = async () => {
     const voucher = exchangeModal.voucher;
     if (!voucher) return;
@@ -396,7 +376,6 @@ export default function ProfilePage() {
         const result = await res.json();
         toastSuccess(`Đổi voucher thành công! Mã của bạn: ${result.voucher?.code || result.code || ''}`); 
         setExchangeModal({ open: false, voucher: null });
-        // Reload data
         loadMembershipData();
         loadExchangeableVouchers();
         loadPointsHistory();
@@ -404,14 +383,13 @@ export default function ProfilePage() {
         const err = await res.json();
         toastError(err.message || 'Đổi voucher thất bại');
       }
-    } catch (error) {
+    } catch {
       toastError('Không thể kết nối đến server');
     } finally {
       setIsExchangingId(null);
     }
   };
 
-  // Copy code to clipboard
   const handleCopyCode = (code: string) => {
     navigator.clipboard.writeText(code);
     toastSuccess('Đã copy mã voucher!');
@@ -434,7 +412,7 @@ export default function ProfilePage() {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
-        {/* Cột trái: Avatar & Nav */}
+        
         <div className="w-full lg:w-1/3 space-y-6">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col items-center text-center">
             <div className="relative mb-4 group">
@@ -476,7 +454,7 @@ export default function ProfilePage() {
               Thành viên {user.role === 'admin' ? 'Quản trị' : user.membershipRank || 'Thường'}
             </span>
 
-            {/* Premium Membership Credit Card */}
+            
             <div className={`w-full mt-5 p-5 rounded-2xl bg-gradient-to-r ${getRankGradient(user.membershipRank)} text-white shadow-lg relative overflow-hidden text-left border border-white/10`}>
               <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-xl transform translate-x-8 -translate-y-8"></div>
               <div className="absolute -bottom-6 -left-6 w-20 h-20 bg-black/15 rounded-full blur-lg"></div>
@@ -510,7 +488,7 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Navigation tabs */}
+          
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <button 
               onClick={() => setActiveTab('personal')} 
@@ -570,10 +548,10 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Cột phải: Tabs Contents */}
+        
         <div className="w-full lg:w-2/3 space-y-6">
           
-          {/* TAB 1: THÔNG TIN CÁ NHÂN */}
+          
           {activeTab === 'personal' && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-in fade-in duration-200">
               <h3 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4 mb-6">Thông tin cá nhân</h3>
@@ -631,10 +609,10 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {/* TAB 2: HẠNG THÀNH VIÊN & LỊCH SỬ ĐIỂM */}
+          
           {activeTab === 'membership' && (
             <div className="space-y-6 animate-in fade-in duration-200">
-              {/* Thẻ chi tiết về tiến trình hạng */}
+              
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                 <h3 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4 mb-6">Thông tin Hạng Thành Viên</h3>
                 
@@ -681,7 +659,7 @@ export default function ProfilePage() {
                       </div>
                     </div>
 
-                    {/* Progress bar */}
+                    
                     {membershipInfo.nextRank && (
                       <div className="space-y-3 pt-2">
                         <div className="flex justify-between items-center text-xs font-bold text-gray-600">
@@ -733,7 +711,7 @@ export default function ProfilePage() {
                         </div>
 
                         <div className="p-3 bg-red-50/60 rounded-xl border border-red-100/50 text-xs text-red-800 leading-relaxed shadow-sm">
-                          🔥 Bạn đã đi được <strong className="font-extrabold">{((membershipInfo.lifetimePoints / membershipInfo.nextRank.nextRankMinPoints) * 100).toFixed(1)}%</strong> chặng đường. Chỉ cần tích lũy thêm <strong className="font-extrabold text-red-600">{new Intl.NumberFormat('vi-VN').format(membershipInfo.nextRank.pointsNeeded)}</strong> điểm nữa để thăng hạng lên <strong className="font-extrabold">{membershipInfo.nextRank.nextRank}</strong> và nhận đặc quyền giảm giá <strong className="font-extrabold text-red-600">{getRankDiscount(membershipInfo.nextRank.nextRank)}%</strong> cho mọi đơn hàng!
+                          Bạn đã đi được <strong className="font-extrabold">{((membershipInfo.lifetimePoints / membershipInfo.nextRank.nextRankMinPoints) * 100).toFixed(1)}%</strong> chặng đường. Chỉ cần tích lũy thêm <strong className="font-extrabold text-red-600">{new Intl.NumberFormat('vi-VN').format(membershipInfo.nextRank.pointsNeeded)}</strong> điểm nữa để thăng hạng lên <strong className="font-extrabold">{membershipInfo.nextRank.nextRank}</strong> và nhận đặc quyền giảm giá <strong className="font-extrabold text-red-600">{getRankDiscount(membershipInfo.nextRank.nextRank)}%</strong> cho mọi đơn hàng!
                         </div>
                       </div>
                     )}
@@ -743,7 +721,7 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              {/* Lịch sử tích/đổi điểm */}
+              
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                 <h3 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4 mb-6">Lịch sử điểm thưởng</h3>
                 
@@ -798,7 +776,7 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {/* TAB 3: ĐỔI VOUCHER */}
+          
           {activeTab === 'exchange' && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-in fade-in duration-200">
               <div className="flex justify-between items-center border-b border-gray-100 pb-4 mb-6">
@@ -821,7 +799,7 @@ export default function ProfilePage() {
                     
                     return (
                       <div key={voucher._id} className="border border-gray-100 hover:border-red-100 hover:shadow-md transition duration-200 rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden bg-gradient-to-br from-white to-gray-50 group">
-                        {/* Red accent bar on the left */}
+                        
                         <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-red-500"></div>
 
                         <div className="pl-2">
@@ -877,7 +855,7 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {/* TAB 4: VOUCHER CỦA TÔI */}
+          
           {activeTab === 'my-vouchers' && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-in fade-in duration-200">
               <h3 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4 mb-6">Mã giảm giá của bạn</h3>
@@ -915,7 +893,7 @@ export default function ProfilePage() {
                           isUnused ? 'border-gray-200 shadow-sm hover:shadow-md' : 'border-gray-100 opacity-60'
                         }`}
                       >
-                        {/* Cut-out ticket edge effect */}
+                        
                         <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white border-r border-gray-200 rounded-full z-10 hidden md:block"></div>
                         <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white border-l border-gray-200 rounded-full z-10 hidden md:block"></div>
 
@@ -966,7 +944,7 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {/* TAB 5: VÉ CỦA TÔI */}
+          
           {activeTab === 'tickets' && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-in fade-in duration-200">
               <h3 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4 mb-6">Tất cả vé của bạn</h3>
@@ -1047,7 +1025,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Password Modal */}
+      
       {isPasswordModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden relative animate-in zoom-in duration-200">
@@ -1132,7 +1110,7 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Exchange Confirmation Modal */}
+      
       {exchangeModal.open && exchangeModal.voucher && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden relative animate-in zoom-in duration-200">
@@ -1146,7 +1124,7 @@ export default function ProfilePage() {
             </button>
 
             <div className="p-6">
-              {/* Icon */}
+              
               <div className="w-14 h-14 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5a2 2 0 10-2 2h2zm0 10v4m0-4h-4m4 0h4" />
@@ -1156,7 +1134,7 @@ export default function ProfilePage() {
               <h3 className="text-xl font-bold text-gray-900 text-center mb-1">Xác nhận đổi điểm</h3>
               <p className="text-sm text-gray-500 text-center mb-6">Bạn có chắc chắn muốn đổi điểm lấy voucher này không?</p>
 
-              {/* Voucher info card */}
+              
               <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-xl p-4 mb-6 space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-500">Tên voucher</span>
@@ -1190,7 +1168,7 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Action buttons */}
+              
               <div className="flex gap-3">
                 <button 
                   onClick={() => setExchangeModal({ open: false, voucher: null })}

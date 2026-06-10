@@ -15,14 +15,12 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('login')
   signIn(@Body() signInDto: LoginDto) {
-    // Nhận username và password từ body request
     return this.authService.signIn(signInDto.email, signInDto.password);
   }
   
   @UseGuards(AuthGuard('jwt'))
   @Get('profile')
   getProfile(@Request() req) {
-    // Trả về thông tin user lấy được từ token
     return req.user;
   }
 }

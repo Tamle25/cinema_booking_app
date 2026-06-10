@@ -12,7 +12,7 @@ export class ChatbotController {
   constructor(private readonly chatbotService: ChatbotService) {}
 
   @Post('message')
-  @SkipThrottle() // Skip global throttle, dùng custom guard riêng
+  @SkipThrottle()
   @UseGuards(ChatbotThrottleGuard)
   async handleMessage(
     @Body() dto: ChatbotMessageDto,

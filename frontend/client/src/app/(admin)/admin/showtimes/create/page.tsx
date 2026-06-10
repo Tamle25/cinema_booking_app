@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { authHeaders } from '@/lib/api';
 import { toastSuccess, toastWarning, toastError } from '@/utils/toast';
 
-const BUFFER_MINUTES = 15; // Thời gian dọn phòng
+const BUFFER_MINUTES = 15;
 
 interface IMovie {
     _id: string;
@@ -47,7 +47,7 @@ export default function CreateShowtimePage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [formData, setFormData] = useState({
-        cinema_system_id: '', // Hệ thống rạp (để filter)
+        cinema_system_id: '',
         movie_id: '',
         cinema_id: '',
         room_id: '',
@@ -55,7 +55,6 @@ export default function CreateShowtimePage() {
         price: 75000,
     });
 
-    // Fetch all data
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -66,7 +65,6 @@ export default function CreateShowtimePage() {
                     fetch(`${API_URL}/rooms`)
                 ]);
                 const moviesData = await moviesRes.json();
-                // Chỉ lấy phim đang active
                 setMovies(moviesData.filter((m: IMovie) => m.is_active));
                 setCinemaSystems(await systemsRes.json());
                 setCinemas(await cinemasRes.json());
@@ -78,7 +76,6 @@ export default function CreateShowtimePage() {
         fetchData();
     }, [API_URL]);
 
-    // Filter cinemas by selected cinema system
     const filteredCinemas = useMemo(() => {
         if (!formData.cinema_system_id) return [];
         return cinemas.filter(c => {
@@ -87,20 +84,15 @@ export default function CreateShowtimePage() {
         });
     }, [cinemas, formData.cinema_system_id]);
 
-    // Filter rooms by selected cinema (FIX: handle cinema as object or string)
     const filteredRooms = useMemo(() => {
         if (!formData.cinema_id) return [];
         return rooms.filter(r => {
-            // Skip nếu room không có cinema
             if (!r.cinema) return false;
-            // Cinema có thể là object (populated) hoặc string (ID)
             const cinemaId = typeof r.cinema === 'object' ? r.cinema._id : r.cinema;
-            // Chỉ lấy phòng đang hoạt động
             return cinemaId === formData.cinema_id && (r.is_active !== false);
         });
     }, [rooms, formData.cinema_id]);
 
-    // Reset dependent fields when parent changes
     useEffect(() => {
         setFormData(prev => ({ ...prev, cinema_id: '', room_id: '' }));
     }, [formData.cinema_system_id]);
@@ -109,7 +101,6 @@ export default function CreateShowtimePage() {
         setFormData(prev => ({ ...prev, room_id: '' }));
     }, [formData.cinema_id]);
 
-    // Calculate estimated end time
     const estimatedEndTime = useMemo(() => {
         const selectedMovie = movies.find(m => m._id === formData.movie_id);
         if (!selectedMovie || !formData.start_time) return null;
@@ -130,33 +121,37 @@ export default function CreateShowtimePage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Validation
         if (!formData.movie_id) {
-            toastWarning('❌ Vui lòng chọn phim!');
+            toastWarning('Vui lòng chọn phim!');
             return;
         }
         if (!formData.cinema_id) {
-            toastWarning('❌ Vui lòng chọn rạp!');
+            toastWarning('Vui lòng chọn rạp!');
             return;
         }
         if (!formData.room_id) {
-            toastWarning('❌ Vui lòng chọn phòng chiếu!');
+            toastWarning('Vui lòng chọn phòng chiếu!');
             return;
         }
         if (!formData.start_time) {
-            toastWarning('❌ Vui lòng chọn thời gian chiếu!');
+            toastWarning('Vui lòng chọn thời gian chiếu!');
             return;
         }
         if (!formData.price || formData.price <= 0) {
-            toastWarning('❌ Vui lòng nhập giá vé hợp lệ!');
+            toastWarning('Vui lòng nhập giá vé hợp lệ!');
             return;
         }
 
         setIsSubmitting(true);
 
         try {
-            // Không gửi cinema_system_id lên server
-            const { cinema_system_id, ...submitData } = formData;
+            const submitData = {
+                movie_id: formData.movie_id,
+                cinema_id: formData.cinema_id,
+                room_id: formData.room_id,
+                start_time: formData.start_time,
+                price: formData.price,
+            };
 
             const res = await fetch(`${API_URL}/showtimes`, {
                 method: 'POST',
@@ -165,15 +160,15 @@ export default function CreateShowtimePage() {
             });
 
             if (res.ok) {
-                toastSuccess('✅ Thêm suất chiếu thành công!');
+                toastSuccess('Thêm suất chiếu thành công!');
                 router.push('/admin/showtimes');
             } else {
                 const error = await res.json();
-                toastError('❌ Lỗi: ' + (error.message || 'Không thể tạo suất chiếu'));
+                toastError('Lỗi: ' + (error.message || 'Không thể tạo suất chiếu'));
             }
         } catch (error) {
             console.error('Lỗi:', error);
-            toastError('❌ Không thể kết nối đến server!');
+            toastError('Không thể kết nối đến server!');
         } finally {
             setIsSubmitting(false);
         }
@@ -197,7 +192,7 @@ export default function CreateShowtimePage() {
             </div>
 
             <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-md space-y-5">
-                {/* Movie Selection */}
+                
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Chọn phim <span className="text-red-500">*</span>
@@ -224,7 +219,7 @@ export default function CreateShowtimePage() {
 
                 <hr className="border-gray-200" />
 
-                {/* Cinema System Selection */}
+                
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Hệ thống rạp <span className="text-red-500">*</span>
@@ -244,7 +239,7 @@ export default function CreateShowtimePage() {
                     </select>
                 </div>
 
-                {/* Cinema Selection */}
+                
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Chọn rạp <span className="text-red-500">*</span>
@@ -267,7 +262,7 @@ export default function CreateShowtimePage() {
                     </select>
                 </div>
 
-                {/* Room Selection */}
+                
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Chọn phòng chiếu <span className="text-red-500">*</span>
@@ -295,7 +290,7 @@ export default function CreateShowtimePage() {
 
                 <hr className="border-gray-200" />
 
-                {/* Start Time */}
+                
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Thời gian bắt đầu <span className="text-red-500">*</span>
@@ -305,12 +300,12 @@ export default function CreateShowtimePage() {
                         name="start_time"
                         value={formData.start_time}
                         onChange={handleChange}
-                        min={new Date().toISOString().slice(0, 16)} // Không cho chọn quá khứ
+                        min={new Date().toISOString().slice(0, 16)}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                 </div>
 
-                {/* Estimated End Time */}
+                
                 {estimatedEndTime && (
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                         <p className="text-sm text-blue-800">
@@ -329,7 +324,7 @@ export default function CreateShowtimePage() {
                     </div>
                 )}
 
-                {/* Price */}
+                
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Giá vé (VNĐ) <span className="text-red-500">*</span>
@@ -345,10 +340,10 @@ export default function CreateShowtimePage() {
                     />
                 </div>
 
-                {/* Info Box */}
+                
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                     <p className="text-sm text-yellow-800">
-                        ⚠️ <span className="font-medium">Lưu ý:</span> Hệ thống sẽ tự động kiểm tra:
+                        <span className="font-medium">Lưu ý:</span> Hệ thống sẽ tự động kiểm tra:
                     </p>
                     <ul className="text-xs text-yellow-700 mt-1 list-disc list-inside space-y-0.5">
                         <li>Không trùng lấp với suất chiếu khác trong cùng phòng</li>
@@ -357,7 +352,7 @@ export default function CreateShowtimePage() {
                     </ul>
                 </div>
 
-                {/* Submit */}
+                
                 <div className="flex justify-end gap-3 pt-4">
                     <button
                         type="button"

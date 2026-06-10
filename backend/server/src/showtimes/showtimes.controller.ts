@@ -9,7 +9,6 @@ import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
 export class ShowtimesController {
   constructor(private readonly showtimesService: ShowtimesService) { }
 
-  // Lấy tất cả suất chiếu (có phân trang và filter)
   @Get()
   findAll(
     @Query('page') page?: string,
@@ -73,23 +72,20 @@ export class ShowtimesController {
     return this.showtimesService.findByMovie(movieId);
   }
 
-  // API lọc suất chiếu theo rạp và ngày
   @Get('filter')
   filterShowtimes(
     @Query('cinemaId') cinemaId: string,
-    @Query('date') date?: string, // Format: YYYY-MM-DD
+    @Query('date') date?: string,
     @Query('movieId') movieId?: string,
   ) {
     return this.showtimesService.filterShowtimes(cinemaId, date, movieId);
   }
 
-  // Lấy danh sách ngày có suất chiếu của rạp
   @Get('dates/:cinemaId')
   getAvailableDates(@Param('cinemaId', ParseObjectIdPipe) cinemaId: string) {
     return this.showtimesService.getAvailableDates(cinemaId);
   }
 
-  // API so sánh rạp chiếu theo phim và ngày
   @Get('compare')
   compareShowtimes(
     @Query('movieId') movieId: string,

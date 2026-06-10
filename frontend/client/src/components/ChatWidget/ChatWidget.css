@@ -1,10 +1,3 @@
-/* =============================================
-   CineMax ChatWidget Styles
-   Minimalist, production-ready design
-   ============================================= */
-
-/* ---------- Floating Button ---------- */
-
 .chat-fab {
   position: fixed;
   bottom: 24px;
@@ -46,7 +39,6 @@
   transform: rotate(90deg);
 }
 
-/* Unread badge */
 .chat-fab__badge {
   position: absolute;
   top: -4px;
@@ -69,8 +61,6 @@
   from { transform: scale(0); }
   to   { transform: scale(1); }
 }
-
-/* ---------- Chat Panel ---------- */
 
 .chat-panel {
   position: fixed;
@@ -120,8 +110,6 @@
     transform: scale(0.92) translateY(12px);
   }
 }
-
-/* ---------- Header ---------- */
 
 .chat-header {
   display: flex;
@@ -195,8 +183,6 @@
   height: 16px;
 }
 
-/* ---------- Messages Area ---------- */
-
 .chat-messages {
   flex: 1;
   overflow-y: auto;
@@ -208,7 +194,6 @@
   scroll-behavior: smooth;
 }
 
-/* Scrollbar styling */
 .chat-messages::-webkit-scrollbar {
   width: 4px;
 }
@@ -222,8 +207,6 @@
 .chat-messages::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
 }
-
-/* ---------- Message Bubble ---------- */
 
 .chat-msg {
   display: flex;
@@ -243,7 +226,6 @@
   }
 }
 
-/* Bot message — left */
 .chat-msg--bot {
   align-self: flex-start;
 }
@@ -255,7 +237,6 @@
   border: 1px solid #e5e7eb;
 }
 
-/* User message — right */
 .chat-msg--user {
   align-self: flex-end;
 }
@@ -273,14 +254,12 @@
   word-break: break-word;
 }
 
-/* Error message styling */
 .chat-msg--error .chat-msg__bubble {
   background: #fffbeb !important;
   border-color: #fde68a !important;
   color: #92400e !important;
 }
 
-/* Fallback message styling — khi Gemini hết quota hoặc lỗi */
 .chat-msg--fallback .chat-msg__bubble {
   background: #f0fdf4 !important;
   border-color: #bbf7d0 !important;
@@ -291,8 +270,6 @@
   color: #6b7280;
   font-style: italic;
 }
-
-/* ---- Markdown rendering inside bot bubbles ---- */
 
 .chat-msg--bot .chat-msg__bubble p {
   margin: 0 0 4px;
@@ -333,8 +310,6 @@
   text-align: right;
 }
 
-/* ---------- Typing Indicator ---------- */
-
 .chat-typing {
   display: flex;
   align-items: center;
@@ -374,8 +349,6 @@
   }
 }
 
-/* ---------- Welcome State ---------- */
-
 .chat-welcome {
   display: flex;
   flex-direction: column;
@@ -384,23 +357,6 @@
   padding: 32px 24px;
   text-align: center;
   flex: 1;
-}
-
-.chat-welcome__icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #fecaca, #fde8e8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 16px;
-}
-
-.chat-welcome__icon svg {
-  width: 28px;
-  height: 28px;
-  color: #dc2626;
 }
 
 .chat-welcome h4 {
@@ -440,8 +396,6 @@
   background: #fee2e2;
   border-color: #fca5a5;
 }
-
-/* ---------- Input Area ---------- */
 
 .chat-input {
   display: flex;
@@ -512,8 +466,6 @@
   height: 18px;
 }
 
-/* ---------- Responsive: Mobile ---------- */
-
 @media (max-width: 480px) {
   .chat-fab {
     bottom: 16px;
@@ -566,8 +518,6 @@
   }
 }
 
-/* ---------- Tablet ---------- */
-
 @media (min-width: 481px) and (max-width: 768px) {
   .chat-panel {
     width: 360px;
@@ -576,4 +526,57 @@
     height: clamp(380px, 68vh, 600px);
     max-height: calc(100vh - 110px);
   }
+}
+
+.chat-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #f9fafb;
+  border-top: 1px solid #f3f4f6;
+  flex-shrink: 0;
+}
+
+.chat-suggestions__chip {
+  padding: 6px 12px;
+  font-size: 12px;
+  color: #dc2626;
+  background: #fff;
+  border: 1px solid #fecaca;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.chat-suggestions__chip:hover {
+  background: #fef2f2;
+  border-color: #f87171;
+}
+
+.chat-msg__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.chat-msg__cta-btn {
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: #dc2626;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
+}
+
+.chat-msg__cta-btn:hover {
+  background: #b91c1c;
 }

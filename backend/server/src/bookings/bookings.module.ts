@@ -9,7 +9,7 @@ import { Showtime, ShowtimeSchema } from '../showtimes/schemas/showtime.schema';
   imports: [
     MongooseModule.forFeature([
       { name: Booking.name, schema: BookingSchema },
-      { name: Showtime.name, schema: ShowtimeSchema }, // Đăng ký Showtime để Service dùng được
+      { name: Showtime.name, schema: ShowtimeSchema },
     ]),
   ],
   controllers: [BookingsController],

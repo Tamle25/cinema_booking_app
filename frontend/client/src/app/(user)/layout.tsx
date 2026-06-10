@@ -9,16 +9,16 @@ export default function UserLayout({
 }) {
   return (
     <div className="bg-gray-50 min-h-screen flex flex-col">
-      {/* Header */}
+      
       <Header />
 
-      {/* Main Content - pt-16 để bù cho Header fixed */}
+      
       <main className="flex-1 pt-16">{children}</main>
 
-      {/* Footer */}
+      
       <Footer />
 
-      {/* Chatbot Widget */}
+      
       <ChatWidget />
     </div>
   );

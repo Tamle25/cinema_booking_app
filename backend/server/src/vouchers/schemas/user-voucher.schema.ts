@@ -11,24 +11,23 @@ export class UserVoucher {
   user: User;
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Voucher', required: true })
-  voucherTemplate: Voucher; // Mẫu voucher gốc
+  voucherTemplate: Voucher;
 
   @Prop({ required: true, unique: true })
-  code: string; // Mã voucher ngẫu nhiên duy nhất
+  code: string;
 
   @Prop({ default: 'UNUSED', enum: ['UNUSED', 'USED', 'EXPIRED'] })
   status: string;
 
   @Prop()
-  usedAt: Date; // Thời điểm sử dụng
+  usedAt: Date;
 
   @Prop({ required: true })
-  expiredAt: Date; // Thời điểm hết hạn
+  expiredAt: Date;
 }
 
 export const UserVoucherSchema = SchemaFactory.createForClass(UserVoucher);
 
-// Index cho tìm kiếm voucher cá nhân
 UserVoucherSchema.index({ user: 1, status: 1 });
 UserVoucherSchema.index({ code: 1 }, { unique: true });
-UserVoucherSchema.index({ status: 1, expiredAt: 1 }); // Cho scheduler hết hạn
+UserVoucherSchema.index({ status: 1, expiredAt: 1 });

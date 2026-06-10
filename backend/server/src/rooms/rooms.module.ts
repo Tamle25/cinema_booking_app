@@ -10,6 +10,6 @@ import { Room, RoomSchema } from './schemas/room.schema';
   ],
   controllers: [RoomsController],
   providers: [RoomsService],
-  exports: [RoomsService], // Export để module khác dùng được
+  exports: [RoomsService],
 })
 export class RoomsModule {}

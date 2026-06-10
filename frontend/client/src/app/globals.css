@@ -19,42 +19,20 @@
   }
 }
 
-html {
-  /* Giữ không gian cố định cho scrollbar, tránh layout shift khi scrollbar xuất hiện/biến mất */
-  scrollbar-gutter: stable;
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
-  /* Fallback cho trình duyệt không hỗ trợ scrollbar-gutter */
-  overflow-y: scroll;
-}
-
-/* Hide scrollbar for horizontal scroll containers */
-.scrollbar-hide {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+html, body {
+  margin: 0;
+  padding: 0;
 }
 
 .scrollbar-hide::-webkit-scrollbar {
-  display: none;  /* Chrome, Safari and Opera */
-}
+  display: none;  }
 
-/* =============================================
-   Custom Toast Notification Styles
-   Minimal, modern, premium design
-   ============================================= */
-
-/* Override toastify container */
 .Toastify__toast-container {
   padding: 0 !important;
   width: auto !important;
   max-width: 380px !important;
 }
 
-/* Base toast style */
 .Toastify__toast {
   background: rgba(255, 255, 255, 0.95) !important;
   backdrop-filter: blur(12px) !important;
@@ -80,7 +58,6 @@ body {
 }
 
 
-/* Type-specific left border colors */
 .Toastify__toast--success {
   border-left-color: #10b981 !important;
 }
@@ -97,10 +74,27 @@ body {
   border-left-color: #6366f1 !important;
 }
 
-/* Hide progress bar visually but keep it in the DOM so animationend fires correctly.
-   Using display:none breaks autoClose because the browser skips animation on hidden elements. */
 .Toastify__progress-bar {
-  opacity: 0 !important;
-  height: 0 !important;
+  height: 3px !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  border-bottom-left-radius: 9px !important;
+  border-bottom-right-radius: 9px !important;
+}
+
+.Toastify__progress-bar--success {
+  background: #10b981 !important;
+}
+
+.Toastify__progress-bar--error {
+  background: #ef4444 !important;
+}
+
+.Toastify__progress-bar--warning {
+  background: #f59e0b !important;
+}
+
+.Toastify__progress-bar--info {
+  background: #6366f1 !important;
 }
 

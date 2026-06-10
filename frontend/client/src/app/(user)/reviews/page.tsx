@@ -7,7 +7,6 @@ import Link from "next/link";
 import axios from "axios";
 import { getCloudinaryImageUrl, movieImagePresets } from "@/lib/cloudinary";
 
-// Format số lượng
 const formatCount = (count: number): string => {
   if (count >= 1000) {
     const k = count / 1000;
@@ -64,14 +63,14 @@ export default function ReviewsPage() {
   };
 
   const sortOptions = [
-    { value: "hot", label: "Đang hot", icon: "🔥" },
-    { value: "highest_rating", label: "Rating cao", icon: "⭐" },
-    { value: "newest", label: "Mới cập nhật", icon: "🆕" },
+    { value: "hot", label: "Đang hot" },
+    { value: "highest_rating", label: "Rating cao" },
+    { value: "newest", label: "Mới cập nhật" },
   ];
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Hero Header */}
+      
       <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-red-900 -mt-16 pt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
           <h1 className="text-3xl md:text-4xl font-extrabold text-white">
@@ -85,7 +84,7 @@ export default function ReviewsPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Filter Tabs */}
+        
         <div className="flex items-center gap-3 mb-8 overflow-x-auto pb-2">
           {sortOptions.map((opt) => (
             <button
@@ -96,13 +95,12 @@ export default function ReviewsPage() {
                   : "bg-white text-gray-600 border border-gray-200 hover:border-red-300 hover:text-red-600"
                 }`}
             >
-              <span>{opt.icon}</span>
               {opt.label}
             </button>
           ))}
         </div>
 
-        {/* Loading State */}
+        
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -123,7 +121,6 @@ export default function ReviewsPage() {
             ))}
           </div>
         ) : data.length === 0 ? (
-          /* Empty State */
           <div className="text-center py-20">
             <svg
               className="w-20 h-20 mx-auto text-gray-300 mb-6"
@@ -146,14 +143,13 @@ export default function ReviewsPage() {
             </p>
           </div>
         ) : (
-          /* Movies Grid */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {data.map((item) => (
               <div
                 key={item.movie._id}
                 className="group bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300"
               >
-                {/* Movie Thumbnail */}
+                
                 <div className="relative h-48 overflow-hidden">
                   <img
                     src={getCloudinaryImageUrl(
@@ -166,7 +162,7 @@ export default function ReviewsPage() {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
 
-                  {/* Play icon overlay */}
+                  
                   <Link
                     href={`/movie/${item.movie._id}`}
                     className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
@@ -186,7 +182,7 @@ export default function ReviewsPage() {
                     </div>
                   </Link>
 
-                  {/* Movie info */}
+                  
                   <div className="absolute bottom-0 left-0 right-0 p-4">
                     <h3 className="text-white font-bold text-lg leading-tight line-clamp-1">
                       {item.movie.title}
@@ -209,7 +205,7 @@ export default function ReviewsPage() {
                   </div>
                 </div>
 
-                {/* Reviews Preview */}
+                
                 <div className="p-4">
                   <div className="divide-y divide-gray-100">
                     {item.reviews.slice(0, 2).map((review) => (
@@ -246,7 +242,7 @@ export default function ReviewsPage() {
           </div>
         )}
 
-        {/* Load More */}
+        
         {hasMore && data.length > 0 && !loading && (
           <div className="text-center mt-10">
             <button

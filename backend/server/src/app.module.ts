@@ -23,13 +23,11 @@ import { VouchersModule } from './vouchers/vouchers.module';
 
 @Module({
   imports: [
-    // 1. Cấu hình để đọc file .env (isGlobal để dùng được ở mọi nơi)
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: [join(process.cwd(), '.env'), join(__dirname, '..', '.env')],
     }),
 
-    // 2. Kết nối MongoDB kiểu Async (đợi đọc xong .env mới kết nối)
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
@@ -38,7 +36,6 @@ import { VouchersModule } from './vouchers/vouchers.module';
       inject: [ConfigService],
     }),
 
-    // 3. Serve static files (uploads)
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',

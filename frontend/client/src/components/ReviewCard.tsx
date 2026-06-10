@@ -2,7 +2,6 @@
 
 import { IReview } from "@/types";
 
-// Helper: Tính thời gian relative
 const getRelativeTime = (dateStr: string) => {
   const now = new Date();
   const date = new Date(dateStr);
@@ -20,14 +19,13 @@ const getRelativeTime = (dateStr: string) => {
 
 interface ReviewCardProps {
   review: IReview;
-  compact?: boolean; // true = hiển thị rút gọn (cho trang chủ)
+  compact?: boolean;
   onLike?: (reviewId: string) => void;
 }
 
 const ReviewCard = ({ review, compact = false, onLike }: ReviewCardProps) => {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-  // Safe access — review.user có thể null nếu user bị xóa hoặc populate fail
   const userName = review.user?.full_name || "Người dùng";
   const userAvatar = review.user?.avatar_url || null;
   const userInitial = userName.charAt(0).toUpperCase();
@@ -38,9 +36,9 @@ const ReviewCard = ({ review, compact = false, onLike }: ReviewCardProps) => {
         compact ? "py-3" : "bg-white rounded-xl border border-gray-100 p-5"
       } ${!compact && "hover:shadow-md transition-shadow duration-200"}`}
     >
-      {/* Header: Avatar + Name + Time */}
+      
       <div className="flex items-start gap-3">
-        {/* Avatar */}
+        
         <div className="flex-shrink-0">
           {userAvatar ? (
             <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-200">
@@ -61,14 +59,14 @@ const ReviewCard = ({ review, compact = false, onLike }: ReviewCardProps) => {
           )}
         </div>
 
-        {/* Info */}
+        
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-gray-900 text-sm">
               {userName}
             </span>
 
-            {/* Badge "Đã mua vé" */}
+            
             {review.is_verified && (
               <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-green-200">
                 <svg
@@ -87,7 +85,7 @@ const ReviewCard = ({ review, compact = false, onLike }: ReviewCardProps) => {
             )}
           </div>
 
-          {/* Rating Stars */}
+          
           <div className="flex items-center gap-1.5 mt-1">
             <div className="flex items-center gap-0.5">
               {Array.from({ length: 10 }).map((_, i) => (
@@ -114,7 +112,7 @@ const ReviewCard = ({ review, compact = false, onLike }: ReviewCardProps) => {
         </div>
       </div>
 
-      {/* Content */}
+      
       <div className={`mt-3 ${compact ? "ml-13" : ""}`}>
         <p
           className={`text-gray-700 text-sm leading-relaxed ${
@@ -125,7 +123,7 @@ const ReviewCard = ({ review, compact = false, onLike }: ReviewCardProps) => {
         </p>
       </div>
 
-      {/* Actions (not compact mode) */}
+      
       {!compact && (
         <div className="mt-4 flex items-center gap-4 ml-13">
           <button

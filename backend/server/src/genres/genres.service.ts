@@ -9,7 +9,6 @@ import { UpdateGenreDto } from './dto/update-genre.dto';
 export class GenresService {
   constructor(@InjectModel(Genre.name) private genreModel: Model<Genre>) {}
 
-  // Helper: Tạo slug từ tên tiếng Việt
   private generateSlug(name: string): string {
     const vietnameseMap: Record<string, string> = {
       'à': 'a', 'á': 'a', 'ả': 'a', 'ã': 'a', 'ạ': 'a',
@@ -38,17 +37,14 @@ export class GenresService {
       .trim();
   }
 
-  // 1. Lấy tất cả thể loại (Admin)
   async findAll(): Promise<Genre[]> {
     return this.genreModel.find().sort({ name: 1 }).exec();
   }
 
-  // 2. Lấy thể loại đang active (Public)
   async findAllActive(): Promise<Genre[]> {
     return this.genreModel.find({ isActive: true }).sort({ name: 1 }).exec();
   }
 
-  // 3. Lấy 1 thể loại theo ID
   async findOne(id: string): Promise<Genre> {
     const genre = await this.genreModel.findById(id).exec();
     if (!genre) {
@@ -57,11 +53,9 @@ export class GenresService {
     return genre;
   }
 
-  // 4. Tạo thể loại mới
   async create(createGenreDto: CreateGenreDto): Promise<Genre> {
     const slug = this.generateSlug(createGenreDto.name);
 
-    // Kiểm tra trùng tên hoặc slug
     const existing = await this.genreModel.findOne({
       $or: [
         { name: { $regex: new RegExp(`^${createGenreDto.name.trim()}$`, 'i') } },
@@ -81,18 +75,15 @@ export class GenresService {
     return newGenre.save();
   }
 
-  // 5. Cập nhật thể loại
   async update(id: string, updateGenreDto: UpdateGenreDto): Promise<Genre> {
     const genre = await this.genreModel.findById(id).exec();
     if (!genre) {
       throw new NotFoundException('Không tìm thấy thể loại!');
     }
 
-    // Nếu đổi tên → cập nhật slug
     if (updateGenreDto.name) {
       const newSlug = this.generateSlug(updateGenreDto.name);
 
-      // Kiểm tra trùng tên/slug với genre khác
       const existing = await this.genreModel.findOne({
         _id: { $ne: id },
         $or: [
@@ -119,7 +110,6 @@ export class GenresService {
     return updated;
   }
 
-  // 6. Ẩn/Hiện thể loại
   async toggleActive(id: string): Promise<Genre> {
     const genre = await this.genreModel.findById(id).exec();
     if (!genre) {
@@ -130,14 +120,12 @@ export class GenresService {
     return genre.save();
   }
 
-  // 7. Xóa thể loại (kiểm tra movie đang dùng)
   async remove(id: string, movieModel: Model<any>): Promise<Genre> {
     const genre = await this.genreModel.findById(id).exec();
     if (!genre) {
       throw new NotFoundException('Không tìm thấy thể loại!');
     }
 
-    // Kiểm tra có phim nào đang sử dụng thể loại này không
     const movieCount = await movieModel.countDocuments({ genres: id }).exec();
     if (movieCount > 0) {
       throw new BadRequestException(

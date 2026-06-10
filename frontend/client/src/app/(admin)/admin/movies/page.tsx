@@ -7,6 +7,7 @@ import Pagination from '@/components/Pagination';
 import { authHeaders, API_URL } from '@/lib/api';
 import { toastSuccess, toastError } from '@/utils/toast';
 import { getCloudinaryImageUrl, movieImagePresets } from '@/lib/cloudinary';
+import ConfirmModal from '@/components/ConfirmModal';
 
 export default function MovieListPage() {
   const [movies, setMovies] = useState<IMovie[]>([]);
@@ -17,8 +18,10 @@ export default function MovieListPage() {
   const [filterStatus, setFilterStatus] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  // Fetch movies
   const fetchMovies = async () => {
     try {
       const res = await fetch(`${API_URL}/movies`);
@@ -30,7 +33,6 @@ export default function MovieListPage() {
     }
   };
 
-  // Fetch genres
   const fetchGenres = async () => {
     try {
       const res = await fetch(`${API_URL}/genres/active`);
@@ -43,23 +45,30 @@ export default function MovieListPage() {
     }
   };
 
-  // Delete movie
-  const handleDelete = async (id: string, title: string) => {
-    if (!window.confirm(`Bạn chắc chắn muốn xóa phim "${title}"?`)) return;
-    
+  const handleDelete = (id: string, title: string) => {
+    setDeleteTarget({ id, title });
+    setIsConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
     try {
-      const res = await fetch(`${API_URL}/movies/${id}`, {
+      const res = await fetch(`${API_URL}/movies/${deleteTarget.id}`, {
         method: 'DELETE',
         headers: authHeaders(),
       });
       if (res.ok) {
         toastSuccess('Xóa phim thành công!');
         fetchMovies();
+        setIsConfirmOpen(false);
       } else {
         toastError('Xóa thất bại');
       }
-    } catch (error) {
+    } catch {
       toastError('Xóa thất bại');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -70,7 +79,6 @@ export default function MovieListPage() {
     });
   }, []);
 
-  // Filter movies
   const filteredMovies = movies.filter(movie => {
     const matchSearch = movie.title.toLowerCase().includes(searchTerm.toLowerCase());
     const matchGenre = !filterGenre || movie.genres?.some(g => g._id === filterGenre);
@@ -80,12 +88,10 @@ export default function MovieListPage() {
     return matchSearch && matchGenre && matchStatus;
   });
 
-  // Reset về trang 1 khi filter thay đổi
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, filterGenre, filterStatus]);
 
-  // Phân trang
   const totalPages = Math.ceil(filteredMovies.length / itemsPerPage);
   const paginatedMovies = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -125,7 +131,7 @@ export default function MovieListPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Quản lý Phim</h1>
@@ -142,7 +148,18 @@ export default function MovieListPage() {
         </Link>
       </div>
 
-      {/* Search & Filter */}
+      
+      <ConfirmModal
+        open={isConfirmOpen}
+        title="Xác nhận xóa phim"
+        message={`Bạn có chắc chắn muốn xóa phim "${deleteTarget?.title}" không?`}
+        confirmText="Xóa"
+        cancelText="Hủy"
+        loading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setIsConfirmOpen(false)}
+      />
+
       <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
         <div className="flex flex-wrap items-center gap-4">
           <div className="relative flex-1 min-w-[200px]">
@@ -182,7 +199,7 @@ export default function MovieListPage() {
         </div>
       </div>
 
-      {/* Table */}
+      
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full table-fixed min-w-[900px]">
@@ -244,7 +261,7 @@ export default function MovieListPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      {/* Badge trạng thái */}
+                      
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${status.color}`}>
                         {status.label}
                       </span>
@@ -279,7 +296,7 @@ export default function MovieListPage() {
           </table>
         </div>
         
-        {/* Pagination */}
+        
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
@@ -288,7 +305,7 @@ export default function MovieListPage() {
           itemsPerPage={itemsPerPage}
           onLimitChange={(limit) => {
             setItemsPerPage(limit);
-            setCurrentPage(1); // Reset vế trang 1 khi đổi limit
+            setCurrentPage(1);
           }}
         />
       </div>

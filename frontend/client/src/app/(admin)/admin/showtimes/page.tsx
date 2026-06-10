@@ -6,6 +6,7 @@ import Pagination from '@/components/Pagination';
 import { authHeaders } from '@/lib/api';
 import { toastSuccess, toastError } from '@/utils/toast';
 import { getCloudinaryImageUrl, movieImagePresets } from '@/lib/cloudinary';
+import ConfirmModal from '@/components/ConfirmModal';
 
 interface IShowtime {
     _id: string;
@@ -50,7 +51,6 @@ export default function AdminShowtimesPage() {
     const [totalPages, setTotalPages] = useState(1);
     const [total, setTotal] = useState(0);
 
-    // Filters
     const [movies, setMovies] = useState<IMovie[]>([]);
     const [cinemas, setCinemas] = useState<ICinema[]>([]);
     const [filterMovie, setFilterMovie] = useState('');
@@ -58,8 +58,10 @@ export default function AdminShowtimesPage() {
     const [filterDate, setFilterDate] = useState('');
 
     const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState<{ id: string; movieTitle: string } | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
-    // Fetch filter options
     useEffect(() => {
         const fetchOptions = async () => {
             try {
@@ -76,7 +78,6 @@ export default function AdminShowtimesPage() {
         fetchOptions();
     }, [API_URL]);
 
-    // Fetch showtimes
     useEffect(() => {
         const fetchShowtimes = async () => {
             setLoading(true);
@@ -104,14 +105,12 @@ export default function AdminShowtimesPage() {
             }
         };
         fetchShowtimes();
-    }, [API_URL, currentPage, filterMovie, filterCinema, filterDate]);
+    }, [API_URL, currentPage, filterMovie, filterCinema, filterDate, itemsPerPage]);
 
-    // Reset page when filter changes
     useEffect(() => {
         setCurrentPage(1);
     }, [filterMovie, filterCinema, filterDate]);
 
-    // Format helpers
     const formatDateTime = (dateStr: string) => {
         const date = new Date(dateStr);
         return date.toLocaleString('vi-VN', {
@@ -127,36 +126,40 @@ export default function AdminShowtimesPage() {
         return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
     };
 
-    // Delete handler
-    const handleDelete = async (id: string, movieTitle: string) => {
-        if (!confirm(`Bạn có chắc muốn xóa suất chiếu của phim "${movieTitle}"?`)) {
-            return;
-        }
+    const handleDelete = (id: string, movieTitle: string) => {
+        setDeleteTarget({ id, movieTitle });
+        setIsConfirmOpen(true);
+    };
 
+    const handleConfirmDelete = async () => {
+        if (!deleteTarget) return;
+        setIsDeleting(true);
         try {
-            const res = await fetch(`${API_URL}/showtimes/${id}`, {
+            const res = await fetch(`${API_URL}/showtimes/${deleteTarget.id}`, {
                 method: 'DELETE',
                 headers: authHeaders(),
             });
 
             if (res.ok) {
-                toastSuccess('✅ Đã xóa suất chiếu thành công!');
-                // Xóa khỏi danh sách UI ngay lập tức
-                setShowtimes(prev => prev.filter(s => s._id !== id));
+                toastSuccess('Đã xóa suất chiếu thành công!');
+                setShowtimes(prev => prev.filter(s => s._id !== deleteTarget.id));
                 setTotal(prev => prev - 1);
+                setIsConfirmOpen(false);
             } else {
                 const error = await res.json();
-                toastError('❌ Lỗi: ' + (error.message || 'Không thể xóa suất chiếu'));
+                toastError('Lỗi: ' + (error.message || 'Không thể xóa suất chiếu'));
             }
         } catch (error) {
             console.error('Lỗi xóa:', error);
-            toastError('❌ Không thể kết nối đến server!');
+            toastError('Không thể kết nối đến server!');
+        } finally {
+            setIsDeleting(false);
         }
     };
 
     return (
         <div className="max-w-7xl mx-auto">
-            {/* Header */}
+            
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-800">Quản Lý Suất Chiếu</h1>
@@ -173,7 +176,7 @@ export default function AdminShowtimesPage() {
                 </Link>
             </div>
 
-            {/* Filters */}
+            
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
@@ -226,7 +229,18 @@ export default function AdminShowtimesPage() {
                 </div>
             </div>
 
-            {/* Table */}
+            <ConfirmModal
+                open={isConfirmOpen}
+                title="Xác nhận xóa suất chiếu"
+                message={`Bạn có chắc muốn xóa suất chiếu của phim "${deleteTarget?.movieTitle}"? Hành động này không thể hoàn tác.`}
+                confirmText="Xóa"
+                cancelText="Hủy"
+                loading={isDeleting}
+                onConfirm={handleConfirmDelete}
+                onCancel={() => setIsConfirmOpen(false)}
+            />
+
+            
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                 {loading ? (
                     <div className="flex items-center justify-center h-64">
@@ -327,7 +341,6 @@ export default function AdminShowtimesPage() {
                 )}
             </div>
 
-            {/* Pagination */}
             <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}

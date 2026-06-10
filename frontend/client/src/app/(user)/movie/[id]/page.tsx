@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { IMovie, IShowtime, ICinemaSystem, ICinema, IReview } from '@/types';
 import Link from 'next/link';
 import { VIETNAM_PROVINCES } from '@/constants/provinces';
@@ -27,7 +27,6 @@ const getDayName = (date: Date, index: number) => {
   return dayNames[date.getDay()];
 };
 
-// Helper: Format date thành YYYY-MM-DD theo LOCAL timezone (tránh lệch ngày do UTC)
 const formatLocalDate = (date: Date): string => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -35,71 +34,62 @@ const formatLocalDate = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
+type MovieShowtime = Omit<IShowtime, 'cinema'> & {
+  cinema: ICinema | string;
+};
+
 export default function MovieDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const id = params.id;
 
   const [movie, setMovie] = useState<IMovie | null>(null);
-  const [showtimes, setShowtimes] = useState<IShowtime[]>([]);
+  const [showtimes, setShowtimes] = useState<MovieShowtime[]>([]);
   const [relatedMovies, setRelatedMovies] = useState<IMovie[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Auth context
   const { user } = useAuth();
 
-  // Review status
   const [canReview, setCanReview] = useState(false);
   const [reviewMessage, setReviewMessage] = useState('');
   const [userReview, setUserReview] = useState<IReview | null>(null);
   const [isCheckingReview, setIsCheckingReview] = useState(false);
 
-  // Review form states
   const [rating, setRating] = useState(10);
   const [hoverRating, setHoverRating] = useState(0);
   const [reviewContent, setReviewContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  // Reviews states
   const [reviews, setReviews] = useState<IReview[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewsPage, setReviewsPage] = useState(1);
   const [hasMoreReviews, setHasMoreReviews] = useState(false);
   const [totalReviews, setTotalReviews] = useState(0);
 
-  // Trailer Modal state
   const [isTrailerOpen, setIsTrailerOpen] = useState(false);
 
-  // New states for booking flow
-  const [cities, setCities] = useState<string[]>([]);
   const [cinemaSystems, setCinemaSystems] = useState<ICinemaSystem[]>([]);
   const [cinemas, setCinemas] = useState<ICinema[]>([]);
 
-  // Selected states - flow: City -> Date -> Brand -> Cinema -> Showtime
   const [selectedCity, setSelectedCity] = useState<string>('Hà Nội');
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [selectedBrand, setSelectedBrand] = useState<string | null>(null); // null = Tất cả
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [days, setDays] = useState<Date[]>([]);
 
-  // Initialize dates
   useEffect(() => {
     setDays(getNext14Days());
-    // FIX: Dùng local date thay vì UTC
     const today = formatLocalDate(new Date());
     setSelectedDate(today);
   }, []);
 
-  // Fetch initial data
   useEffect(() => {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
     const fetchData = async () => {
       try {
-        const [resMovie, resShow, resAllMovies, resCities, resCinemaSystems, resCinemas] = await Promise.all([
+        const [resMovie, resShow, resAllMovies, resCinemaSystems, resCinemas] = await Promise.all([
           fetch(`${API_URL}/movies/${id}`),
           fetch(`${API_URL}/showtimes/movie/${id}`),
           fetch(`${API_URL}/movies`),
-          fetch(`${API_URL}/cinemas/cities`),
           fetch(`${API_URL}/cinema-systems`),
           fetch(`${API_URL}/cinemas`)
         ]);
@@ -107,14 +97,12 @@ export default function MovieDetailPage() {
         const dataMovie = await resMovie.json();
         const dataShow = await resShow.json();
         const dataAllMovies = await resAllMovies.json();
-        const dataCities = await resCities.json();
         const dataCinemaSystems = await resCinemaSystems.json();
         const dataCinemas = await resCinemas.json();
 
         setMovie(dataMovie);
         setShowtimes(dataShow);
         setRelatedMovies(dataAllMovies.filter((m: IMovie) => m._id !== id).slice(0, 5));
-        setCities(dataCities);
         setCinemaSystems(dataCinemaSystems);
         setCinemas(dataCinemas);
 
@@ -128,7 +116,6 @@ export default function MovieDetailPage() {
     if (id) fetchData();
   }, [id]);
 
-  // Fetch reviews
   const fetchReviews = useCallback(async (page: number, reset = false) => {
     if (!id) return;
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -157,7 +144,6 @@ export default function MovieDetailPage() {
     }
   }, [id, fetchReviews]);
 
-  // Check review permission
   useEffect(() => {
     if (id && user) {
       const checkReviewPermission = async () => {
@@ -225,7 +211,6 @@ export default function MovieDetailPage() {
         setReviewContent('');
         setRating(10);
         
-        // Refresh check permission and reviews list
         const resCheck = await fetch(`${API_URL}/reviews/check/${id}`, { headers: { Authorization: `Bearer ${token}` } });
         const dataCheck = await resCheck.json();
         if (dataCheck.hasReviewed && dataCheck.review) {
@@ -280,7 +265,6 @@ export default function MovieDetailPage() {
     fetchReviews(next);
   };
 
-  // Helper: relative time
   const getRelativeTime = (dateStr: string) => {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
@@ -292,12 +276,10 @@ export default function MovieDetailPage() {
     return new Date(dateStr).toLocaleDateString('vi-VN');
   };
 
-  // Reset brand when city changes
   useEffect(() => {
     setSelectedBrand(null);
   }, [selectedCity]);
 
-  // Filter cinemas by selected city and brand
   const filteredCinemas = useMemo(() => {
     return cinemas.filter(cinema => {
       const matchCity = cinema.city === selectedCity;
@@ -309,11 +291,9 @@ export default function MovieDetailPage() {
     });
   }, [cinemas, selectedCity, selectedBrand]);
 
-  // Filter showtimes by date and filtered cinemas
   const filteredShowtimes = useMemo(() => {
     const filteredCinemaIds = filteredCinemas.map(c => c._id);
     return showtimes.filter(show => {
-      // FIX: Dùng local date thay vì UTC để tránh lệch ngày do timezone
       const showDateTime = new Date(show.start_time);
       const showDate = `${showDateTime.getFullYear()}-${String(showDateTime.getMonth() + 1).padStart(2, '0')}-${String(showDateTime.getDate()).padStart(2, '0')}`;
       const cinemaId = typeof show.cinema === 'object' ? show.cinema._id : show.cinema;
@@ -321,13 +301,11 @@ export default function MovieDetailPage() {
     });
   }, [showtimes, selectedDate, filteredCinemas]);
 
-  // Group showtimes by cinema, then by room type
   const groupedShowtimes = useMemo(() => {
-    const groups: Record<string, { cinema: ICinema; roomTypes: Record<string, IShowtime[]> }> = {};
+    const groups: Record<string, { cinema: ICinema; roomTypes: Record<string, MovieShowtime[]> }> = {};
 
     filteredShowtimes.forEach(show => {
       if (!show.cinema) return;
-      // @ts-ignore - cinema can be string or object depending on populate
       const cinema = typeof show.cinema === 'object' && show.cinema._id ? show.cinema : filteredCinemas.find(c => c._id === show.cinema);
       if (!cinema) return;
 
@@ -343,7 +321,6 @@ export default function MovieDetailPage() {
       groups[cinemaId].roomTypes[roomType].push(show);
     });
 
-    // Sort showtimes within each room type
     Object.values(groups).forEach(group => {
       Object.keys(group.roomTypes).forEach(roomType => {
         group.roomTypes[roomType].sort((a, b) =>
@@ -355,7 +332,6 @@ export default function MovieDetailPage() {
     return groups;
   }, [filteredShowtimes, filteredCinemas]);
 
-  // Get available brands that have cinemas in selected city
   const availableBrands = useMemo(() => {
     const brandIds = new Set<string>();
     cinemas.forEach(cinema => {
@@ -381,21 +357,17 @@ export default function MovieDetailPage() {
   return (
     <div className="min-h-screen bg-white">
 
-      {/* --- PHẦN 1: BANNER & INFO --- */}
-      {/* 
-        Banner sử dụng margin-top âm (-mt-16) để kéo lên che padding-top của layout,
-        sau đó thêm padding-top (pt-20) để đẩy nội dung xuống dưới header.
-        Điều này tạo hiệu ứng banner "full-bleed" nhưng nội dung vẫn an toàn.
-      */}
+      
+      
       <div
         className="relative w-full -mt-16 pt-16 bg-cover bg-center"
         style={{ backgroundImage: `url(${detailBannerUrl})` }}
       >
-        {/* Overlay gradient + Content container */}
+        
         <div className="bg-gradient-to-t from-gray-900 via-gray-900/80 to-gray-900/60 pt-8 pb-10">
           <div className="container mx-auto px-4">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8 items-end min-h-[380px] md:min-h-[420px]">
-              {/* Poster */}
+              
               <div className="hidden md:block col-span-1">
                 <img
                   src={getCloudinaryImageUrl(movie.poster_url, movieImagePresets.posterDetail)}
@@ -404,7 +376,7 @@ export default function MovieDetailPage() {
                 />
               </div>
 
-              {/* Info Text */}
+              
               <div className="col-span-1 md:col-span-3 mb-2">
                 <h1 className="text-4xl md:text-5xl font-extrabold mb-3 text-white drop-shadow-lg">
                   {movie.title}
@@ -425,12 +397,12 @@ export default function MovieDetailPage() {
                   </span>
                 </div>
 
-                {/* Description */}
+                
                 <p className="text-gray-300 mb-6 line-clamp-3 md:line-clamp-none max-w-3xl leading-relaxed">
                   {movie.description || "Đang cập nhật nội dung phim..."}
                 </p>
 
-                {/* Buttons - Only Trailer */}
+                
                 <div className="flex gap-4">
                   <button
                     onClick={() => setIsTrailerOpen(true)}
@@ -448,12 +420,12 @@ export default function MovieDetailPage() {
         </div>
       </div>
 
-      {/* --- PHẦN 2: MAIN CONTENT (Chia cột) --- */}
+      
       <div className="container mx-auto px-4 py-12 grid grid-cols-1 lg:grid-cols-4 gap-10 bg-white">
 
-        {/* CỘT TRÁI: Lịch chiếu & Bộ lọc (Chiếm 3 phần) */}
+        
         <div className="lg:col-span-3" id="showtimes">
-          {/* Header with title and city selector */}
+          
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold border-l-4 border-red-500 pl-3 text-gray-800">
               Lịch Chiếu {movie.title}
@@ -475,7 +447,7 @@ export default function MovieDetailPage() {
             </div>
           </div>
 
-          {/* Date Picker - Horizontal scroll */}
+          
           <div className="flex gap-2 overflow-x-auto pb-4 mb-6 scrollbar-hide">
             {days.map((date, index) => {
               const dateStr = formatLocalDate(date);
@@ -498,10 +470,8 @@ export default function MovieDetailPage() {
             })}
           </div>
 
-          {/* Brand/Cinema System Selector - Only show if there are cinemas in selected city */}
           {filteredCinemas.length > 0 && (
             <div className="flex gap-3 overflow-x-auto pb-4 mb-6 scrollbar-hide">
-              {/* "Tất cả" option */}
               <button
                 onClick={() => setSelectedBrand(null)}
                 className={`flex-shrink-0 flex flex-col items-center justify-center w-[70px] h-[70px] rounded-lg border-2 transition ${selectedBrand === null
@@ -509,7 +479,7 @@ export default function MovieDetailPage() {
                   : 'border-gray-200 bg-gray-50 hover:border-gray-300'
                   }`}
               >
-                <span className="text-2xl">⭐</span>
+                <span className="text-xs font-bold text-yellow-600">ALL</span>
                 <span className="text-xs mt-1 text-gray-600">Tất cả</span>
               </button>
 
@@ -532,7 +502,7 @@ export default function MovieDetailPage() {
             </div>
           )}
 
-          {/* Cinemas and Showtimes List */}
+          
           <div className="space-y-4">
             {Object.keys(groupedShowtimes).length === 0 ? (
               <div className="text-center text-gray-500 py-16 bg-gray-50 rounded-lg border border-gray-200 border-dashed">
@@ -558,16 +528,15 @@ export default function MovieDetailPage() {
               </div>
             ) : (
               Object.entries(groupedShowtimes).map(([cinemaId, { cinema, roomTypes }]) => {
-                // Get cinema system info
                 const systemInfo = typeof cinema.cinema_system === 'object'
                   ? cinema.cinema_system
                   : cinemaSystems.find(s => s._id === cinema.cinema_system);
 
                 return (
                   <div key={cinemaId} className="bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm">
-                    {/* Cinema Header */}
+                    
                     <div className="flex items-start gap-4 p-4 border-b border-gray-100 bg-gray-50">
-                      {/* Cinema System Logo */}
+                      
                       <div className="flex-shrink-0 w-12 h-12 rounded bg-white border border-gray-200 flex items-center justify-center overflow-hidden">
                         {systemInfo?.logo_url ? (
                           <img src={systemInfo.logo_url} alt={systemInfo.name} className="w-10 h-10 object-contain" />
@@ -576,14 +545,14 @@ export default function MovieDetailPage() {
                         )}
                       </div>
 
-                      {/* Cinema Info */}
+                      
                       <div className="flex-1 min-w-0">
                         <h3 className="font-bold text-gray-800 text-lg">{cinema.name}</h3>
                         <p className="text-gray-500 text-sm truncate">{cinema.address}</p>
                       </div>
                     </div>
 
-                    {/* Room Types and Showtimes */}
+                    
                     <div className="p-4 space-y-4">
                       {Object.entries(roomTypes).map(([roomType, shows]) => (
                         <div key={roomType}>
@@ -619,7 +588,7 @@ export default function MovieDetailPage() {
         </div>
 
 
-        {/* CỘT PHẢI: Phim nổi bật (Sidebar) (Chiếm 1 phần) */}
+        
         <div className="lg:col-span-1">
           <h3 className="text-xl font-bold mb-6 text-gray-800">Phim Đang Chiếu</h3>
           <div className="flex flex-col gap-4">
@@ -648,12 +617,12 @@ export default function MovieDetailPage() {
 
       </div>
 
-      {/* --- PHẦN 2.5: SO SÁNH RẠP CHIẾU --- */}
+      
       <div className="bg-gray-50 border-t border-gray-100">
         <CompareCinemaSection movieId={id as string} />
       </div>
 
-      {/* --- PHẦN 3: BÌNH LUẬN PHIM --- */}
+      
       <div className="container mx-auto px-4 py-12 bg-white">
         <div className="max-w-4xl">
           <div className="flex items-center justify-between mb-8">
@@ -665,7 +634,7 @@ export default function MovieDetailPage() {
             </h2>
           </div>
 
-          {/* Form bình luận */}
+          
           <div className="mb-10 p-6 bg-white rounded-xl shadow-sm border border-gray-100">
             {!user ? (
               <div className="text-center py-6">
@@ -731,7 +700,7 @@ export default function MovieDetailPage() {
                   {isEditing ? 'Chỉnh sửa đánh giá của bạn' : 'Đánh giá bộ phim này'}
                 </h3>
                 
-                {/* 10-Star Rating Selector */}
+                
                 <div className="mb-8 flex flex-col items-center p-6 bg-gray-50 rounded-xl border border-gray-200">
                   <div className="flex gap-1.5 md:gap-2 mb-4">
                     {Array.from({ length: 10 }).map((_, i) => (
@@ -761,7 +730,7 @@ export default function MovieDetailPage() {
                   </div>
                 </div>
 
-                {/* Textarea */}
+                
                 <div className="mb-6 relative">
                   <textarea
                     value={reviewContent}
@@ -813,7 +782,7 @@ export default function MovieDetailPage() {
             )}
           </div>
 
-          {/* Reviews List */}
+          
           {reviews.length === 0 && !reviewsLoading ? (
             <div className="text-center py-16 bg-gray-50 rounded-xl border border-dashed border-gray-200">
               <svg className="w-14 h-14 mx-auto text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -864,14 +833,14 @@ export default function MovieDetailPage() {
             </div>
           )}
 
-          {/* Loading */}
+          
           {reviewsLoading && (
             <div className="flex justify-center py-8">
               <div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
             </div>
           )}
 
-          {/* Xem thêm */}
+          
           {hasMoreReviews && !reviewsLoading && (
             <div className="text-center mt-8">
               <button
@@ -885,7 +854,7 @@ export default function MovieDetailPage() {
         </div>
       </div>
 
-      {/* Trailer Modal Component */}
+      
       {movie && (
         <TrailerModal
           isOpen={isTrailerOpen}

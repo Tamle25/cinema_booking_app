@@ -23,7 +23,6 @@ const CinemaPartnersSection = () => {
     fetchCinemaChains();
   }, []);
 
-  // Skeleton loading
   if (loading) {
     return (
       <section className="max-w-7xl mx-auto px-4 py-12">
@@ -51,7 +50,6 @@ const CinemaPartnersSection = () => {
 
   if (cinemaChains.length === 0) return null;
 
-  // Fallback logo: tạo text logo từ tên
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -64,7 +62,7 @@ const CinemaPartnersSection = () => {
   return (
     <section id="cinema-partners" className="bg-white py-12 md:py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Section Header */}
+        
         <div className="flex items-center justify-center mb-8 md:mb-10">
           <div className="text-center">
             <div className="flex items-center justify-center gap-3 mb-2">
@@ -80,14 +78,14 @@ const CinemaPartnersSection = () => {
           </div>
         </div>
 
-        {/* Cinema Partners Grid */}
+        
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
           {cinemaChains.map((chain) => (
             <div
               key={chain._id}
               className="group bg-white rounded-xl border border-[#eeeeee] hover:border-[#E50914] p-5 md:p-6 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-red-100 hover:scale-[1.03]"
             >
-              {/* Logo */}
+              
               <div className="w-16 h-16 md:w-20 md:h-20 rounded-xl overflow-hidden flex items-center justify-center bg-gray-50 group-hover:bg-red-50 transition-colors duration-300">
                 {chain.logo_url ? (
                   <img
@@ -110,7 +108,7 @@ const CinemaPartnersSection = () => {
                 )}
               </div>
 
-              {/* Tên rạp */}
+              
               <p className="text-sm font-semibold text-gray-700 group-hover:text-[#E50914] transition-colors duration-300 text-center leading-tight">
                 {chain.name}
               </p>

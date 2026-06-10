@@ -1,12 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
-
-/**
- * MoMo Payment Service
- * Theo tài liệu chính thức MoMo Payment Gateway
- * https://developers.momo.vn/v3/vi/docs/payment/api/wallet/onetime
- */
 
 export interface MomoConfig {
   partnerCode: string;
@@ -17,7 +11,6 @@ export interface MomoConfig {
   ipnUrl: string;
 }
 
-// Các phương thức thanh toán MoMo hỗ trợ
 export type MomoPaymentType = 'captureWallet' | 'payWithATM' | 'payWithCC';
 
 export interface CreateMomoPaymentParams {
@@ -25,7 +18,7 @@ export interface CreateMomoPaymentParams {
   amount: number;
   orderInfo: string;
   extraData?: string;
-  paymentType?: MomoPaymentType; // Thêm option chọn phương thức
+  paymentType?: MomoPaymentType;
 }
 
 export interface MomoPaymentResponse {
@@ -59,10 +52,10 @@ export interface MomoCallbackParams {
 
 @Injectable()
 export class MomoService {
+  private readonly logger = new Logger(MomoService.name);
   private readonly config: MomoConfig;
 
   constructor(private configService: ConfigService) {
-    // Đọc config từ ConfigService (đảm bảo đã load từ .env)
     this.config = {
       partnerCode: this.configService.get<string>('MOMO_PARTNER_CODE') || '',
       accessKey: this.configService.get<string>('MOMO_ACCESS_KEY') || '',
@@ -71,41 +64,18 @@ export class MomoService {
       returnUrl: this.configService.get<string>('MOMO_RETURN_URL') || 'http://localhost:3000/payment/momo-return',
       ipnUrl: this.configService.get<string>('MOMO_IPN_URL') || 'http://localhost:4000/payments/momo-ipn',
     };
-
-    console.log('=== MoMo Config Loaded ===');
-    console.log('PartnerCode:', this.config.partnerCode);
-    console.log('AccessKey:', this.config.accessKey ? this.config.accessKey.substring(0, 8) + '...' : 'NOT SET');
-    console.log('SecretKey:', this.config.secretKey ? 'SET' : 'NOT SET');
-    console.log('Endpoint:', this.config.endpoint);
-    console.log('ReturnUrl:', this.config.returnUrl);
-    console.log('IpnUrl:', this.config.ipnUrl);
-    console.log('==========================');
   }
 
-  /**
-   * Tạo mã giao dịch unique
-   * Format: MOMO + timestamp + random
-   */
   generateOrderId(): string {
     const timestamp = Date.now();
     const random = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
     return `MOMO${timestamp}${random}`;
   }
 
-  /**
-   * Tạo requestId unique
-   */
   generateRequestId(): string {
     return `REQ${Date.now()}${Math.floor(Math.random() * 1000000)}`;
   }
 
-  /**
-   * Tạo chữ ký HMAC SHA256 theo tài liệu MoMo
-   * rawSignature = "accessKey=" + accessKey + "&amount=" + amount + "&extraData=" + extraData + 
-   *                "&ipnUrl=" + ipnUrl + "&orderId=" + orderId + "&orderInfo=" + orderInfo + 
-   *                "&partnerCode=" + partnerCode + "&redirectUrl=" + redirectUrl + 
-   *                "&requestId=" + requestId + "&requestType=" + requestType
-   */
   private createSignature(rawData: string): string {
     return crypto
       .createHmac('sha256', this.config.secretKey)
@@ -113,17 +83,12 @@ export class MomoService {
       .digest('hex');
   }
 
-  /**
-   * Tạo URL thanh toán MoMo
-   * Hỗ trợ các phương thức: captureWallet (QR), payWithATM (thẻ ATM), payWithCC (thẻ quốc tế)
-   */
   async createPaymentUrl(params: CreateMomoPaymentParams): Promise<MomoPaymentResponse> {
     const { orderId, amount, orderInfo, extraData = '', paymentType = 'captureWallet' } = params;
 
     const requestId = this.generateRequestId();
-    const requestType = paymentType; // Sử dụng phương thức thanh toán từ params
+    const requestType = paymentType;
 
-    // Tạo rawSignature theo thứ tự alphabet (theo tài liệu MoMo)
     const rawSignature =
       `accessKey=${this.config.accessKey}` +
       `&amount=${amount}` +
@@ -138,8 +103,6 @@ export class MomoService {
 
     const signature = this.createSignature(rawSignature);
 
-    // Tạo request body theo tài liệu MoMo API v2
-    // Lưu ý: KHÔNG gửi accessKey trong request body
     const requestBody = {
       partnerCode: this.config.partnerCode,
       partnerName: 'Cinema Booking',
@@ -154,16 +117,10 @@ export class MomoService {
       extraData: extraData,
       requestType: requestType,
       signature: signature,
-      autoCapture: true, // Tự động capture tiền
+      autoCapture: true,
     };
 
-    console.log('=== MOMO CREATE PAYMENT REQUEST ===');
-    console.log('OrderId:', orderId);
-    console.log('Amount:', amount);
-    console.log('RequestType:', requestType);
-
     try {
-      // Gọi API MoMo
       const response = await fetch(this.config.endpoint, {
         method: 'POST',
         headers: {
@@ -173,26 +130,13 @@ export class MomoService {
       });
 
       const result = await response.json() as MomoPaymentResponse;
-
-      console.log('=== MOMO API RESPONSE ===');
-      console.log('Response:', JSON.stringify(result, null, 2));
-      console.log('=========================');
-
       return result;
     } catch (error) {
-      console.error('MoMo API Error:', error);
+      this.logger.error('Lỗi gọi MoMo API', error);
       throw error;
     }
   }
 
-  /**
-   * Xác thực chữ ký callback từ MoMo (IPN / Return URL)
-   * rawSignature = "accessKey=" + accessKey + "&amount=" + amount + "&extraData=" + extraData +
-   *                "&message=" + message + "&orderId=" + orderId + "&orderInfo=" + orderInfo +
-   *                "&orderType=" + orderType + "&partnerCode=" + partnerCode + "&payType=" + payType +
-   *                "&requestId=" + requestId + "&responseTime=" + responseTime +
-   *                "&resultCode=" + resultCode + "&transId=" + transId
-   */
   verifySignature(params: MomoCallbackParams): boolean {
     const {
       partnerCode,
@@ -210,7 +154,6 @@ export class MomoService {
       signature,
     } = params;
 
-    // Tạo rawSignature theo thứ tự alphabet (theo tài liệu MoMo)
     const rawSignature =
       `accessKey=${this.config.accessKey}` +
       `&amount=${amount}` +
@@ -227,26 +170,14 @@ export class MomoService {
       `&transId=${transId}`;
 
     const calculatedSignature = this.createSignature(rawSignature);
-    console.log('=== MOMO VERIFY SIGNATURE ===');
-    console.log('OrderId:', orderId);
-    console.log('Match:', signature === calculatedSignature);
 
     return signature === calculatedSignature;
   }
 
-  /**
-   * Kiểm tra kết quả thanh toán từ MoMo
-   * resultCode = 0: Thành công
-   * resultCode != 0: Thất bại
-   */
   isPaymentSuccess(resultCode: string | number): boolean {
     return String(resultCode) === '0';
   }
 
-  /**
-   * Lấy message theo resultCode từ MoMo
-   * Theo tài liệu MoMo Payment Gateway
-   */
   getResultMessage(resultCode: string | number): { success: boolean; message: string } {
     const code = String(resultCode);
     const messages: Record<string, { success: boolean; message: string }> = {
@@ -282,9 +213,6 @@ export class MomoService {
     return messages[code] || { success: false, message: `Giao dịch thất bại. Mã lỗi: ${code}` };
   }
 
-  /**
-   * Lấy cấu hình (để debug)
-   */
   getConfig(): Omit<MomoConfig, 'secretKey' | 'accessKey'> {
     return {
       partnerCode: this.config.partnerCode,

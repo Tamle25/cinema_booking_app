@@ -83,7 +83,6 @@ export class UploadsController {
     @UploadedFile() file: Express.Multer.File | undefined,
     @Body('type') type: MovieImageType,
   ) {
-    // 1. Kiểm tra file có tồn tại không
     if (!file) {
       this.logger.warn(
         'Upload request khong co file. Kiem tra frontend gui dung field name "file".',
@@ -93,19 +92,16 @@ export class UploadsController {
       );
     }
 
-    // Log thông tin file nhận được
     this.logger.log(
       `Nhan file upload: originalname=${file.originalname}, mimetype=${file.mimetype}, size=${file.size}, bufferLength=${file.buffer?.length ?? 0}`,
     );
 
-    // 2. Kiểm tra type
     if (type !== 'poster' && type !== 'banner') {
       throw new BadRequestException(
         `type khong hop le: "${type}". Chi chap nhan "poster" hoac "banner".`,
       );
     }
 
-    // 3. Kiểm tra magic bytes (file signature)
     if (!this.hasValidImageSignature(file)) {
       this.logger.warn(
         `File ${file.originalname} co mimetype ${file.mimetype} nhung magic bytes khong khop.`,
@@ -115,7 +111,6 @@ export class UploadsController {
       );
     }
 
-    // 4. Upload lên Cloudinary
     let uploaded: UploadApiResponse;
     try {
       uploaded = await this.cloudinaryService.uploadImage(
@@ -123,7 +118,6 @@ export class UploadsController {
         MOVIE_IMAGE_RULES[type].folder,
       );
     } catch (error) {
-      // Log chi tiết lỗi
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       const httpCode = (error as any)?.http_code;
@@ -142,7 +136,6 @@ export class UploadsController {
         throw error;
       }
 
-      // Trả lỗi chi tiết trong môi trường dev, lỗi chung trong production
       const isDev = process.env.NODE_ENV !== 'production';
       throw new InternalServerErrorException(
         isDev
@@ -151,14 +144,12 @@ export class UploadsController {
       );
     }
 
-    // 5. Validate kích thước ảnh đã upload
     const validation = this.validateUploadedImage(type, uploaded);
     if (validation.errors.length > 0) {
       await this.cloudinaryService.destroyImage(uploaded.public_id);
       throw new BadRequestException(validation.errors);
     }
 
-    // 6. Trả response đầy đủ
     return {
       secure_url: uploaded.secure_url,
       public_id: uploaded.public_id,

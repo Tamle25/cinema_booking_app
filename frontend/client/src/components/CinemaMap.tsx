@@ -6,7 +6,6 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { IComparedCinema } from '@/types';
 
-// Fix Leaflet default marker icon (bị lỗi với bundlers)
 const DefaultIcon = L.icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -17,7 +16,6 @@ const DefaultIcon = L.icon({
   shadowSize: [41, 41],
 });
 
-// Icon riêng cho vị trí user (màu xanh)
 const UserIcon = L.icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
@@ -27,7 +25,6 @@ const UserIcon = L.icon({
   shadowSize: [41, 41],
 });
 
-// Icon cho rạp chiếu (màu đỏ)
 const CinemaIcon = L.icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
@@ -39,7 +36,8 @@ const CinemaIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Component con để fit bounds khi dữ liệu thay đổi
+const DEFAULT_MAP_CENTER: L.LatLngExpression = [21.0285, 105.8542];
+
 function FitBounds({ cinemas, userCoords }: {
   cinemas: IComparedCinema[];
   userCoords: { lat: number; lng: number } | null;
@@ -75,10 +73,9 @@ interface CinemaMapProps {
 }
 
 export default function CinemaMapInner({ cinemas, userCoords, onSelectCinema }: CinemaMapProps) {
-  // Tính center mặc định
   const defaultCenter: L.LatLngExpression = userCoords
     ? [userCoords.lat, userCoords.lng]
-    : [21.0285, 105.8542]; // Hà Nội
+    : DEFAULT_MAP_CENTER;
 
   const cinemasWithCoords = cinemas.filter(c => c.latitude != null && c.longitude != null);
 
@@ -98,7 +95,7 @@ export default function CinemaMapInner({ cinemas, userCoords, onSelectCinema }: 
 
         <FitBounds cinemas={cinemas} userCoords={userCoords} />
 
-        {/* Marker vị trí user */}
+        
         {userCoords && (
           <Marker position={[userCoords.lat, userCoords.lng]} icon={UserIcon}>
             <Popup>
@@ -109,7 +106,7 @@ export default function CinemaMapInner({ cinemas, userCoords, onSelectCinema }: 
           </Marker>
         )}
 
-        {/* Markers các rạp */}
+        
         {cinemasWithCoords.map(cinema => (
           <Marker
             key={cinema.cinemaId}

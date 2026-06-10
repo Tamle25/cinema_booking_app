@@ -32,7 +32,6 @@ function MomoReturnContent() {
   useEffect(() => {
     const verifyPayment = async () => {
       try {
-        // Lưu thông tin MoMo để hiển thị
         setMomoInfo({
           amount: searchParams.get('amount') || undefined,
           orderId: searchParams.get('orderId') || undefined,
@@ -41,13 +40,11 @@ function MomoReturnContent() {
           message: searchParams.get('message') || undefined,
         });
 
-        // Lấy tất cả query params từ URL
         const params = new URLSearchParams();
         searchParams.forEach((value, key) => {
           params.append(key, value);
         });
 
-        // Gọi API backend để xác thực
         const response = await fetch(
           `${API_URL}/payments/momo-return?${params.toString()}`
         );
@@ -67,14 +64,12 @@ function MomoReturnContent() {
     verifyPayment();
   }, [searchParams, API_URL]);
 
-  // Format số tiền
   const formatAmount = (amount?: string) => {
     if (!amount) return '0';
     const num = parseInt(amount);
     return num.toLocaleString('vi-VN');
   };
 
-  // Xử lý Thanh Toán Lại (Retry) — tạo phiên MoMo mới với orderId mới
   const handleRetryPayment = async () => {
     if (!result?.bookingId) {
       toastWarning('Không tìm thấy mã đặt vé để thử lại.');
@@ -104,7 +99,6 @@ function MomoReturnContent() {
       const data = await response.json();
 
       if (response.ok && data.payUrl) {
-        // Redirect đến trang thanh toán MoMo mới
         window.location.href = data.payUrl;
       } else {
         toastError(data.message || 'Không thể tạo lại thanh toán. Vui lòng đặt vé mới.');
@@ -117,7 +111,6 @@ function MomoReturnContent() {
     }
   };
 
-  // Xử lý Hủy Đơn — release ghế ngay lập tức
   const handleCancelBooking = async () => {
     if (!result?.bookingId) {
       router.push('/');
@@ -178,7 +171,7 @@ function MomoReturnContent() {
     <div className="min-h-screen bg-gray-100 py-12 px-4">
       <div className="max-w-lg mx-auto">
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-          {/* Header */}
+          
           <div className={`px-6 py-8 text-center ${result?.success ? 'bg-gradient-to-r from-green-500 to-green-600' : 'bg-gradient-to-r from-red-500 to-red-600'}`}>
             {result?.success ? (
               <div className="w-20 h-20 bg-white rounded-full mx-auto flex items-center justify-center mb-4">
@@ -198,11 +191,11 @@ function MomoReturnContent() {
             </h1>
           </div>
 
-          {/* Content */}
+          
           <div className="px-6 py-8">
             <p className="text-center text-gray-600 mb-6">{result?.message}</p>
 
-            {/* Chi tiết giao dịch */}
+            
             <div className="bg-gray-50 rounded-xl p-4 mb-6 space-y-3">
               {result?.bookingId && (
                 <div className="flex justify-between items-center py-2 border-b border-gray-200">
@@ -238,7 +231,7 @@ function MomoReturnContent() {
               )}
             </div>
 
-            {/* Actions */}
+            
             <div className="space-y-3">
               {result?.success ? (
                 <>
@@ -257,7 +250,7 @@ function MomoReturnContent() {
                 </>
               ) : (
                 <>
-                  {/* Nút Thanh Toán Lại — Tạo phiên MoMo mới (orderId mới) */}
+                  
                   {result?.bookingId && (
                     <button
                       onClick={handleRetryPayment}
@@ -283,7 +276,7 @@ function MomoReturnContent() {
                     </button>
                   )}
 
-                  {/* Nút Hủy Đơn & Đặt Lại — Release ghế ngay */}
+                  
                   {result?.bookingId && (
                     <button
                       onClick={handleCancelBooking}
@@ -305,7 +298,7 @@ function MomoReturnContent() {
             </div>
           </div>
 
-          {/* Footer Note */}
+          
           <div className="px-6 py-4 bg-gray-50 border-t">
             <p className="text-xs text-gray-500 text-center">
               Nếu có vấn đề về thanh toán, vui lòng liên hệ hotline: <span className="font-semibold">1900 1234</span>

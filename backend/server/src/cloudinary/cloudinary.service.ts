@@ -38,7 +38,6 @@ export class CloudinaryService {
       );
     }
 
-    // Warn nếu API Secret có vẻ là placeholder
     const apiSecret = this.configService.get<string>('CLOUDINARY_API_SECRET');
     if (
       apiSecret &&
@@ -60,7 +59,6 @@ export class CloudinaryService {
   ): Promise<UploadApiResponse> {
     this.ensureConfigured();
 
-    // Log thông tin file trước khi upload
     this.logger.log(
       `Bat dau upload anh: originalname=${file.originalname}, mimetype=${file.mimetype}, size=${file.size} bytes, folder=${folder}`,
     );
@@ -85,7 +83,6 @@ export class CloudinaryService {
         },
         (error, result) => {
           if (error || !result) {
-            // Log chi tiết lỗi gốc từ Cloudinary
             this.logger.error('=== CLOUDINARY UPLOAD ERROR ===');
             this.logger.error(
               `File info: originalname=${file.originalname}, mimetype=${file.mimetype}, size=${file.size}`,

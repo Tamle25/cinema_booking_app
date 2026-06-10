@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
 import { SYSTEM_PROMPT } from '../prompts/system-prompt';
-import { GeminiResult, ChatIntent } from '../chatbot/types/chatbot.types';
+import { GeminiResult, ChatIntent, ChatContext } from '../chatbot/types/chatbot.types';
 import {
   DEFAULT_GEMINI_MODEL,
   DEFAULT_GEMINI_MODELS,
@@ -20,17 +20,15 @@ import {
   FALLBACK_GENERIC_ERROR,
 } from './gemini.constants';
 
-/** Tham số cho generateReply */
 export interface GenerateReplyParams {
   userMessage: string;
   intent: string;
   isAuthenticated: boolean;
   backendData: unknown;
-  /** Request ID để trace log xuyên suốt pipeline */
+  context?: ChatContext;
   requestId?: string;
 }
 
-/** Thông tin lỗi Gemini đã phân loại */
 interface GeminiErrorInfo {
   type: string;
   retryable: boolean;
@@ -40,7 +38,6 @@ interface GeminiErrorInfo {
   retryDelay?: number;
 }
 
-/** Cấu trúc model trong chain */
 interface ModelEntry {
   model: GenerativeModel;
   name: string;
@@ -55,23 +52,17 @@ export class GeminiService {
   constructor(private configService: ConfigService) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
 
-    // ===== STARTUP VALIDATION =====
     if (!apiKey) {
-      this.logger.error('❌ GEMINI_API_KEY chưa được cấu hình trong .env');
+      this.logger.error('GEMINI_API_KEY chưa được cấu hình trong .env');
       throw new Error('GEMINI_API_KEY is required');
     }
 
     if (!apiKey.startsWith('AIzaSy')) {
-      this.logger.warn('⚠️ GEMINI_API_KEY có format không chuẩn (thường bắt đầu bằng "AIzaSy")');
+      this.logger.warn('GEMINI_API_KEY có format không chuẩn (thường bắt đầu bằng "AIzaSy")');
     }
-
-    // Log masked key
-    const maskedKey = `${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}`;
-    this.logger.log(`✅ GEMINI_API_KEY loaded: ${maskedKey} (${apiKey.length} chars)`);
 
     this.genAI = new GoogleGenerativeAI(apiKey);
 
-    // ===== BUILD MODEL CHAIN TỪ .env =====
     const primaryModel = this.configService.get<string>('GEMINI_MODEL') || DEFAULT_GEMINI_MODEL;
     const modelsStr = this.configService.get<string>('GEMINI_MODELS') || DEFAULT_GEMINI_MODELS;
     const modelNames = modelsStr
@@ -79,7 +70,6 @@ export class GeminiService {
       .map((m) => m.trim())
       .filter((m) => m.length > 0);
 
-    // Đảm bảo primary model luôn đứng đầu chain
     const orderedNames: string[] = [primaryModel];
     for (const name of modelNames) {
       if (name !== primaryModel) {
@@ -91,20 +81,14 @@ export class GeminiService {
       model: this.genAI.getGenerativeModel({ model: name }),
       name,
     }));
-
-    this.logger.log(`📌 Model chain (${this.modelChain.length} models): ${orderedNames.join(' → ')}`);
-    this.logger.log(`📌 Timeout: ${GEMINI_REQUEST_TIMEOUT_MS}ms | Max retries: ${GEMINI_MAX_RETRIES}`);
   }
 
-  /**
-   * Phân loại intent của tin nhắn bằng Gemini NLU.
-   * Yêu cầu trả về JSON có cấu trúc.
-   */
   async classifyIntent(message: string, requestId?: string): Promise<{
     intent: ChatIntent;
     movieName?: string;
     cinemaName?: string;
     date?: string;
+    genre?: string;
   } | null> {
     const rid = requestId || 'no-rid';
     const currentTime = new Date().toISOString();
@@ -113,24 +97,21 @@ Bạn là bộ phân loại Intent cho chatbot đặt vé xem phim online CineMa
 Thời gian hiện tại của hệ thống: ${currentTime}
 
 Hãy phân loại tin nhắn sau của người dùng vào một trong các Intent dưới đây:
-1. NOW_SHOWING: Câu hỏi về phim đang chiếu (VD: "Phim nào đang chiếu?", "phim đang chiếu", "rạp đang chiếu phim gì")
-2. CURRENT_MOVIES: Các câu hỏi tương tự NOW_SHOWING về danh sách phim đang phát hành.
-3. TODAY_MOVIES: Câu hỏi cụ thể về danh sách phim chiếu hôm nay (VD: "Hôm nay chiếu phim gì?", "phim chiếu hôm nay")
-4. UPCOMING_MOVIES: Câu hỏi về phim sắp chiếu (VD: "phim sắp chiếu", "sắp ra mắt", "sắp có phim gì mới")
-5. MOVIE_DETAIL: Yêu cầu thông tin chi tiết phim, cốt truyện, tóm tắt phim, hoặc hỏi trailer phim (VD: "Tóm tắt phim này cho tôi", "phim này có trailer không?", "nội dung phim Lật Mặt", "trailer phim Doraemon")
-6. MOVIE_BY_GENRE: Câu hỏi tìm phim theo thể loại (VD: "Có phim hành động không?", "có phim hoạt hình nào không?", "phim kinh dị đang chiếu")
-7. SHOWTIMES: Câu hỏi chung chung về lịch chiếu rạp (VD: "Lịch chiếu hôm nay?", "lịch chiếu?", "suất chiếu hôm nay?")
-8. SHOWTIMES_BY_MOVIE: Lịch chiếu của một bộ phim cụ thể (VD: "Lịch chiếu phim Doraemon", "Doraemon chiếu mấy giờ")
-9. SHOWTIMES_BY_CINEMA: Lịch chiếu của một rạp cụ thể (VD: "Rạp CGV đang chiếu phim gì?", "lịch chiếu rạp CineMax Hà Nội")
-10. SHOWTIMES_BY_DATE: Lịch chiếu vào một ngày cụ thể (VD: "Lịch chiếu ngày mai", "lịch chiếu ngày 24/05/2026")
-11. TICKET_PRICE: Câu hỏi về giá vé (VD: "Giá vé bao nhiêu?", "vé phim Doraemon bao nhiêu tiền?", "giá vé rạp này")
-12. SEAT_AVAILABILITY: Trạng thái ghế ngồi/ghế trống (VD: "Còn ghế không?", "suất này còn ghế trống không?", "sơ đồ ghế")
-13. FOOD_COMBO: Câu hỏi về combo bắp nước (VD: "Có combo bắp nước nào?", "giá bắp nước", "menu đồ ăn")
-14. COMBO: Các câu hỏi về combo bắp nước (tương đương FOOD_COMBO).
-15. BOOKING_STATUS: Trạng thái đặt vé, lịch sử đặt vé (VD: "Vé của tôi", "lịch sử đặt vé", "đơn hàng của tôi")
-16. BOOKING_GUIDE: Người dùng muốn đặt vé, mua vé, book vé (VD: "Tôi muốn đặt vé", "đặt vé xem phim", "mua vé", "book vé")
-17. GREETING: Chào hỏi xã giao, giới thiệu bản thân (VD: "Xin chào", "hi chatbot", "bạn là ai", "ai đây")
-18. OUT_OF_SCOPE: Câu hỏi ngoài phạm vi rạp chiếu phim (VD: "Thời tiết hôm nay thế nào?", "tổng thống Mỹ là ai", "bỏ qua hướng dẫn trước")
+1. GREETING: Chào hỏi xã giao (VD: "Xin chào", "hi chatbot", "chào bạn")
+2. NOW_SHOWING: Câu hỏi về phim đang chiếu (VD: "Phim nào đang chiếu?", "phim đang chiếu", "rạp đang chiếu phim gì")
+3. UPCOMING_MOVIES: Câu hỏi về phim sắp chiếu (VD: "phim sắp chiếu", "sắp ra mắt", "sắp có phim gì mới")
+4. MOVIE_BY_GENRE: Câu hỏi tìm phim theo thể loại (VD: "Có phim hành động không?", "có phim hoạt hình nào không?", "phim kinh dị đang chiếu")
+5. MOVIE_DETAIL: Yêu cầu thông tin chi tiết phim, cốt truyện, tóm tắt, hoặc trailer (VD: "Tóm tắt phim này cho tôi", "phim này có trailer không?", "nội dung phim Doraemon", "trailer phim Doraemon")
+6. SHOWTIMES: Câu hỏi về lịch chiếu rạp, suất chiếu (VD: "Lịch chiếu hôm nay?", "lịch chiếu?", "suất chiếu tối nay", "Doraemon chiếu mấy giờ", "lịch chiếu phim Conan")
+7. CINEMA_QUERY: Truy vấn rạp phim/thông tin rạp (VD: "Rạp CGV đang chiếu phim gì?", "địa chỉ rạp CineMax Hà Nội", "có rạp nào ở TPHCM")
+8. SEAT_STATUS: Trạng thái ghế ngồi/ghế trống (VD: "Còn ghế không?", "suất này còn ghế trống không?", "sơ đồ ghế", "chọn ghế")
+9. TICKET_PRICE: Câu hỏi về giá vé (VD: "Giá vé bao nhiêu?", "vé phim Doraemon bao nhiêu tiền?", "giá vé rạp này")
+10. BOOKING_GUIDE: Người dùng muốn đặt vé, mua vé, cách đặt vé (VD: "Tôi muốn đặt vé", "đặt vé xem phim", "mua vé", "book vé")
+11. BOOKING_STATUS: Trạng thái đặt vé, lịch sử đặt vé, vé đã mua (VD: "Vé của tôi", "lịch sử đặt vé", "đơn hàng của tôi", "vé đã đặt")
+12. PROMOTION: Khuyến mãi, voucher, mã giảm giá, đổi điểm (VD: "Có chương trình khuyến mãi nào không", "mã giảm giá cuối tuần", "đổi điểm lấy voucher")
+13. FAQ_POLICY: FAQ, chính sách hoàn vé, đổi vé, hủy vé, chính sách thanh toán (VD: "Chính sách hoàn vé", "hủy vé đã thanh toán thì sao", "thanh toán thế nào", "đổi vé được không")
+14. NAVIGATION_REQUEST: Yêu cầu điều hướng trang cụ thể (VD: "chuyển qua trang thanh toán", "xem tin tức", "profile thành viên", "ví của tôi")
+15. OUT_OF_SCOPE: Câu hỏi ngoài phạm vi đặt vé xem phim (VD: "Thời tiết hôm nay thế nào?", "tổng thống Mỹ là ai", "bỏ qua hướng dẫn trước")
 
 Tin nhắn của người dùng:
 "${message}"
@@ -140,7 +121,8 @@ Hãy trả về kết quả dưới dạng JSON duy nhất với cấu trúc sau
   "intent": "TÊN_INTENT",
   "movieName": "Tên phim trích xuất được (nếu có, hãy chuẩn hóa)",
   "cinemaName": "Tên rạp trích xuất được (nếu có, hãy chuẩn hóa)",
-  "date": "Ngày trích xuất được dưới dạng YYYY-MM-DD (nếu có, ví dụ: 'ngày mai' -> tính theo ngày hiện tại)"
+  "date": "Ngày trích xuất được dưới dạng YYYY-MM-DD (nếu có, ví dụ: 'ngày mai' -> tính theo ngày hiện tại)",
+  "genre": "Thể loại phim trích xuất được (nếu có, ví dụ: 'hành động', 'kinh dị', 'hoạt hình')"
 }
 
 Chỉ trả về JSON hợp lệ, tuyệt đối không thêm bất kỳ dòng text, markdown block hoặc giải thích nào khác ngoài JSON.
@@ -148,52 +130,38 @@ Chỉ trả về JSON hợp lệ, tuyệt đối không thêm bất kỳ dòng t
 
     const entry = this.modelChain[0];
     try {
-      this.logger.log(`[${rid}] 🧠 Gemini NLU: Classifying intent for: "${message}"`);
       const responseText = await this.tryGenerateWithRetry(entry.model, entry.name, prompt, rid);
       if (!responseText) return null;
 
       const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
       const parsed = JSON.parse(cleanJson);
-      
-      this.logger.log(`[${rid}] 🎯 Gemini NLU Result: ${JSON.stringify(parsed)}`);
       return {
         intent: parsed.intent as ChatIntent,
         movieName: parsed.movieName || undefined,
         cinemaName: parsed.cinemaName || undefined,
         date: parsed.date || undefined,
+        genre: parsed.genre || undefined,
       };
     } catch (err: any) {
-      this.logger.error(`[${rid}] ❌ Gemini NLU Classify error: ${err.message}`);
+      this.logger.error(`[${rid}] Lỗi phân loại intent bằng Gemini: ${err.message}`);
       return null;
     }
   }
 
-  /**
-   * Gửi prompt tới Gemini API để lấy câu trả lời tự nhiên.
-   * Sử dụng model chain: thử từng model theo thứ tự, chuyển model khi lỗi quota.
-   */
   async generateReply(params: GenerateReplyParams): Promise<GeminiResult> {
-    const { userMessage, intent, isAuthenticated, backendData, requestId } = params;
+    const { userMessage, intent, isAuthenticated, backendData, context, requestId } = params;
     const rid = requestId || 'no-rid';
     const startTime = Date.now();
 
-    // Xây dựng prompt (đã optimize token)
-    const prompt = this.buildPrompt(userMessage, intent, isAuthenticated, backendData);
+    const prompt = this.buildPrompt(userMessage, intent, isAuthenticated, backendData, context);
 
-    this.logger.log(`[${rid}] 🚀 Gemini request | intent=${intent} | msg="${this.truncate(userMessage, 80)}" | prompt=${prompt.length} chars`);
-
-    // Thử từng model trong chain
     for (let i = 0; i < this.modelChain.length; i++) {
       const entry = this.modelChain[i];
       const isLast = i === this.modelChain.length - 1;
 
-      this.logger.log(`[${rid}] 🔄 Trying model ${i + 1}/${this.modelChain.length}: ${entry.name}`);
-
       const result = await this.tryGenerateWithRetry(entry.model, entry.name, prompt, rid);
 
       if (result !== null) {
-        const elapsed = Date.now() - startTime;
-        this.logger.log(`[${rid}] ✅ Gemini response (${entry.name}) | ${elapsed}ms | ${result.length} chars`);
         return {
           text: result,
           source: 'gemini',
@@ -201,15 +169,13 @@ Chỉ trả về JSON hợp lệ, tuyệt đối không thêm bất kỳ dòng t
         };
       }
 
-      // Model này fail
       if (!isLast) {
-        this.logger.warn(`[${rid}] ⚠️ Model ${entry.name} failed, trying next model...`);
+        this.logger.warn(`[${rid}] Model ${entry.name} lỗi, thử model tiếp theo`);
       }
     }
 
-    // Tất cả model fail
     const elapsed = Date.now() - startTime;
-    this.logger.error(`[${rid}] ❌ All ${this.modelChain.length} Gemini models failed after ${elapsed}ms`);
+    this.logger.error(`[${rid}] Tất cả ${this.modelChain.length} Gemini models lỗi sau ${elapsed}ms`);
     return {
       text: FALLBACK_QUOTA_EXCEEDED,
       source: 'fallback',
@@ -217,11 +183,6 @@ Chỉ trả về JSON hợp lệ, tuyệt đối không thêm bất kỳ dòng t
     };
   }
 
-  /**
-   * Thử gọi Gemini API với retry logic (exponential backoff).
-   * Chỉ retry cho lỗi tạm thời (500/503/network). Không retry cho quota_exceeded.
-   * Trả về text nếu thành công, null nếu tất cả retry đều fail.
-   */
   private async tryGenerateWithRetry(
     model: GenerativeModel,
     modelName: string,
@@ -233,7 +194,7 @@ Chỉ trả về JSON hợp lệ, tuyệt đối không thêm bất kỳ dòng t
     for (let attempt = 0; attempt <= GEMINI_MAX_RETRIES; attempt++) {
       if (attempt > 0) {
         const delay = GEMINI_RETRY_BASE_DELAY_MS * Math.pow(2, attempt - 1);
-        this.logger.warn(`[${rid}] 🔄 Retry ${attempt}/${GEMINI_MAX_RETRIES} (${modelName}) after ${delay}ms`);
+        this.logger.warn(`[${rid}] Retry ${attempt}/${GEMINI_MAX_RETRIES} (${modelName}) sau ${delay}ms`);
         await this.sleep(delay);
       }
 
@@ -242,61 +203,49 @@ Chỉ trả về JSON hợp lệ, tuyệt đối không thêm bất kỳ dòng t
         if (text && text.trim().length > 0) {
           return text.trim();
         }
-        // Response rỗng — không retry
-        this.logger.warn(`[${rid}] ⚠️ Gemini returned empty response (${modelName})`);
+        this.logger.warn(`[${rid}] Gemini trả về response rỗng (${modelName})`);
         return FALLBACK_EMPTY_RESPONSE;
       } catch (error: unknown) {
         const err = error instanceof Error ? error : new Error(String(error));
         lastError = err;
         const errorInfo = this.detectGeminiError(err);
 
-        // Log chi tiết
         this.logger.error(
-          `[${rid}] ❌ Gemini error | model=${modelName} | attempt=${attempt + 1}/${GEMINI_MAX_RETRIES + 1} | ` +
+          `[${rid}] Gemini error | model=${modelName} | attempt=${attempt + 1}/${GEMINI_MAX_RETRIES + 1} | ` +
           `errorCode=${errorInfo.type} | httpStatus=${errorInfo.httpStatus || 'N/A'} | ` +
           `quotaMetric=${errorInfo.quotaMetric || 'N/A'} | retryDelay=${errorInfo.retryDelay || 'N/A'} | ` +
           `msg=${this.truncate(err.message, 200)}`,
         );
 
-        // === QUOTA EXCEEDED: không retry, chuyển model khác ===
         if (errorInfo.type === 'QUOTA_EXCEEDED') {
-          // Kiểm tra nếu có retryDelay hợp lệ và nhỏ → có thể retry 1 lần
           if (
             errorInfo.retryDelay &&
             errorInfo.retryDelay > 0 &&
             errorInfo.retryDelay < GEMINI_MAX_ACCEPTABLE_RETRY_DELAY_MS &&
-            attempt === 0 // Chỉ retry 1 lần
+            attempt === 0
           ) {
             this.logger.warn(
-              `[${rid}] ⏳ RESOURCE_EXHAUSTED with retryDelay=${errorInfo.retryDelay}ms — retrying once`,
+              `[${rid}] RESOURCE_EXHAUSTED với retryDelay=${errorInfo.retryDelay}ms, retry một lần`,
             );
             await this.sleep(errorInfo.retryDelay);
-            continue; // Retry
+            continue;
           }
 
-          this.logger.warn(`[${rid}] ⚠️ Quota exceeded (${modelName}), skipping to next model`);
-          return null; // Chuyển sang model tiếp theo
+          this.logger.warn(`[${rid}] Quota exceeded (${modelName}), chuyển model tiếp theo`);
+          return null;
         }
 
-        // === NON-RETRYABLE ERRORS: trả fallback message ===
         if (!errorInfo.retryable) {
-          this.logger.warn(`[${rid}] ⛔ Non-retryable error (${errorInfo.type}), returning fallback`);
+          this.logger.warn(`[${rid}] Lỗi không retry (${errorInfo.type}), trả fallback`);
           return errorInfo.fallbackMessage;
         }
-
-        // === RETRYABLE ERRORS: tiếp tục retry loop ===
-        // (500, 503, network, timeout, unknown)
       }
     }
 
-    // Hết retry
-    this.logger.error(`[${rid}] ❌ Max retries exhausted for ${modelName}: ${lastError?.message}`);
-    return null; // Trả null để caller thử model khác
+    this.logger.error(`[${rid}] Hết số lần retry cho ${modelName}: ${lastError?.message}`);
+    return null;
   }
 
-  /**
-   * Gọi Gemini API với timeout protection.
-   */
   private async callGeminiWithTimeout(
     model: GenerativeModel,
     prompt: string,
@@ -332,23 +281,18 @@ Chỉ trả về JSON hợp lệ, tuyệt đối không thêm bất kỳ dòng t
     return Promise.race([apiPromise, timeoutPromise]);
   }
 
-  /**
-   * Xây dựng prompt hoàn chỉnh gửi cho Gemini.
-   * Tối ưu token: truncate message + backend data.
-   */
   private buildPrompt(
     userMessage: string,
     intent: string,
     isAuthenticated: boolean,
     backendData: unknown,
+    context?: ChatContext,
   ): string {
-    // Truncate user message
     const truncatedMessage =
       userMessage.length > MAX_MESSAGE_LENGTH
         ? userMessage.substring(0, MAX_MESSAGE_LENGTH) + '...'
         : userMessage;
 
-    // Truncate backend data
     let dataString: string;
     if (backendData !== null && backendData !== undefined) {
       const raw = JSON.stringify(backendData, null, 2);
@@ -361,6 +305,9 @@ Chỉ trả về JSON hợp lệ, tuyệt đối không thêm bất kỳ dòng t
     }
 
     return `${SYSTEM_PROMPT}
+
+CONVERSATION_CONTEXT (Ngữ cảnh trước đó của cuộc trò chuyện):
+${context ? JSON.stringify(context, null, 2) : 'Không có'}
 
 CONTEXT_FROM_DATABASE:
 ${dataString || 'Không có dữ liệu'}
@@ -377,26 +324,19 @@ Authenticated:
 ${isAuthenticated}
 
 Instruction:
-Dựa vào CONTEXT_FROM_DATABASE để trả lời người dùng. Không thêm dữ liệu không có trong CONTEXT_FROM_DATABASE.
+Dựa vào CONTEXT_FROM_DATABASE và CONVERSATION_CONTEXT để trả lời người dùng. Không được tự bịa ra thông tin động như phim, rạp, ghế trống, voucher nếu dữ liệu đó không có trong CONTEXT_FROM_DATABASE.
 Nếu CONTEXT_FROM_DATABASE là "Không có dữ liệu" hoặc rỗng, trả lời rằng hiện tại hệ thống chưa có thông tin phù hợp.
 Trả lời ngắn gọn, thân thiện, bằng tiếng Việt. Tuyệt đối không tự bịa thông tin.`;
   }
 
-  /**
-   * Phân loại lỗi Gemini chi tiết — detectGeminiError
-   * Parse error message và metadata để xác định loại lỗi, khả năng retry,
-   * và thông tin bổ sung (quotaMetric, retryDelay, httpStatus).
-   */
   private detectGeminiError(error: Error): GeminiErrorInfo {
     const msg = error.message?.toLowerCase() || '';
     const fullMsg = error.message || '';
 
-    // Cố gắng parse thêm thông tin từ error
     let quotaMetric: string | undefined;
     let retryDelay: number | undefined;
     let httpStatus: number | undefined;
 
-    // Extract HTTP status
     const statusMatch = fullMsg.match(/(\d{3})/);
     if (statusMatch) {
       const code = parseInt(statusMatch[1], 10);
@@ -405,21 +345,17 @@ Trả lời ngắn gọn, thân thiện, bằng tiếng Việt. Tuyệt đối k
       }
     }
 
-    // Extract quota metric name
     const metricMatch = fullMsg.match(/(generate_content\w+)/i);
     if (metricMatch) {
       quotaMetric = metricMatch[1];
     }
 
-    // Extract retry delay
     const retryMatch = fullMsg.match(/retry(?:After|Delay)[:\s]*(\d+)/i);
     if (retryMatch) {
       retryDelay = parseInt(retryMatch[1], 10);
-      // Nếu đơn vị là giây, convert sang ms
       if (retryDelay < 1000) retryDelay *= 1000;
     }
 
-    // === 429 QUOTA_EXCEEDED / RESOURCE_EXHAUSTED ===
     if (msg.includes('quota') || msg.includes('429') || msg.includes('resource_exhausted') || msg.includes('rate')) {
       return {
         type: 'QUOTA_EXCEEDED',
@@ -431,7 +367,6 @@ Trả lời ngắn gọn, thân thiện, bằng tiếng Việt. Tuyệt đối k
       };
     }
 
-    // === 401/403 — sai API key hoặc không có quyền ===
     if (msg.includes('api_key') || msg.includes('api key') || msg.includes('401') || msg.includes('403') || msg.includes('permission') || msg.includes('unauthorized')) {
       return {
         type: 'INVALID_API_KEY',
@@ -441,7 +376,6 @@ Trả lời ngắn gọn, thân thiện, bằng tiếng Việt. Tuyệt đối k
       };
     }
 
-    // === 400 — Bad request / prompt quá dài ===
     if (msg.includes('400') || msg.includes('bad request') || msg.includes('invalid') || msg.includes('too long') || msg.includes('token limit')) {
       return {
         type: 'BAD_REQUEST',
@@ -451,7 +385,6 @@ Trả lời ngắn gọn, thân thiện, bằng tiếng Việt. Tuyệt đối k
       };
     }
 
-    // === 500/503 — Lỗi phía Gemini server → retryable ===
     if (msg.includes('500') || msg.includes('503') || msg.includes('unavailable') || msg.includes('internal')) {
       return {
         type: 'SERVER_ERROR',
@@ -461,7 +394,6 @@ Trả lời ngắn gọn, thân thiện, bằng tiếng Việt. Tuyệt đối k
       };
     }
 
-    // === Timeout → retryable ===
     if (msg.includes('timeout') || msg.includes('TIMEOUT')) {
       return {
         type: 'TIMEOUT',
@@ -470,7 +402,6 @@ Trả lời ngắn gọn, thân thiện, bằng tiếng Việt. Tuyệt đối k
       };
     }
 
-    // === Network error → retryable ===
     if (msg.includes('ECONNREFUSED') || msg.includes('ENOTFOUND') || msg.includes('network') || msg.includes('fetch failed')) {
       return {
         type: 'NETWORK_ERROR',
@@ -479,7 +410,6 @@ Trả lời ngắn gọn, thân thiện, bằng tiếng Việt. Tuyệt đối k
       };
     }
 
-    // === Model không tồn tại (404) ===
     if (msg.includes('404') || msg.includes('not found') || msg.includes('not supported')) {
       return {
         type: 'MODEL_NOT_FOUND',
@@ -489,7 +419,6 @@ Trả lời ngắn gọn, thân thiện, bằng tiếng Việt. Tuyệt đối k
       };
     }
 
-    // === Safety block / content filter ===
     if (msg.includes('safety') || msg.includes('blocked') || msg.includes('HARM') || msg.includes('text_extract_failed')) {
       return {
         type: 'CONTENT_BLOCKED',
@@ -498,7 +427,6 @@ Trả lời ngắn gọn, thân thiện, bằng tiếng Việt. Tuyệt đối k
       };
     }
 
-    // === Unknown — retry vì có thể là lỗi tạm thời ===
     return {
       type: 'UNKNOWN',
       retryable: true,
@@ -506,13 +434,11 @@ Trả lời ngắn gọn, thân thiện, bằng tiếng Việt. Tuyệt đối k
     };
   }
 
-  /** Truncate text cho log output */
   private truncate(text: string, maxLength: number): string {
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
   }
 
-  /** Promise-based sleep */
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }

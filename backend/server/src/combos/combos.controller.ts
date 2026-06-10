@@ -19,7 +19,6 @@ import { UpdateComboDto } from './dto/update-combo.dto';
 import { AdminOnly } from '../common/decorators/admin.decorator';
 import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
 
-// Cấu hình multer storage cho upload ảnh combo
 const comboStorage = diskStorage({
   destination: join(process.cwd(), 'uploads', 'combos'),
   filename: (req, file, callback) => {
@@ -33,7 +32,6 @@ const comboStorage = diskStorage({
 export class CombosController {
   constructor(private readonly combosService: CombosService) {}
 
-  // GET /combos — Lấy danh sách combo active (cho user)
   @Get()
   findActive(
     @Query('cinemaSystemId') cinemaSystemId?: string,
@@ -42,27 +40,23 @@ export class CombosController {
     return this.combosService.findActive(cinemaSystemId, cinemaId);
   }
 
-  // GET /combos/all — Lấy tất cả combo (cho admin)
   @Get('all')
   @AdminOnly()
   findAll(@Query('cinemaSystemId') cinemaSystemId?: string) {
     return this.combosService.findAll(cinemaSystemId);
   }
 
-  // GET /combos/:id — Lấy chi tiết combo
   @Get(':id')
   findOne(@Param('id', ParseObjectIdPipe) id: string) {
     return this.combosService.findOne(id);
   }
 
-  // POST /combos — Tạo combo mới
   @Post()
   @AdminOnly()
   create(@Body() createComboDto: CreateComboDto) {
     return this.combosService.create(createComboDto);
   }
 
-  // POST /combos/upload — Upload ảnh combo
   @Post('upload')
   @AdminOnly()
   @UseInterceptors(
@@ -75,7 +69,7 @@ export class CombosController {
         callback(null, true);
       },
       limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB
+        fileSize: 5 * 1024 * 1024,
       },
     }),
   )
@@ -83,19 +77,16 @@ export class CombosController {
     if (!file) {
       return { error: 'Không có file nào được upload' };
     }
-    // Trả về đường dẫn tương đối để frontend hiển thị
     const imageUrl = `/uploads/combos/${file.filename}`;
     return { image_url: imageUrl };
   }
 
-  // PUT /combos/:id — Cập nhật combo
   @Put(':id')
   @AdminOnly()
   update(@Param('id', ParseObjectIdPipe) id: string, @Body() updateComboDto: UpdateComboDto) {
     return this.combosService.update(id, updateComboDto);
   }
 
-  // DELETE /combos/:id — Xóa combo
   @Delete(':id')
   @AdminOnly()
   remove(@Param('id', ParseObjectIdPipe) id: string) {

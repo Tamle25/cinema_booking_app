@@ -6,8 +6,8 @@ import { CreateShowtimeDto } from './dto/create-showtime.dto';
 import { UpdateShowtimeDto } from './dto/update-showtime.dto';
 import { MoviesService } from '../movies/movies.service';
 
-// Thời gian dọn phòng sau mỗi suất chiếu (phút)
 const BUFFER_MINUTES = 15;
+const EARTH_RADIUS_KM = 6371;
 
 @Injectable()
 export class ShowtimesService {
@@ -16,11 +16,7 @@ export class ShowtimesService {
     private moviesService: MoviesService,
   ) { }
 
-  // ============ VALIDATION METHODS ============
 
-  /**
-   * Kiểm tra phim có đang chiếu không (release_date <= now && is_active)
-   */
   private async checkMovieAvailable(movieId: string): Promise<any> {
     const movie = await this.moviesService.findOne(movieId);
     if (!movie) {
@@ -29,14 +25,9 @@ export class ShowtimesService {
     if (!movie.is_active) {
       throw new BadRequestException('Phim đã ngừng chiếu!');
     }
-    // Cho phép tạo suất chiếu cho phim sắp chiếu (release_date > now)
-    // Vì admin có thể tạo suất chiếu trước khi phim ra mắt
     return movie;
   }
 
-  /**
-   * Kiểm tra thời gian không ở quá khứ
-   */
   private checkNotInPast(startTime: Date): void {
     const now = new Date();
     if (startTime <= now) {
@@ -44,9 +35,6 @@ export class ShowtimesService {
     }
   }
 
-  /**
-   * Kiểm tra không trùng lấp thời gian trong cùng phòng
-   */
   private async checkNoOverlap(
     roomId: string,
     startTime: Date,
@@ -57,12 +45,10 @@ export class ShowtimesService {
       room: roomId,
       is_active: true,
       $or: [
-        // Suất mới bắt đầu trong khoảng suất cũ
         { start_time: { $lt: endTime }, end_time: { $gt: startTime } }
       ]
     };
 
-    // Loại trừ chính nó khi update
     if (excludeId) {
       filter._id = { $ne: excludeId };
     }
@@ -78,9 +64,7 @@ export class ShowtimesService {
     }
   }
 
-  // ============ CRUD METHODS ============
 
-  // Lấy tất cả suất chiếu (có phân trang và filter)
   async findAll(query?: {
     page?: number;
     limit?: number;
@@ -92,7 +76,6 @@ export class ShowtimesService {
     const limit = query?.limit || 10;
     const skip = (page - 1) * limit;
 
-    // Mặc định chỉ lấy suất chiếu đang hoạt động
     const filter: any = { is_active: true };
 
     if (query?.cinema_id) {
@@ -130,7 +113,6 @@ export class ShowtimesService {
     };
   }
 
-  // Lấy tất cả suất chiếu (có phân trang và filter) chuẩn hoá Admin
   async findAllPaginated(query?: {
     page?: number;
     limit?: number;
@@ -190,20 +172,15 @@ export class ShowtimesService {
   async create(createDto: CreateShowtimeDto): Promise<Showtime> {
     const { movie_id, cinema_id, room_id, start_time, ...rest } = createDto;
 
-    // 1. Validate phim tồn tại và đang hoạt động
     const movie = await this.checkMovieAvailable(movie_id);
 
-    // 2. Parse và validate thời gian
     const start = new Date(start_time);
     this.checkNotInPast(start);
 
-    // 3. Tính giờ kết thúc (thời lượng phim + buffer dọn phòng)
     const end = new Date(start.getTime() + (movie.duration + BUFFER_MINUTES) * 60000);
 
-    // 4. Kiểm tra không trùng lấp
     await this.checkNoOverlap(room_id, start, end);
 
-    // 5. Tạo suất chiếu mới
     const newShowtime = new this.showtimeModel({
       ...rest,
       movie: movie_id,
@@ -226,41 +203,35 @@ export class ShowtimesService {
     let newEnd: Date | undefined;
     let roomId = updateDto.room_id || showtime.room.toString();
 
-    // Nếu có cập nhật thời gian bắt đầu hoặc phim, cần tính lại end_time và validate
     if (updateDto.start_time || updateDto.movie_id) {
       const movieId = updateDto.movie_id || showtime.movie.toString();
       const movie = await this.checkMovieAvailable(movieId);
 
       newStart = updateDto.start_time ? new Date(updateDto.start_time) : new Date(showtime.start_time);
 
-      // Chỉ check quá khứ nếu đổi thời gian
       if (updateDto.start_time) {
         this.checkNotInPast(newStart);
       }
 
       newEnd = new Date(newStart.getTime() + (movie.duration + BUFFER_MINUTES) * 60000);
 
-      // Kiểm tra trùng lấp (loại trừ chính nó)
       await this.checkNoOverlap(roomId, newStart, newEnd, id);
 
       (updateDto as any).start_time = newStart;
       (updateDto as any).end_time = newEnd;
     }
 
-    // Nếu chỉ đổi phòng (không đổi thời gian), cũng cần check overlap
     if (updateDto.room_id && !updateDto.start_time) {
       const existingStart = new Date(showtime.start_time);
       const existingEnd = new Date(showtime.end_time);
       await this.checkNoOverlap(updateDto.room_id, existingStart, existingEnd, id);
     }
 
-    // Map các field
     const updateData: any = { ...updateDto };
     if (updateDto.movie_id) updateData.movie = updateDto.movie_id;
     if (updateDto.cinema_id) updateData.cinema = updateDto.cinema_id;
     if (updateDto.room_id) updateData.room = updateDto.room_id;
 
-    // Xóa các field _id dư
     delete updateData.movie_id;
     delete updateData.cinema_id;
     delete updateData.room_id;
@@ -285,7 +256,6 @@ export class ShowtimesService {
       throw new NotFoundException('Không tìm thấy suất chiếu!');
     }
 
-    // Soft delete - chỉ set is_active = false
     await this.showtimeModel.findByIdAndUpdate(id, { is_active: false });
 
     return { message: 'Đã xóa suất chiếu thành công!' };
@@ -309,11 +279,9 @@ export class ShowtimesService {
       .exec();
   }
 
-  // Lọc suất chiếu theo rạp, ngày và phim (tuỳ chọn)
   async filterShowtimes(cinemaId: string, date?: string, movieId?: string): Promise<Showtime[]> {
     const filter: any = { cinema: cinemaId, is_active: true };
 
-    // Lọc theo ngày
     if (date) {
       const startOfDay = new Date(date);
       startOfDay.setHours(0, 0, 0, 0);
@@ -323,7 +291,6 @@ export class ShowtimesService {
       filter.start_time = { $gte: startOfDay, $lte: endOfDay };
     }
 
-    // Lọc theo phim (tuỳ chọn)
     if (movieId) {
       filter.movie = movieId;
     }
@@ -337,14 +304,12 @@ export class ShowtimesService {
       .exec();
   }
 
-  // Lấy danh sách ngày có suất chiếu của rạp
   async getAvailableDates(cinemaId: string): Promise<string[]> {
     const showtimes = await this.showtimeModel
       .find({ cinema: cinemaId, is_active: true, start_time: { $gte: new Date() } })
       .select('start_time')
       .exec();
 
-    // Chuyển đổi thành danh sách ngày unique (YYYY-MM-DD)
     const dates = showtimes.map(s => {
       const d = new Date(s.start_time);
       return d.toISOString().split('T')[0];
@@ -367,16 +332,11 @@ export class ShowtimesService {
     return showtime;
   }
 
-  // ============ SO SÁNH RẠP CHIẾU ============
 
-  /**
-   * Tính khoảng cách Haversine giữa 2 điểm (km)
-   */
   private calculateHaversineDistance(
     lat1: number, lon1: number,
     lat2: number, lon2: number,
   ): number {
-    const R = 6371; // Bán kính Trái Đất (km)
     const dLat = this.toRad(lat2 - lat1);
     const dLon = this.toRad(lon2 - lon1);
     const a =
@@ -384,43 +344,33 @@ export class ShowtimesService {
       Math.cos(this.toRad(lat1)) * Math.cos(this.toRad(lat2)) *
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return Math.round(R * c * 10) / 10; // Làm tròn 1 chữ số thập phân
+    return Math.round(EARTH_RADIUS_KM * c * 10) / 10;
   }
 
   private toRad(deg: number): number {
     return deg * (Math.PI / 180);
   }
 
-  /**
-   * Tính điểm "Đáng chọn nhất" (điểm càng thấp = càng tốt)
-   * bestScore = normalizedPrice * 0.5 + normalizedDistance * 0.3 + normalizedTime * 0.2
-   */
   private calculateBestScore(
     price: number, minAllPrice: number, maxAllPrice: number,
     distance: number | null, minAllDistance: number | null, maxAllDistance: number | null,
     time: number, minAllTime: number, maxAllTime: number,
   ): number {
-    // Normalize giá: 0 = rẻ nhất, 1 = đắt nhất
     const priceRange = maxAllPrice - minAllPrice;
     const normalizedPrice = priceRange > 0 ? (price - minAllPrice) / priceRange : 0;
 
-    // Normalize khoảng cách: 0 = gần nhất, 1 = xa nhất
-    let normalizedDistance = 0.5; // Mặc định giữa nếu không có vị trí
+    let normalizedDistance = 0.5;
     if (distance !== null && minAllDistance !== null && maxAllDistance !== null) {
       const distRange = maxAllDistance - minAllDistance;
       normalizedDistance = distRange > 0 ? (distance - minAllDistance) / distRange : 0;
     }
 
-    // Normalize thời gian: 0 = sớm nhất, 1 = muộn nhất
     const timeRange = maxAllTime - minAllTime;
     const normalizedTime = timeRange > 0 ? (time - minAllTime) / timeRange : 0;
 
     return normalizedPrice * 0.5 + normalizedDistance * 0.3 + normalizedTime * 0.2;
   }
 
-  /**
-   * So sánh rạp chiếu cho 1 phim trong 1 ngày
-   */
   async compareByMovie(query: {
     movieId: string;
     date: string;
@@ -430,7 +380,6 @@ export class ShowtimesService {
   }): Promise<any[]> {
     const { movieId, date, userLat, userLng, sort } = query;
 
-    // 1. Lấy tất cả suất chiếu active theo phim + ngày
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(date);
@@ -453,7 +402,6 @@ export class ShowtimesService {
       return [];
     }
 
-    // 2. Gom nhóm suất chiếu theo rạp
     const cinemaMap = new Map<string, {
       cinema: any;
       showtimes: any[];
@@ -474,7 +422,6 @@ export class ShowtimesService {
       cinemaMap.get(cinemaId)!.showtimes.push(st);
     }
 
-    // 3. Tính toán cho mỗi rạp
     const hasUserLocation = userLat != null && userLng != null;
     const results: any[] = [];
 
@@ -482,18 +429,15 @@ export class ShowtimesService {
       const { cinema, showtimes: cinemaShowtimes } = group;
       const system = cinema.cinema_system;
 
-      // Giá thấp nhất
       const prices = cinemaShowtimes.map(s => s.price).filter(p => p != null && p > 0);
       const minPrice = prices.length > 0 ? Math.min(...prices) : null;
 
-      // Suất chiếu sớm nhất
       const sortedByTime = [...cinemaShowtimes].sort(
         (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
       );
       const earliest = sortedByTime[0];
       const earliestTime = new Date(earliest.start_time);
 
-      // Số ghế còn trống (tổng của tất cả suất chiếu)
       let totalAvailableSeats = 0;
       for (const st of cinemaShowtimes) {
         const room = st.room as any;
@@ -502,7 +446,6 @@ export class ShowtimesService {
         totalAvailableSeats += Math.max(0, totalSeats - bookedCount);
       }
 
-      // Khoảng cách
       let distanceKm: number | null = null;
       if (hasUserLocation && cinema.latitude != null && cinema.longitude != null) {
         distanceKm = this.calculateHaversineDistance(
@@ -510,7 +453,6 @@ export class ShowtimesService {
         );
       }
 
-      // Format showtimes
       const formattedShowtimes = cinemaShowtimes.map(st => {
         const room = st.room as any;
         const totalSeats = room?.total_seats || (room?.rows * room?.columns) || 0;
@@ -549,27 +491,22 @@ export class ShowtimesService {
 
     if (results.length === 0) return [];
 
-    // 4. Gắn nhãn
-    // Rẻ nhất
     const allMinPrices = results.filter(r => r.minPrice != null).map(r => r.minPrice);
     if (allMinPrices.length > 0) {
       const cheapest = Math.min(...allMinPrices);
       results.filter(r => r.minPrice === cheapest).forEach(r => r.labels.push('Rẻ nhất'));
     }
 
-    // Gần nhất (chỉ khi có vị trí user)
     const allDistances = results.filter(r => r.distanceKm != null).map(r => r.distanceKm);
     if (allDistances.length > 0) {
       const nearest = Math.min(...allDistances);
       results.filter(r => r.distanceKm === nearest).forEach(r => r.labels.push('Gần nhất'));
     }
 
-    // Suất sớm nhất
     const allEarliestTimes = results.map(r => r.earliestTimestamp);
     const earliestOfAll = Math.min(...allEarliestTimes);
     results.filter(r => r.earliestTimestamp === earliestOfAll).forEach(r => r.labels.push('Suất sớm nhất'));
 
-    // 5. Tính điểm "Đáng chọn nhất"
     const validPrices = results.filter(r => r.minPrice != null).map(r => r.minPrice);
     const minAllPrice = validPrices.length > 0 ? Math.min(...validPrices) : 0;
     const maxAllPrice = validPrices.length > 0 ? Math.max(...validPrices) : 0;
@@ -589,7 +526,6 @@ export class ShowtimesService {
       );
     }
 
-    // Gắn nhãn "Đáng chọn nhất" cho rạp có điểm thấp nhất
     const bestScoreMin = Math.min(...results.map(r => r.bestScore));
     results.filter(r => r.bestScore === bestScoreMin).forEach(r => {
       if (!r.labels.includes('Đáng chọn nhất')) {
@@ -597,7 +533,6 @@ export class ShowtimesService {
       }
     });
 
-    // 6. Sắp xếp theo tiêu chí
     switch (sort) {
       case 'cheapest':
         results.sort((a, b) => (a.minPrice || Infinity) - (b.minPrice || Infinity));
@@ -615,12 +550,10 @@ export class ShowtimesService {
         results.sort((a, b) => a.brand.localeCompare(b.brand));
         break;
       default:
-        // Mặc định: theo điểm tổng hợp
         results.sort((a, b) => a.bestScore - b.bestScore);
         break;
     }
 
-    // 7. Xóa trường internal trước khi trả về
     return results.map(r => {
       const { earliestTimestamp, bestScore, ...rest } = r;
       return rest;

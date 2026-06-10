@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import MovieCard from '@/components/MovieCard';
 import { getCloudinaryImageUrl, movieImagePresets } from '@/lib/cloudinary';
+import { IGenre } from '@/types';
 
 interface Movie {
     _id: string;
@@ -13,7 +14,7 @@ interface Movie {
     duration: number;
     release_date: string;
     rating: number;
-    genre?: string;
+    genres: IGenre[];
 }
 
 const ITEMS_PER_PAGE = 12;
@@ -23,6 +24,8 @@ function MoviesListContent() {
     const statusParam = searchParams.get('status') || 'all'; // 'all' | 'now_showing' | 'coming_soon'
 
     const [movies, setMovies] = useState<Movie[]>([]);
+    const [genres, setGenres] = useState<IGenre[]>([]);
+    const [selectedGenreId, setSelectedGenreId] = useState<string>('all');
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const [activeTab, setActiveTab] = useState<'all' | 'now_showing' | 'coming_soon'>(
@@ -31,12 +34,29 @@ function MoviesListContent() {
 
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-    // Fetch movies
+    // Fetch genres
+    useEffect(() => {
+        const fetchGenres = async () => {
+            try {
+                const res = await fetch(`${API_URL}/genres/active`);
+                const data = await res.json();
+                setGenres(data);
+            } catch (error) {
+                console.error('Lỗi tải thể loại:', error);
+            }
+        };
+        fetchGenres();
+    }, [API_URL]);
+
+    // Fetch movies (with genre filter)
     useEffect(() => {
         const fetchMovies = async () => {
             try {
                 setLoading(true);
-                const res = await fetch(`${API_URL}/movies`);
+                const url = selectedGenreId && selectedGenreId !== 'all'
+                    ? `${API_URL}/movies?genre=${selectedGenreId}`
+                    : `${API_URL}/movies`;
+                const res = await fetch(url);
                 const data = await res.json();
                 setMovies(data);
             } catch (error) {
@@ -46,7 +66,7 @@ function MoviesListContent() {
             }
         };
         fetchMovies();
-    }, [API_URL]);
+    }, [API_URL, selectedGenreId]);
 
     // Update activeTab when URL changes
     useEffect(() => {
@@ -103,6 +123,11 @@ function MoviesListContent() {
         window.history.pushState({}, '', url.toString());
     };
 
+    const handleGenreChange = (genreId: string) => {
+        setSelectedGenreId(genreId);
+        setCurrentPage(1);
+    };
+
     const formatReleaseDate = (dateString: string) => {
         const date = new Date(dateString);
         return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -124,12 +149,12 @@ function MoviesListContent() {
                 </div>
 
                 {/* Filter Tabs */}
-                <div className="flex flex-wrap gap-3 mb-8">
+                <div className="flex flex-wrap gap-3 mb-6">
                     {tabs.map((tab) => (
                         <button
                             key={tab.key}
                             onClick={() => handleTabChange(tab.key as any)}
-                            className={`px-5 py-2.5 rounded-full font-semibold transition-all ${activeTab === tab.key
+                            className={`px-5 py-2.5 rounded-full font-semibold transition-all cursor-pointer ${activeTab === tab.key
                                     ? tab.color === 'red'
                                         ? 'bg-red-600 text-white shadow-lg shadow-red-200'
                                         : tab.color === 'green'
@@ -141,6 +166,41 @@ function MoviesListContent() {
                             {tab.label} ({tab.count})
                         </button>
                     ))}
+                </div>
+
+                {/* Thể loại phim */}
+                <div className="mb-8 bg-white p-4 rounded-xl border border-gray-150 shadow-sm">
+                    <div className="flex items-center gap-2 mb-3">
+                        <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                        </svg>
+                        <span className="text-sm font-semibold text-gray-700">Thể loại phim:</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            onClick={() => handleGenreChange('all')}
+                            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all border cursor-pointer ${
+                                selectedGenreId === 'all'
+                                    ? 'bg-red-50 text-red-600 border-red-200'
+                                    : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                            }`}
+                        >
+                            Tất cả
+                        </button>
+                        {genres.map((genre) => (
+                            <button
+                                key={genre._id}
+                                onClick={() => handleGenreChange(genre._id)}
+                                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all border cursor-pointer ${
+                                    selectedGenreId === genre._id
+                                        ? 'bg-red-50 text-red-600 border-red-200'
+                                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                                }`}
+                            >
+                                {genre.name}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {/* Loading State */}

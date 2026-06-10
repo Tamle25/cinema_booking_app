@@ -8,14 +8,7 @@ import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
 export class LoyaltyController {
   constructor(private readonly loyaltyService: LoyaltyService) {}
 
-  // ==========================================
-  // USER APIs
-  // ==========================================
 
-  /**
-   * Lấy thông tin hạng thành viên + điểm hiện tại
-   * GET /loyalty/membership
-   */
   @UseGuards(AuthGuard('jwt'))
   @Get('membership')
   async getMembershipInfo(@Req() req: any) {
@@ -23,10 +16,6 @@ export class LoyaltyController {
     return this.loyaltyService.getMembershipInfo(userId);
   }
 
-  /**
-   * Lấy lịch sử điểm (phân trang)
-   * GET /loyalty/points-history?page=1&limit=20
-   */
   @UseGuards(AuthGuard('jwt'))
   @Get('points-history')
   async getPointsHistory(
@@ -38,10 +27,6 @@ export class LoyaltyController {
     return this.loyaltyService.getPointsHistory(userId, parseInt(page || '1'), parseInt(limit || '20'));
   }
 
-  /**
-   * Lấy % giảm giá theo hạng thành viên (dùng khi thanh toán)
-   * GET /loyalty/membership-discount
-   */
   @UseGuards(AuthGuard('jwt'))
   @Get('membership-discount')
   async getMembershipDiscount(@Req() req: any) {
@@ -53,24 +38,13 @@ export class LoyaltyController {
     };
   }
 
-  // ==========================================
-  // ADMIN APIs
-  // ==========================================
 
-  /**
-   * Xem thông tin điểm của user
-   * GET /loyalty/admin/user-points/:userId
-   */
   @AdminOnly()
   @Get('admin/user-points/:userId')
   async getUserPoints(@Param('userId', ParseObjectIdPipe) userId: string) {
     return this.loyaltyService.getMembershipInfo(userId);
   }
 
-  /**
-   * Xem lịch sử điểm của user
-   * GET /loyalty/admin/user-history/:userId?page=1&limit=20
-   */
   @AdminOnly()
   @Get('admin/user-history/:userId')
   async getUserHistory(
@@ -81,11 +55,6 @@ export class LoyaltyController {
     return this.loyaltyService.getPointsHistory(userId, parseInt(page || '1'), parseInt(limit || '20'));
   }
 
-  /**
-   * Điều chỉnh điểm thủ công cho user
-   * POST /loyalty/admin/adjust-points
-   * Body: { userId, points, description }
-   */
   @AdminOnly()
   @Post('admin/adjust-points')
   async adjustPoints(

@@ -26,13 +26,13 @@ export default function NewsSection() {
   }, [API_URL]);
 
   if (!loading && newsList.length === 0) {
-    return null; // Don't show section if no news
+    return null;
   }
 
   return (
     <section className="bg-white py-12 md:py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Section Header */}
+        
         <div className="flex items-center justify-between mb-8 md:mb-10">
           <div className="flex items-center gap-4">
             <div className="w-1.5 h-10 bg-red-600 rounded-full" />
@@ -56,7 +56,7 @@ export default function NewsSection() {
           </Link>
         </div>
 
-        {/* Loading Skeleton */}
+        
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {Array.from({ length: 3 }).map((_, index) => (
@@ -71,7 +71,6 @@ export default function NewsSection() {
             ))}
           </div>
         ) : (
-          /* News Grid */
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {newsList.map((news) => (
               <article key={news._id} className="group bg-white rounded-2xl overflow-hidden shadow-md border border-gray-100 hover:shadow-xl transition-all duration-300 flex flex-col">
@@ -120,7 +119,7 @@ export default function NewsSection() {
           </div>
         )}
 
-        {/* View All Button for Mobile */}
+        
         <div className="mt-8 flex justify-center md:hidden">
           <Link
             href="/news"

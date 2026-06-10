@@ -17,7 +17,6 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
   const [activeTrailer, setActiveTrailer] = useState<string | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Lọc phim featured: ưu tiên sắp chiếu, fallback đang chiếu
   const featuredMovies = (() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -34,7 +33,6 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
       return rd <= today;
     });
 
-    // Ưu tiên coming_soon, nếu ít hơn 3 thì bổ sung từ now_showing
     if (comingSoon.length >= 3) return comingSoon.slice(0, 6);
     return [...comingSoon, ...nowShowing].slice(0, 6);
   })();
@@ -61,7 +59,6 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
     );
   }, [currentIndex, featuredMovies.length, goToSlide]);
 
-  // Auto-play carousel
   useEffect(() => {
     if (!isAutoPlaying || featuredMovies.length <= 1) return;
 
@@ -71,7 +68,6 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
     };
   }, [isAutoPlaying, goNext, featuredMovies.length]);
 
-  // Skeleton loading
   if (movies.length === 0) {
     return (
       <div className="relative w-full h-[500px] md:h-[550px] lg:h-[600px] bg-gray-900 animate-pulse">
@@ -100,7 +96,6 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
 
   const currentMovie = featuredMovies[currentIndex];
 
-  // Trích xuất trailer YouTube ID
   const getYouTubeId = (url: string) => {
     if (!url) return null;
     const match = url.match(
@@ -122,7 +117,7 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
       onMouseEnter={() => setIsAutoPlaying(false)}
       onMouseLeave={() => setIsAutoPlaying(true)}
     >
-      {/* Background Image with transition */}
+      
       {featuredMovies.map((movie, index) => (
         <div
           key={movie._id}
@@ -141,7 +136,7 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
         </div>
       ))}
 
-      {/* Overlay Gradient: đen + đỏ nhẹ */}
+      
       <div
         className="absolute inset-0 z-[2]"
         style={{
@@ -149,7 +144,7 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
             "linear-gradient(to right, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.75) 40%, rgba(229,9,20,0.15) 70%, rgba(0,0,0,0.6) 100%)",
         }}
       />
-      {/* Bottom gradient fade to page background */}
+      
       <div
         className="absolute bottom-0 left-0 right-0 h-32 z-[2]"
         style={{
@@ -158,11 +153,11 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
         }}
       />
 
-      {/* Content */}
+      
       <div className="relative z-[3] h-full flex items-center">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <div className="flex flex-col md:flex-row items-center gap-6 md:gap-10 lg:gap-14">
-            {/* Poster bên trái */}
+            
             <Link
               href={`/movie/${currentMovie._id}`}
               className="flex-shrink-0 hidden md:block group"
@@ -173,14 +168,14 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
                   alt={currentMovie.title}
                   className="w-full aspect-[2/3] object-cover"
                 />
-                {/* Shine effect on hover */}
+                
                 <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               </div>
             </Link>
 
-            {/* Thông tin phim bên phải */}
+            
             <div className="flex-1 text-center md:text-left max-w-2xl">
-              {/* Badge trạng thái */}
+              
               <div className="inline-flex items-center gap-2 mb-3">
                 {new Date(currentMovie.release_date) > new Date() ? (
                   <span className="bg-yellow-500/90 text-black text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
@@ -193,14 +188,14 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
                 )}
               </div>
 
-              {/* Tên phim */}
+              
               <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-3 leading-tight drop-shadow-lg">
                 {currentMovie.title}
               </h1>
 
-              {/* Meta info */}
+              
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 md:gap-4 mb-4 text-sm text-gray-300">
-                {/* Rating */}
+                
                 {currentMovie.rating > 0 && (
                   <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-full">
                     <svg
@@ -216,14 +211,14 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
                   </span>
                 )}
 
-                {/* Thời lượng */}
+                
                 {currentMovie.duration > 0 && (
                   <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-full">
                     {currentMovie.duration} phút
                   </span>
                 )}
 
-                {/* Thể loại */}
+                
                 {currentMovie.genres && currentMovie.genres.length > 0 && (
                   <span className="bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-full">
                     {currentMovie.genres.map((g) => g.name).join(', ')}
@@ -231,14 +226,14 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
                 )}
               </div>
 
-              {/* Mô tả */}
+              
               {currentMovie.description && (
                 <p className="text-gray-300 text-sm md:text-base leading-relaxed mb-6 line-clamp-3 max-w-xl mx-auto md:mx-0">
                   {currentMovie.description}
                 </p>
               )}
 
-              {/* CTA Buttons */}
+              
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
                 <Link
                   href={`/movie/${currentMovie._id}`}
@@ -272,7 +267,7 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
         </div>
       </div>
 
-      {/* Navigation Arrows */}
+      
       {featuredMovies.length > 1 && (
         <>
           <button
@@ -316,7 +311,7 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
         </>
       )}
 
-      {/* Indicator Dots */}
+      
       {featuredMovies.length > 1 && (
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[4] flex items-center gap-2">
           {featuredMovies.map((_, index) => (
@@ -334,14 +329,14 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
         </div>
       )}
 
-      {/* Slide counter */}
+      
       {featuredMovies.length > 1 && (
         <div className="absolute top-6 right-6 z-[4] bg-black/50 backdrop-blur-sm text-white text-xs font-medium px-3 py-1.5 rounded-full border border-white/10">
           {currentIndex + 1} / {featuredMovies.length}
         </div>
       )}
 
-      {/* Trailer Modal */}
+      
       <TrailerModal
         isOpen={!!activeTrailer}
         onClose={() => setActiveTrailer(null)}

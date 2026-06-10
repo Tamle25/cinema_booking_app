@@ -10,9 +10,7 @@ export class AuthService {
     private jwtService: JwtService
   ) {}
 
-  // --- Hàm Đăng ký mới ---
   async signUp(full_name: string, email: string, pass: string): Promise<any> {
-    // Mã hóa mật khẩu (Hashing)
     const salt = await bcrypt.genSalt();
     const hashPassword = await bcrypt.hash(pass, salt);
     try {
@@ -34,8 +32,6 @@ export class AuthService {
 
   async signIn(email: string, pass: string): Promise<any> {
     const user = await this.usersService.findOne(email);
-    //  So sánh mật khẩu: Dùng bcrypt.compare để so sánh
-    // (pass: mật khẩu người dùng nhập, user.password: mật khẩu đã mã hóa trong DB)
     if (!user || !(await bcrypt.compare(pass, user.password))) {
       throw new UnauthorizedException();
     }

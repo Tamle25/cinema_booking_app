@@ -6,7 +6,6 @@ import { CinemasService } from './cinemas.service';
 
 @Module({
   imports: [
-    // Đăng ký tên "Cinema" để các module khác có thể gọi được
     MongooseModule.forFeature([{ name: Cinema.name, schema: CinemaSchema }]),
   ],
   controllers: [CinemasController],

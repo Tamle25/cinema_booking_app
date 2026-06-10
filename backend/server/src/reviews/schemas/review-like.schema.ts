@@ -16,5 +16,4 @@ export class ReviewLike {
 
 export const ReviewLikeSchema = SchemaFactory.createForClass(ReviewLike);
 
-// Unique: 1 user chỉ like 1 review 1 lần
 ReviewLikeSchema.index({ review: 1, user: 1 }, { unique: true });
