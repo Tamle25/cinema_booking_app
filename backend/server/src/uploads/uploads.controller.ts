@@ -23,32 +23,38 @@ const ALLOWED_MIME_TYPES = new Set([
   'image/webp',
 ]);
 
+const POSTER_EXPECTED_RATIO = 2 / 3; // ~0.6667
+const POSTER_RATIO_TOLERANCE = 0.135; // ~20% sai số (cho phép tỉ lệ từ ~0.531 đến ~0.801)
+
+const BANNER_EXPECTED_RATIO = 16 / 6; // 8 / 3 hay ~2.6667
+const BANNER_RATIO_TOLERANCE = 0.533; // ~20% sai số (cho phép tỉ lệ từ ~2.133 đến ~3.200)
+
 const MOVIE_IMAGE_RULES: Record<
   MovieImageType,
   {
     folder: string;
     minWidth: number;
     minHeight: number;
-    minRatio: number;
-    maxRatio: number;
+    expectedRatio: number;
+    tolerance: number;
     targetLabel: string;
   }
 > = {
   poster: {
     folder: 'cinemax/movies/posters',
-    minWidth: 600,
-    minHeight: 900,
-    minRatio: 0.58,
-    maxRatio: 0.75,
-    targetLabel: 'poster 2:3',
+    minWidth: 500,
+    minHeight: 750,
+    expectedRatio: POSTER_EXPECTED_RATIO,
+    tolerance: POSTER_RATIO_TOLERANCE,
+    targetLabel: '2:3',
   },
   banner: {
     folder: 'cinemax/movies/banners',
-    minWidth: 1280,
-    minHeight: 480,
-    minRatio: 1.6,
-    maxRatio: 3.4,
-    targetLabel: 'banner ngang cua hero',
+    minWidth: 800,
+    minHeight: 300,
+    expectedRatio: BANNER_EXPECTED_RATIO,
+    tolerance: BANNER_RATIO_TOLERANCE,
+    targetLabel: '16:6',
   },
 };
 
@@ -201,13 +207,14 @@ export class UploadsController {
 
     if (width < rules.minWidth || height < rules.minHeight) {
       errors.push(
-        `${type === 'poster' ? 'Poster' : 'Banner'} qua nho (${width}x${height}). Toi thieu ${rules.minWidth}x${rules.minHeight}px de tranh bi nhoe khi hien thi.`,
+        `${type === 'poster' ? 'Poster' : 'Banner'} quá nhỏ (${width}x${height}). Tối thiểu ${rules.minWidth}x${rules.minHeight}px để tránh bị nhòe khi hiển thị.`,
       );
     }
 
-    if (ratio < rules.minRatio || ratio > rules.maxRatio) {
-      warnings.push(
-        `Ty le anh ${width}x${height} khac nhieu so voi layout ${rules.targetLabel}; anh co the bi crop xau khi hien thi.`,
+    const diff = Math.abs(ratio - rules.expectedRatio);
+    if (diff > rules.tolerance) {
+      errors.push(
+        `Ảnh có tỷ lệ quá khác so với tỷ lệ khuyến nghị. Vui lòng chọn ảnh gần với tỷ lệ ${rules.targetLabel}.`,
       );
     }
 

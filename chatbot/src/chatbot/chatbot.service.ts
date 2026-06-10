@@ -1,15 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ChatbotMessageDto } from './dto/chatbot-message.dto';
-import { ChatbotResponse, ChatIntent, GeminiResult, IntentResult, ChatContext, ResponseSource } from './types/chatbot.types';
+import { ChatbotResponse, ChatIntent, GeminiResult, IntentResult, ChatContext, ResponseSource, ConversationMessage } from './types/chatbot.types';
 import { IntentService } from '../intent/intent.service';
 import { BackendApiService } from '../backend-api/backend-api.service';
 import { GeminiService } from '../gemini/gemini.service';
-import { MAX_MESSAGE_LENGTH } from '../gemini/gemini.constants';
+import { MAX_MESSAGE_LENGTH, MAX_HISTORY_MESSAGES } from '../gemini/gemini.constants';
 
 @Injectable()
 export class ChatbotService {
   private readonly logger = new Logger(ChatbotService.name);
 
+  /** In-memory conversation contexts keyed by conversationId */
   private contexts = new Map<string, ChatContext>();
 
   private requestCounter = 0;
@@ -28,10 +29,14 @@ export class ChatbotService {
     const requestId = this.generateRequestId();
     const startTime = Date.now();
 
+    // Get or create conversation context
     let context = this.contexts.get(conversationId);
     if (!context) {
-      context = {};
+      context = { conversationHistory: [] };
       this.contexts.set(conversationId, context);
+    }
+    if (!context.conversationHistory) {
+      context.conversationHistory = [];
     }
 
     const truncatedMessage =
@@ -42,6 +47,9 @@ export class ChatbotService {
     let intentResult: IntentResult | undefined = undefined;
 
     try {
+      // ==============================================================
+      // 1. CLASSIFY INTENT (rule-based → NLU fallback)
+      // ==============================================================
       const ruleResult = this.intentService.classify(truncatedMessage);
       intentResult = { ...ruleResult };
 
@@ -53,10 +61,26 @@ export class ChatbotService {
       }
 
       const lowerMessage = truncatedMessage.toLowerCase();
-      
+
+      // ==============================================================
+      // 2. ORDINAL REFERENCE: "phim đầu tiên", "phim thứ 2", etc.
+      // ==============================================================
+      const ordinalRef = this.resolveOrdinalReference(lowerMessage, context);
+      if (ordinalRef) {
+        intentResult.movieName = ordinalRef.title;
+        if (ordinalRef._id) {
+          context.lastMovieId = ordinalRef._id;
+          context.lastMovieName = ordinalRef.title;
+        }
+        if (!intentResult.intent || intentResult.intent === ChatIntent.OUT_OF_SCOPE) {
+          intentResult.intent = ChatIntent.MOVIE_DETAIL;
+        }
+      }
+      // 3. MOVIE/CINEMA NAME MATCHING from database
+      // ==============================================================
       if (intentResult.intent === ChatIntent.OUT_OF_SCOPE || truncatedMessage.length < 20) {
         const allMovies = await this.backendApiService.getAllMovies() || [];
-        const matchedMovie = allMovies.find((m: any) => 
+        const matchedMovie = allMovies.find((m: any) =>
           lowerMessage.includes(this.normalizeString(m.title)) ||
           this.normalizeString(m.title).includes(lowerMessage)
         );
@@ -70,7 +94,7 @@ export class ChatbotService {
           }
         } else {
           const allCinemas = await this.backendApiService.getAllCinemas() || [];
-          const matchedCinema = allCinemas.find((c: any) => 
+          const matchedCinema = allCinemas.find((c: any) =>
             lowerMessage.includes(this.normalizeString(c.name)) ||
             this.normalizeString(c.name).includes(lowerMessage)
           );
@@ -88,16 +112,22 @@ export class ChatbotService {
         }
       }
 
+      // ==============================================================
+      // 4. FOLLOW-UP QUESTION DETECTION
+      // ==============================================================
       const isFollowUpQuestion = /thì sao|thi sao|rồi sao|roi sao|thế còn|the con|còn suất nào|ngày mai|tối nay|hôm nay|đã thanh toán|da thanh toan/.test(lowerMessage);
       if ((intentResult.intent === ChatIntent.OUT_OF_SCOPE || intentResult.intent === ChatIntent.NAVIGATION_REQUEST) && isFollowUpQuestion && context.lastIntent) {
         intentResult.intent = context.lastIntent as ChatIntent;
       }
 
+      // ==============================================================
+      // 5. CONTEXT-DEPENDENT REFERENCES: "phim đó", "rạp này"
+      // ==============================================================
       const isContextDependentMovie = /phim này|phim đó|phim đấy|bộ phim này|bộ phim đó|suất chiếu phim này|lịch chiếu phim này/.test(lowerMessage);
       const isContextDependentCinema = /rạp này|rạp đó|ở rạp đó|tại rạp này/.test(lowerMessage);
       const isContextDependentDate = /hôm nay|ngày mai|tối nay|chiếu ngày này|suất này/.test(lowerMessage);
 
-      if (!intentResult.movieName && (isContextDependentMovie || isFollowUpQuestion || !intentResult.movieName) && context.lastMovieName) {
+      if (!intentResult.movieName && (isContextDependentMovie || isFollowUpQuestion) && context.lastMovieName) {
         const movieNeededIntents = [
           ChatIntent.MOVIE_DETAIL,
           ChatIntent.SHOWTIMES,
@@ -110,32 +140,42 @@ export class ChatbotService {
         }
       }
 
-      if (!intentResult.cinemaName && (isContextDependentCinema || isFollowUpQuestion || !intentResult.cinemaName) && context.lastCinemaName) {
+      if (!intentResult.cinemaName && (isContextDependentCinema || isFollowUpQuestion) && context.lastCinemaName) {
         if (intentResult.intent === ChatIntent.SHOWTIMES || intentResult.intent === ChatIntent.SEAT_STATUS || intentResult.intent === ChatIntent.CINEMA_QUERY || isContextDependentCinema) {
           intentResult.cinemaName = context.lastCinemaName;
         }
       }
 
-      if (!intentResult.date && (isContextDependentDate || isFollowUpQuestion || !intentResult.date) && context.lastDate) {
+      if (!intentResult.date && (isContextDependentDate || isFollowUpQuestion) && context.lastDate) {
         if (intentResult.intent === ChatIntent.SHOWTIMES || intentResult.intent === ChatIntent.SEAT_STATUS || isContextDependentDate) {
           intentResult.date = context.lastDate;
         }
       }
 
+      // "khác không", "phim khác"
       if (lowerMessage.includes('khác không') || lowerMessage.includes('khác ko') || lowerMessage.includes('còn phim nào nữa') || lowerMessage.includes('phim khác')) {
         if (context.lastGenre) {
           intentResult.intent = ChatIntent.MOVIE_BY_GENRE;
           intentResult.genre = context.lastGenre;
-        } else if (context.lastIntent === ChatIntent.NOW_SHOWING) {
+        } else if (context.lastIntent === ChatIntent.NOW_SHOWING || context.lastIntent === ChatIntent.TODAY_MOVIES) {
           intentResult.intent = ChatIntent.NOW_SHOWING;
         }
       }
 
+      // ==============================================================
+      // 6. MAP TODAY_MOVIES → NOW_SHOWING (same data source)
+      // ==============================================================
+      const effectiveIntent = intentResult.intent === ChatIntent.TODAY_MOVIES ? ChatIntent.NOW_SHOWING : intentResult.intent;
+
+      // ==============================================================
+      // 7. SPECIAL CASES: auth-required, out-of-scope, small_talk
+      // ==============================================================
       if (intentResult.intent === ChatIntent.BOOKING_STATUS && !isAuthenticated) {
         const reply = 'Bạn cần đăng nhập để xem vé đã đặt hoặc lịch sử đặt vé.';
         const actions = [{ type: 'NAVIGATE' as const, label: 'Đăng nhập', url: '/profile/bookings' }];
         const suggestions = ['Hôm nay có phim gì?', 'Xem lịch chiếu', 'Voucher khuyến mãi'];
-        
+
+        this.appendToHistory(context, truncatedMessage, reply, intentResult.intent);
         context.lastIntent = intentResult.intent;
         this.contexts.set(conversationId, context);
 
@@ -150,9 +190,13 @@ export class ChatbotService {
         };
       }
 
-      if (intentResult.intent === ChatIntent.OUT_OF_SCOPE) {
-        const reply = 'Mình chỉ hỗ trợ thông tin phim, lịch chiếu, giá vé, ghế trống, bắp nước và chính sách hoàn/hủy vé của CineMax. Bạn muốn tìm phim hay đặt vé phim nào?';
-        const suggestions = ['Hôm nay có phim gì?', 'Xem lịch chiếu', 'Khuyến mãi hè'];
+      if (intentResult.intent === ChatIntent.SMALL_TALK) {
+        const reply = this.getSmallTalkReply(lowerMessage);
+        const suggestions = ['Hôm nay có phim gì?', 'Xem lịch chiếu', 'Voucher khuyến mãi'];
+
+        this.appendToHistory(context, truncatedMessage, reply, intentResult.intent);
+        context.lastIntent = intentResult.intent;
+        this.contexts.set(conversationId, context);
 
         return {
           success: true,
@@ -165,6 +209,27 @@ export class ChatbotService {
         };
       }
 
+      if (intentResult.intent === ChatIntent.OUT_OF_SCOPE) {
+        const reply = 'Mình chỉ hỗ trợ thông tin phim, lịch chiếu, giá vé, ghế trống, bắp nước và chính sách hoàn/hủy vé của CineMax. Bạn muốn tìm phim hay đặt vé phim nào?';
+        const suggestions = ['Hôm nay có phim gì?', 'Xem lịch chiếu', 'Khuyến mãi hè'];
+
+        this.appendToHistory(context, truncatedMessage, reply, intentResult.intent);
+        this.contexts.set(conversationId, context);
+
+        return {
+          success: true,
+          reply,
+          conversationId,
+          intent: intentResult.intent,
+          suggestions,
+          actions: [],
+          source: 'rule'
+        };
+      }
+
+      // ==============================================================
+      // 8. FETCH BACKEND DATA
+      // ==============================================================
       let backendData: any = null;
 
       if (intentResult.intent === ChatIntent.FAQ_POLICY) {
@@ -173,11 +238,38 @@ export class ChatbotService {
           backendData = faqItem;
         }
       } else {
-        backendData = await this.fetchBackendData(intentResult, authHeader, requestId);
+        backendData = await this.fetchBackendData(
+          { ...intentResult, intent: effectiveIntent },
+          authHeader,
+          requestId,
+          context,
+        );
       }
 
       const sanitizedBackendData = this.sanitizeData(backendData);
 
+      // ==============================================================
+      // 9. SAVE RESULTS for ordinal reference
+      // ==============================================================
+      if (Array.isArray(backendData) && backendData.length > 0) {
+        // Extract movie list for ordinal reference
+        const movieResults = backendData
+          .filter((item: any) => item.title || item.movie?.title)
+          .map((item: any) => ({
+            _id: item._id || item.movie?._id,
+            title: item.title || item.movie?.title,
+            slug: item.slug || item.movie?.slug,
+          }));
+        if (movieResults.length > 0) {
+          context.lastResults = movieResults;
+        }
+      } else if (backendData && backendData.title) {
+        context.lastResults = [{ _id: backendData._id, title: backendData.title, slug: backendData.slug }];
+      }
+
+      // ==============================================================
+      // 10. GENERATE REPLY (Gemini or fallback)
+      // ==============================================================
       let finalReply = '';
       let responseSource: ResponseSource = 'gemini';
       let modelUsed = '';
@@ -185,7 +277,7 @@ export class ChatbotService {
       try {
         const geminiResult = await this.geminiService.generateReply({
           userMessage: truncatedMessage,
-          intent: intentResult.intent,
+          intent: effectiveIntent,
           isAuthenticated: isAuthenticated || false,
           backendData: sanitizedBackendData,
           context,
@@ -197,35 +289,44 @@ export class ChatbotService {
           modelUsed = geminiResult.model || '';
         } else {
           responseSource = 'fallback';
-          finalReply = this.formatRuleBasedResponse(intentResult.intent, backendData) || geminiResult.text;
+          finalReply = this.formatRuleBasedResponse(effectiveIntent, backendData) || geminiResult.text;
         }
       } catch (geminiError) {
         responseSource = 'fallback';
-        finalReply = this.formatRuleBasedResponse(intentResult.intent, backendData) || 'Mình chưa lấy được dữ liệu lúc này, bạn thử lại sau nhé.';
+        finalReply = this.formatRuleBasedResponse(effectiveIntent, backendData) || 'Mình chưa lấy được dữ liệu lúc này, bạn thử lại sau nhé.';
       }
 
+      // Validate response
       if (responseSource === 'gemini') {
         const isResponseValid = await this.validateResponseContent(
           finalReply,
           backendData,
-          intentResult.intent,
+          effectiveIntent,
           requestId,
         );
         if (!isResponseValid) {
           responseSource = 'fallback';
-          finalReply = this.formatRuleBasedResponse(intentResult.intent, backendData) || 'Hiện chưa có thông tin phù hợp với rạp hoặc bộ phim này.';
+          finalReply = this.formatRuleBasedResponse(effectiveIntent, backendData) || 'Hiện chưa có thông tin phù hợp với rạp hoặc bộ phim này.';
         }
       }
 
+      // ==============================================================
+      // 11. GENERATE ACTIONS & SUGGESTIONS
+      // ==============================================================
       const actions: any[] = [];
       const suggestions: string[] = [];
 
       this.updateContextAndGenerateActions(intentResult, backendData, context, actions, suggestions);
 
+      // ==============================================================
+      // 12. SAVE CONTEXT + HISTORY
+      // ==============================================================
       context.lastIntent = intentResult.intent;
       if (intentResult.genre) {
         context.lastGenre = intentResult.genre;
       }
+
+      this.appendToHistory(context, truncatedMessage, finalReply, intentResult.intent);
       this.contexts.set(conversationId, context);
 
       return {
@@ -254,10 +355,91 @@ export class ChatbotService {
     }
   }
 
+  // ==============================================================
+  // ORDINAL REFERENCE RESOLVER
+  // ==============================================================
+
+  private resolveOrdinalReference(message: string, context: ChatContext): { title: string; _id?: string } | null {
+    if (!context.lastResults || context.lastResults.length === 0) return null;
+
+    const ordinalMap: Record<string, number> = {
+      'đầu tiên': 0, 'thứ nhất': 0, 'thứ 1': 0, 'số 1': 0, 'phim 1': 0,
+      'thứ hai': 1, 'thứ 2': 1, 'số 2': 1, 'phim 2': 1, 'thứ nhì': 1,
+      'thứ ba': 2, 'thứ 3': 2, 'số 3': 2, 'phim 3': 2,
+      'thứ tư': 3, 'thứ 4': 3, 'số 4': 3, 'phim 4': 3,
+      'thứ năm': 4, 'thứ 5': 4, 'số 5': 4, 'phim 5': 4,
+      'cuối': -1, 'cuối cùng': -1, 'phim cuối': -1,
+    };
+
+    for (const [keyword, index] of Object.entries(ordinalMap)) {
+      if (message.includes(keyword)) {
+        const actualIndex = index === -1 ? context.lastResults.length - 1 : index;
+        if (actualIndex >= 0 && actualIndex < context.lastResults.length) {
+          return context.lastResults[actualIndex];
+        }
+      }
+    }
+
+    return null;
+  }
+
+  // ==============================================================
+  // CONVERSATION HISTORY MANAGEMENT
+  // ==============================================================
+
+  private appendToHistory(
+    context: ChatContext,
+    userMessage: string,
+    botReply: string,
+    intent?: string,
+  ): void {
+    if (!context.conversationHistory) {
+      context.conversationHistory = [];
+    }
+
+    const now = Date.now();
+
+    context.conversationHistory.push({
+      role: 'user',
+      content: userMessage,
+      timestamp: now,
+      intent,
+    });
+
+    context.conversationHistory.push({
+      role: 'assistant',
+      content: botReply,
+      timestamp: now,
+    });
+
+    // Keep only the most recent messages
+    if (context.conversationHistory.length > MAX_HISTORY_MESSAGES) {
+      context.conversationHistory = context.conversationHistory.slice(-MAX_HISTORY_MESSAGES);
+    }
+  }
+
+  // ==============================================================
+  // SMALL TALK
+  // ==============================================================
+
+  private getSmallTalkReply(message: string): string {
+    if (/cảm ơn|cám ơn|thank/.test(message)) {
+      return 'Không có gì! Bạn cần hỗ trợ gì thêm về phim hoặc đặt vé không? 😊';
+    }
+    if (/tạm biệt|bye/.test(message)) {
+      return 'Tạm biệt bạn! Chúc bạn xem phim vui vẻ! 🎬';
+    }
+    return 'Rồi! Bạn cần mình hỗ trợ gì về phim hoặc đặt vé không?';
+  }
+
+  // ==============================================================
+  // FAQ
+  // ==============================================================
+
   private findFAQItem(message: string): any {
     const normalized = message.toLowerCase();
     const faqData = require('../prompts/faq-data').FAQ_DATA;
-    
+
     for (const item of faqData) {
       const match = item.keywords.some((kw: string) => normalized.includes(kw.toLowerCase()));
       if (match) {
@@ -266,6 +448,10 @@ export class ChatbotService {
     }
     return null;
   }
+
+  // ==============================================================
+  // CONTEXT + ACTIONS + SUGGESTIONS
+  // ==============================================================
 
   private updateContextAndGenerateActions(
     intentResult: IntentResult,
@@ -276,6 +462,7 @@ export class ChatbotService {
   ) {
     const { intent } = intentResult;
 
+    // Extract movie from backend data
     let movie: any = null;
     if (intent === ChatIntent.MOVIE_DETAIL || intent === ChatIntent.BOOKING_GUIDE || intent === ChatIntent.SHOWTIMES || intent === ChatIntent.TICKET_PRICE || intent === ChatIntent.SEAT_STATUS) {
       if (backendData) {
@@ -294,6 +481,7 @@ export class ChatbotService {
       context.lastMovieSlug = movie.slug || '';
     }
 
+    // Extract cinema
     let cinema: any = null;
     if (intent === ChatIntent.CINEMA_QUERY || intent === ChatIntent.SHOWTIMES || intent === ChatIntent.SEAT_STATUS) {
       if (backendData) {
@@ -310,6 +498,7 @@ export class ChatbotService {
       context.lastCinemaName = cinema.name;
     }
 
+    // Extract showtime
     let showtime: any = null;
     if (intent === ChatIntent.SHOWTIMES || intent === ChatIntent.SEAT_STATUS) {
       if (backendData && Array.isArray(backendData) && backendData.length > 0) {
@@ -324,14 +513,14 @@ export class ChatbotService {
       context.lastDate = intentResult.date;
     }
 
+    // Generate actions
     if (context.lastMovieId) {
       const id = context.lastMovieId;
       if (intent === ChatIntent.MOVIE_DETAIL) {
-        actions.push({ type: 'NAVIGATE', label: 'Xem chi tiết phim', url: `/movies/${id}` });
-        actions.push({ type: 'NAVIGATE', label: 'Xem lịch chiếu', url: `/showtimes?movieId=${id}` });
+        actions.push({ type: 'NAVIGATE', label: 'Xem chi tiết phim', url: `/movie/${id}` });
         actions.push({ type: 'NAVIGATE', label: 'Đặt vé ngay', url: `/booking?movieId=${id}` });
       } else if (intent === ChatIntent.SHOWTIMES) {
-        actions.push({ type: 'NAVIGATE', label: 'Xem lịch chiếu', url: `/showtimes?movieId=${id}` });
+        actions.push({ type: 'NAVIGATE', label: 'Xem lịch chiếu', url: `/movie/${id}` });
         actions.push({ type: 'NAVIGATE', label: 'Đặt vé ngay', url: `/booking?movieId=${id}` });
       } else if (intent === ChatIntent.BOOKING_GUIDE) {
         actions.push({ type: 'NAVIGATE', label: 'Đặt vé ngay', url: `/booking?movieId=${id}` });
@@ -346,7 +535,7 @@ export class ChatbotService {
       actions.push({ type: 'NAVIGATE', label: 'Vé của tôi', url: '/profile/bookings' });
     }
 
-    if (intent === ChatIntent.PROMOTION) {
+    if (intent === ChatIntent.PROMOTION || intent === ChatIntent.VOUCHER_QUERY) {
       actions.push({ type: 'NAVIGATE', label: 'Xem khuyến mãi', url: '/promotions' });
     }
 
@@ -372,9 +561,10 @@ export class ChatbotService {
       }
     }
 
+    // Generate suggestions
     if (intent === ChatIntent.GREETING) {
       suggestions.push('Hôm nay có phim gì?', 'Phim sắp chiếu?', 'Khuyến mãi cuối tuần');
-    } else if (intent === ChatIntent.NOW_SHOWING || intent === ChatIntent.UPCOMING_MOVIES || intent === ChatIntent.MOVIE_BY_GENRE) {
+    } else if (intent === ChatIntent.NOW_SHOWING || intent === ChatIntent.TODAY_MOVIES || intent === ChatIntent.UPCOMING_MOVIES || intent === ChatIntent.MOVIE_BY_GENRE) {
       if (context.lastMovieName) {
         suggestions.push(`Lịch chiếu phim ${context.lastMovieName}`, `Xem chi tiết phim ${context.lastMovieName}`, 'Đặt vé phim này');
       } else {
@@ -388,15 +578,26 @@ export class ChatbotService {
       suggestions.push('Chọn ghế ngồi', 'Thanh toán như thế nào?', 'Có voucher giảm giá không?');
     } else if (intent === ChatIntent.FAQ_POLICY) {
       suggestions.push('Làm thế nào để đặt vé?', 'Đã thanh toán rồi hoàn vé thế nào?', 'Chương trình thành viên');
+    } else if (intent === ChatIntent.COMBO_QUERY) {
+      suggestions.push('Hôm nay có phim gì?', 'Đặt vé xem phim', 'Voucher khuyến mãi');
+    } else if (intent === ChatIntent.VOUCHER_QUERY) {
+      suggestions.push('Đổi điểm lấy voucher', 'Hôm nay có phim gì?', 'Đặt vé xem phim');
+    } else if (intent === ChatIntent.SMALL_TALK) {
+      suggestions.push('Hôm nay có phim gì?', 'Phim sắp chiếu?', 'Voucher khuyến mãi');
     } else {
       suggestions.push('Hôm nay có phim gì?', 'Xem lịch chiếu', 'Khuyến mãi hôm nay');
     }
   }
 
+  // ==============================================================
+  // RULE-BASED RESPONSE FORMATTERS
+  // ==============================================================
+
   private formatRuleBasedResponse(intent: ChatIntent, data: unknown): string | null {
     try {
       switch (intent) {
         case ChatIntent.NOW_SHOWING:
+        case ChatIntent.TODAY_MOVIES:
           return this.formatMovieList(data, 'đang chiếu');
 
         case ChatIntent.UPCOMING_MOVIES:
@@ -424,7 +625,11 @@ export class ChatbotService {
           return this.formatCinemas(data);
 
         case ChatIntent.PROMOTION:
+        case ChatIntent.VOUCHER_QUERY:
           return this.formatPromotions(data);
+
+        case ChatIntent.COMBO_QUERY:
+          return this.formatCombos(data);
 
         case ChatIntent.FAQ_POLICY:
           return this.formatFAQ(data);
@@ -447,31 +652,42 @@ export class ChatbotService {
   }
 
   private formatMovieDetail(data: any): string {
-    if (!data) return 'Hiện chưa có thông tin chi tiết cho bộ phim này.';
+    if (!data) return 'Hiện tại mình chưa tìm thấy phim phù hợp trong hệ thống.';
     const movie = Array.isArray(data) ? data[0] : data;
-    if (!movie || !movie.title) return 'Hiện chưa có thông tin chi tiết cho bộ phim này.';
+    if (!movie || !movie.title) return 'Hiện tại mình chưa tìm thấy phim phù hợp trong hệ thống.';
 
     let reply = `Thông tin phim **${movie.title}**:\n`;
     if (movie.genre) reply += `* Thể loại: ${movie.genre}\n`;
+    if (movie.genres && Array.isArray(movie.genres)) {
+      const genreNames = movie.genres.map((g: any) => g.name || g).filter(Boolean).join(', ');
+      if (genreNames) reply += `* Thể loại: ${genreNames}\n`;
+    }
     if (movie.duration) reply += `* Thời lượng: ${movie.duration} phút\n`;
     if (movie.language) reply += `* Ngôn ngữ: ${movie.language}\n`;
+    if (movie.rating) reply += `* Đánh giá: ${movie.rating}/10\n`;
     if (movie.description) reply += `* Nội dung: ${movie.description.substring(0, 120)}...\n`;
-    if (movie.trailer_url) reply += `* Trailer xem tại: ${movie.trailer_url}\n`;
+    if (movie.trailer_url) reply += `* Trailer: ${movie.trailer_url}\n`;
+    reply += `\nXem chi tiết: /movie/${movie._id}`;
     return reply.trim();
   }
 
   private formatMovieList(data: unknown, type: string): string | null {
     if (!Array.isArray(data) || data.length === 0) {
-      return `Hiện chưa có phim ${type} nào.`;
+      return `Hiện tại mình chưa tìm thấy phim ${type} nào trong hệ thống.`;
     }
 
     const movies = data.slice(0, 5);
     let reply = `Phim ${type}:\n`;
     movies.forEach((movie: any, i: number) => {
       reply += `${i + 1}. **${movie.title || 'Chưa có tên'}**`;
-      if (movie.genre) reply += ` — ${movie.genre}`;
+      if (movie.genres && Array.isArray(movie.genres)) {
+        const genreNames = movie.genres.map((g: any) => g.name || g).filter(Boolean).join(', ');
+        if (genreNames) reply += ` — ${genreNames}`;
+      } else if (movie.genre) {
+        reply += ` — ${movie.genre}`;
+      }
       if (movie.duration) reply += ` — ${movie.duration} phút`;
-      reply += '\n';
+      reply += `\n   Xem chi tiết: /movie/${movie._id}\n`;
     });
 
     if (data.length > 5) {
@@ -541,7 +757,7 @@ export class ChatbotService {
     const first = showtimes[0];
     const movieTitle = first.movie?.title || first.movie_id?.title || '';
     let reply = movieTitle ? `Giá vé phim **${movieTitle}**:\n` : 'Giá vé:\n';
-    
+
     const prices = [...new Set(showtimes.map((st: any) => st.price))].filter(Boolean);
     if (prices.length > 0) {
       prices.forEach((price: any) => {
@@ -603,6 +819,20 @@ export class ChatbotService {
     return reply;
   }
 
+  private formatCombos(data: any): string {
+    if (!Array.isArray(data) || data.length === 0) {
+      return 'Hiện tại chưa có combo bắp nước nào trong hệ thống.';
+    }
+    let reply = 'Các combo bắp nước đang có:\n';
+    data.slice(0, 5).forEach((combo: any, i: number) => {
+      reply += `${i + 1}. **${combo.name}**`;
+      if (combo.price) reply += ` — ${Number(combo.price).toLocaleString('vi-VN')}đ`;
+      reply += '\n';
+      if (combo.description) reply += `   ${combo.description}\n`;
+    });
+    return reply;
+  }
+
   private formatFAQ(data: any): string {
     if (!data) return 'Hiện chưa có thông tin phù hợp.';
     return `**${data.question}**\n\n${data.answer}`;
@@ -622,10 +852,15 @@ export class ChatbotService {
     return 'Để đặt vé xem phim trên website, bạn chọn phim từ danh sách phim đang chiếu, sau đó chọn rạp, suất chiếu, ghế trống và tiến hành thanh toán trực tuyến.';
   }
 
+  // ==============================================================
+  // FETCH BACKEND DATA
+  // ==============================================================
+
   private async fetchBackendData(
     intentResult: IntentResult,
     authHeader?: string,
     requestId?: string,
+    context?: ChatContext,
   ): Promise<unknown> {
     const rid = requestId || 'no-rid';
     const { intent, movieName, cinemaName, date, genre } = intentResult;
@@ -633,6 +868,7 @@ export class ChatbotService {
     try {
       switch (intent) {
         case ChatIntent.NOW_SHOWING:
+        case ChatIntent.TODAY_MOVIES:
           return await this.backendApiService.getNowShowingMovies();
 
         case ChatIntent.UPCOMING_MOVIES:
@@ -641,15 +877,30 @@ export class ChatbotService {
         case ChatIntent.MOVIE_BY_GENRE: {
           const movies = await this.backendApiService.getNowShowingMovies();
           if (genre && Array.isArray(movies)) {
-            const normalizedGenre = genre.toLowerCase().trim();
-            return movies.filter((m: any) => 
-              m.genre?.toLowerCase().includes(normalizedGenre)
-            );
+            const normalizedGenre = this.normalizeString(genre);
+            return movies.filter((m: any) => {
+              // Check genres array (populated refs)
+              if (m.genres && Array.isArray(m.genres)) {
+                return m.genres.some((g: any) => {
+                  const gName = this.normalizeString(g.name || g || '');
+                  return gName.includes(normalizedGenre);
+                });
+              }
+              // Fallback: genre string field
+              return m.genre?.toLowerCase().includes(normalizedGenre);
+            });
           }
           return movies;
         }
 
         case ChatIntent.MOVIE_DETAIL: {
+          // If we have a direct movie ID from context (ordinal reference), use it
+          if (context?.lastMovieId && movieName && context.lastMovieName === movieName) {
+            return await this.backendApiService.getMovieById(context.lastMovieId);
+          }
+          if (context?.lastMovieId && !movieName) {
+            return await this.backendApiService.getMovieById(context.lastMovieId);
+          }
           if (movieName) {
             const movie = await this.backendApiService.searchMovieByName(movieName);
             return movie || null;
@@ -740,8 +991,15 @@ export class ChatbotService {
         case ChatIntent.PROMOTION:
           return await this.backendApiService.getActivePromotions();
 
+        case ChatIntent.VOUCHER_QUERY:
+          return await this.backendApiService.getActivePromotions();
+
+        case ChatIntent.COMBO_QUERY:
+          return await this.backendApiService.getActiveCombos();
+
         case ChatIntent.GREETING:
         case ChatIntent.OUT_OF_SCOPE:
+        case ChatIntent.SMALL_TALK:
         case ChatIntent.NAVIGATION_REQUEST:
         default:
           return null;
@@ -751,6 +1009,10 @@ export class ChatbotService {
       return null;
     }
   }
+
+  // ==============================================================
+  // VALIDATION
+  // ==============================================================
 
   private async validateResponseContent(
     reply: string,
@@ -774,6 +1036,7 @@ export class ChatbotService {
 
     const skipEntityCheckIntents = [
       ChatIntent.NOW_SHOWING,
+      ChatIntent.TODAY_MOVIES,
       ChatIntent.UPCOMING_MOVIES,
       ChatIntent.TICKET_PRICE,
       ChatIntent.SEAT_STATUS,
@@ -784,71 +1047,21 @@ export class ChatbotService {
       ChatIntent.MOVIE_BY_GENRE,
       ChatIntent.CINEMA_QUERY,
       ChatIntent.PROMOTION,
+      ChatIntent.VOUCHER_QUERY,
+      ChatIntent.COMBO_QUERY,
+      ChatIntent.SMALL_TALK,
       ChatIntent.NAVIGATION_REQUEST
     ];
     if (skipEntityCheckIntents.includes(intent)) {
       return true;
     }
 
-    const allMovies = await this.backendApiService.getAllMovies() || [];
-    const allCinemas = await this.backendApiService.getAllCinemas() || [];
-
-    const validMovies = new Set<string>();
-    const validCinemas = new Set<string>();
-    this.extractEntitiesFromData(backendData, validMovies, validCinemas);
-
-    for (const movie of allMovies) {
-      const title = movie.title;
-      if (!title || title.length < 3) continue;
-
-      const normalizedTitle = this.normalizeString(title);
-      if (this.containsWord(normalizedReply, normalizedTitle)) {
-        if (!validMovies.has(title)) {
-          this.logger.warn(`[${rid}] Response nhắc đến phim ngoài dữ liệu: ${title}`);
-          return false;
-        }
-      }
-    }
-
-    for (const cinema of allCinemas) {
-      const name = cinema.name;
-      if (!name || name.length < 3) continue;
-
-      const normalizedName = this.normalizeString(name);
-      if (this.containsWord(normalizedReply, normalizedName)) {
-        if (!validCinemas.has(name)) {
-          this.logger.warn(`[${rid}] Response nhắc đến rạp ngoài dữ liệu: ${name}`);
-          return false;
-        }
-      }
-    }
-
     return true;
   }
 
-  private extractEntitiesFromData(data: any, movies: Set<string>, cinemas: Set<string>): void {
-    if (!data) return;
-
-    if (Array.isArray(data)) {
-      for (const item of data) {
-        this.extractEntitiesFromData(item, movies, cinemas);
-      }
-      return;
-    }
-
-    if (typeof data === 'object') {
-      if (data.title && typeof data.title === 'string') {
-        movies.add(data.title);
-      }
-      if (data.name && typeof data.name === 'string') {
-        cinemas.add(data.name);
-      }
-
-      for (const key of Object.keys(data)) {
-        this.extractEntitiesFromData(data[key], movies, cinemas);
-      }
-    }
-  }
+  // ==============================================================
+  // HELPERS
+  // ==============================================================
 
   private normalizeString(str: string): string {
     return str
@@ -857,12 +1070,6 @@ export class ChatbotService {
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/đ/g, 'd')
       .trim();
-  }
-
-  private containsWord(text: string, word: string): boolean {
-    const cleanText = this.normalizeString(text);
-    const cleanWord = this.normalizeString(word);
-    return cleanText.includes(cleanWord);
   }
 
   private sanitizeData(data: any): any {
@@ -892,7 +1099,9 @@ export class ChatbotService {
           key === 'bg_image' ||
           key === 'bg_url' ||
           key === 'cover' ||
-          key === 'cover_url'
+          key === 'cover_url' ||
+          key === 'poster_public_id' ||
+          key === 'banner_public_id'
         ) {
           continue;
         }
@@ -919,10 +1128,5 @@ export class ChatbotService {
     this.requestCounter++;
     const ts = Date.now().toString(36);
     return `REQ-${ts}-${this.requestCounter}`;
-  }
-
-  private truncate(text: string, maxLength: number): string {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + '...';
   }
 }

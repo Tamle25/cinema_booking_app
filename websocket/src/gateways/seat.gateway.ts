@@ -74,14 +74,6 @@ export class SeatGateway {
             return;
           }
 
-          if (this.seatLockService.isSeatLocked(showtimeId, seatName)) {
-            socket.emit('seat_lock_error', {
-              seatName,
-              message: 'Ghế này đang được người khác chọn!',
-            });
-            return;
-          }
-
           const lock = this.seatLockService.lockSeat(
             showtimeId,
             seatName,
@@ -101,7 +93,7 @@ export class SeatGateway {
           } else {
             socket.emit('seat_lock_error', {
               seatName,
-              message: 'Lỗi hệ thống khi khóa ghế. Vui lòng thử lại.',
+              message: 'Ghế này đang được người khác chọn hoặc giữ tạm thời!',
             });
           }
         } catch (error) {

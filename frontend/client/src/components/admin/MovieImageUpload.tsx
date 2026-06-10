@@ -28,29 +28,35 @@ interface MovieImageUploadProps {
 const MAX_IMAGE_SIZE_BYTES = 8 * 1024 * 1024;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
+const POSTER_EXPECTED_RATIO = 2 / 3;
+const POSTER_RATIO_TOLERANCE = 0.135;
+
+const BANNER_EXPECTED_RATIO = 16 / 6;
+const BANNER_RATIO_TOLERANCE = 0.533;
+
 const CLIENT_RULES: Record<
   MovieImageType,
   {
     minWidth: number;
     minHeight: number;
-    minRatio: number;
-    maxRatio: number;
+    expectedRatio: number;
+    tolerance: number;
     helper: string;
   }
 > = {
   poster: {
-    minWidth: 600,
-    minHeight: 900,
-    minRatio: 0.58,
-    maxRatio: 0.75,
-    helper: 'Toi thieu 600x900px, phu hop layout poster 2:3.',
+    minWidth: 500,
+    minHeight: 750,
+    expectedRatio: POSTER_EXPECTED_RATIO,
+    tolerance: POSTER_RATIO_TOLERANCE,
+    helper: 'Tối thiểu 500x750px, tỉ lệ gần đúng 2:3 (chấp nhận sai số ±20%).',
   },
   banner: {
-    minWidth: 1280,
-    minHeight: 480,
-    minRatio: 1.6,
-    maxRatio: 3.4,
-    helper: 'Toi thieu 1280x480px, phu hop hero/banner ngang hien tai.',
+    minWidth: 800,
+    minHeight: 300,
+    expectedRatio: BANNER_EXPECTED_RATIO,
+    tolerance: BANNER_RATIO_TOLERANCE,
+    helper: 'Tối thiểu 800x300px, tỉ lệ gần đúng 16:6 (chấp nhận sai số ±20%).',
   },
 };
 
@@ -59,7 +65,7 @@ const getImageDimensions = (src: string) =>
     const image = new Image();
     image.onload = () =>
       resolve({ width: image.naturalWidth, height: image.naturalHeight });
-    image.onerror = () => reject(new Error('Khong doc duoc kich thuoc anh'));
+    image.onerror = () => reject(new Error('Không đọc được kích thước ảnh'));
     image.src = src;
   });
 
@@ -102,13 +108,14 @@ export default function MovieImageUpload({
 
     if (width < rules.minWidth || height < rules.minHeight) {
       nextErrors.push(
-        `${label} qua nho (${width}x${height}). Can toi thieu ${rules.minWidth}x${rules.minHeight}px de tranh bi nhoe.`,
+        `${label} quá nhỏ (${width}x${height}). Cần tối thiểu ${rules.minWidth}x${rules.minHeight}px để tránh bị nhòe.`,
       );
     }
 
-    if (ratio < rules.minRatio || ratio > rules.maxRatio) {
-      nextWarnings.push(
-        `Ty le ${width}x${height} khac nhieu so voi layout hien tai; anh co the bi crop xau.`,
+    const diff = Math.abs(ratio - rules.expectedRatio);
+    if (diff > rules.tolerance) {
+      nextErrors.push(
+        `Ảnh có tỷ lệ quá khác so với tỷ lệ khuyến nghị. Vui lòng chọn ảnh gần với tỷ lệ ${type === 'poster' ? '2:3' : '16:6'}.`,
       );
     }
 
@@ -130,13 +137,13 @@ export default function MovieImageUpload({
     });
 
     if (!ALLOWED_TYPES.includes(file.type)) {
-      setError('Chi chap nhan file anh JPG, PNG hoac WebP.');
+      setError('Chỉ chấp nhận file ảnh JPG, PNG hoặc WebP.');
       event.target.value = '';
       return;
     }
 
     if (file.size > MAX_IMAGE_SIZE_BYTES) {
-      setError(`File qua lon (${formatBytes(file.size)}). Toi da 8MB.`);
+      setError(`File quá lớn (${formatBytes(file.size)}). Tối đa 8MB.`);
       event.target.value = '';
       return;
     }
@@ -145,7 +152,7 @@ export default function MovieImageUpload({
     try {
       dimensions = await getImageDimensions(objectUrl);
     } catch {
-      setError('Khong doc duoc kich thuoc anh. Vui long chon file khac.');
+      setError('Không đọc được kích thước ảnh. Vui lòng chọn file khác.');
       event.target.value = '';
       return;
     }
@@ -180,7 +187,7 @@ export default function MovieImageUpload({
       if (!response.ok) {
         const message = Array.isArray(data.message)
           ? data.message.join(' ')
-          : data.message || 'Upload anh that bai.';
+          : data.message || 'Upload ảnh thất bại.';
         throw new Error(message);
       }
 
@@ -195,7 +202,7 @@ export default function MovieImageUpload({
       setError(
         uploadError instanceof Error
           ? uploadError.message
-          : 'Upload anh that bai.',
+          : 'Upload ảnh thất bại.',
       );
     } finally {
       setUploading(false);
@@ -220,14 +227,13 @@ export default function MovieImageUpload({
           {label} {required && <span className="text-red-500">*</span>}
         </label>
         {isUploading && (
-          <span className="text-xs font-medium text-blue-600">Dang upload...</span>
+          <span className="text-xs font-medium text-blue-600">Đang upload...</span>
         )}
       </div>
 
       <div
-        className={`relative overflow-hidden rounded-lg border border-dashed bg-gray-50 ${
-          type === 'poster' ? 'max-w-[220px] aspect-[2/3]' : 'w-full aspect-[16/6]'
-        }`}
+        className={`relative overflow-hidden rounded-lg border border-dashed bg-gray-50 ${type === 'poster' ? 'max-w-[220px] aspect-[2/3]' : 'w-full aspect-[16/6]'
+          }`}
       >
         {displayUrl ? (
           <img
@@ -237,7 +243,7 @@ export default function MovieImageUpload({
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center px-4 text-center text-sm text-gray-400">
-            Chua co anh
+            Chưa có ảnh
           </div>
         )}
 

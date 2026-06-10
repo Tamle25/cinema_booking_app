@@ -43,11 +43,39 @@ export class SeatLockService {
     userId?: string,
     timeoutMs: number = 600000
   ): SeatLock | null {
-    if (this.isSeatLocked(showtimeId, seatName)) {
+    const room = this.getOrCreateRoom(showtimeId);
+    const existingLock = room.locks.get(seatName);
+
+    if (existingLock && Date.now() <= existingLock.expiresAt) {
+      const isSameUser = userId && existingLock.userId === userId;
+      const isSameSocket = existingLock.socketId === socketId;
+
+      if (isSameUser || isSameSocket) {
+        existingLock.socketId = socketId;
+        if (userId) {
+          existingLock.userId = userId;
+        }
+        existingLock.expiresAt = Date.now() + timeoutMs;
+
+        const timerKey = `${showtimeId}_${seatName}`;
+        if (this.timers.has(timerKey)) {
+          clearTimeout(this.timers.get(timerKey)!);
+          this.timers.delete(timerKey);
+        }
+
+        const timer = setTimeout(() => {
+          this.unlockSeat(showtimeId, seatName);
+          if (this.onLockExpiredCallback) {
+            this.onLockExpiredCallback(showtimeId, seatName);
+          }
+        }, timeoutMs);
+
+        this.timers.set(timerKey, timer);
+        return existingLock;
+      }
       return null;
     }
 
-    const room = this.getOrCreateRoom(showtimeId);
     const expiresAt = Date.now() + timeoutMs;
     const lock: SeatLock = {
       seatName,

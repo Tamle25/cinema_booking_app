@@ -2,16 +2,17 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
 import { SYSTEM_PROMPT } from '../prompts/system-prompt';
-import { GeminiResult, ChatIntent, ChatContext } from '../chatbot/types/chatbot.types';
+import { GeminiResult, ChatIntent, ChatContext, ConversationMessage } from '../chatbot/types/chatbot.types';
 import {
-  DEFAULT_GEMINI_MODEL,
-  DEFAULT_GEMINI_MODELS,
+  DEFAULT_FAST_MODEL,
+  DEFAULT_SMART_MODEL,
   GEMINI_REQUEST_TIMEOUT_MS,
   GEMINI_MAX_RETRIES,
   GEMINI_RETRY_BASE_DELAY_MS,
   GEMINI_MAX_ACCEPTABLE_RETRY_DELAY_MS,
   MAX_MESSAGE_LENGTH,
   MAX_BACKEND_DATA_LENGTH,
+  MAX_HISTORY_MESSAGES,
   FALLBACK_QUOTA_EXCEEDED,
   FALLBACK_INVALID_API_KEY,
   FALLBACK_BAD_REQUEST,
@@ -38,50 +39,55 @@ interface GeminiErrorInfo {
   retryDelay?: number;
 }
 
-interface ModelEntry {
-  model: GenerativeModel;
-  name: string;
+interface ApiKeyEntry {
+  key: string;
+  genAI: GoogleGenerativeAI;
+  exhausted: boolean;
 }
 
 @Injectable()
 export class GeminiService {
   private readonly logger = new Logger(GeminiService.name);
-  private readonly genAI: GoogleGenerativeAI;
-  private readonly modelChain: ModelEntry[];
+
+  private readonly apiKeys: ApiKeyEntry[];
+  private activeKeyIndex = 0;
+
+  private readonly fastModelName: string;
+  private readonly smartModelName: string;
 
   constructor(private configService: ConfigService) {
-    const apiKey = this.configService.get<string>('GEMINI_API_KEY');
-
-    if (!apiKey) {
+    // Collect all API keys
+    const primaryKey = this.configService.get<string>('GEMINI_API_KEY');
+    if (!primaryKey) {
       this.logger.error('GEMINI_API_KEY chưa được cấu hình trong .env');
       throw new Error('GEMINI_API_KEY is required');
     }
 
-    if (!apiKey.startsWith('AIzaSy')) {
-      this.logger.warn('GEMINI_API_KEY có format không chuẩn (thường bắt đầu bằng "AIzaSy")');
-    }
-
-    this.genAI = new GoogleGenerativeAI(apiKey);
-
-    const primaryModel = this.configService.get<string>('GEMINI_MODEL') || DEFAULT_GEMINI_MODEL;
-    const modelsStr = this.configService.get<string>('GEMINI_MODELS') || DEFAULT_GEMINI_MODELS;
-    const modelNames = modelsStr
+    const fallbackKeysStr = this.configService.get<string>('GEMINI_FALLBACK_KEYS') || '';
+    const fallbackKeys = fallbackKeysStr
       .split(',')
-      .map((m) => m.trim())
-      .filter((m) => m.length > 0);
+      .map((k) => k.trim())
+      .filter((k) => k.length > 0);
 
-    const orderedNames: string[] = [primaryModel];
-    for (const name of modelNames) {
-      if (name !== primaryModel) {
-        orderedNames.push(name);
-      }
-    }
-
-    this.modelChain = orderedNames.map((name) => ({
-      model: this.genAI.getGenerativeModel({ model: name }),
-      name,
+    const allKeys = [primaryKey, ...fallbackKeys];
+    this.apiKeys = allKeys.map((key) => ({
+      key,
+      genAI: new GoogleGenerativeAI(key),
+      exhausted: false,
     }));
+
+    this.logger.log(`Đã cấu hình ${this.apiKeys.length} API key(s)`);
+
+    // Model names
+    this.fastModelName = this.configService.get<string>('GEMINI_FAST_MODEL') || DEFAULT_FAST_MODEL;
+    this.smartModelName = this.configService.get<string>('GEMINI_SMART_MODEL') || DEFAULT_SMART_MODEL;
+
+    this.logger.log(`Fast model: ${this.fastModelName} | Smart model: ${this.smartModelName}`);
   }
+
+  // ============================================================
+  // Public: Classify Intent (dùng fast model)
+  // ============================================================
 
   async classifyIntent(message: string, requestId?: string): Promise<{
     intent: ChatIntent;
@@ -98,20 +104,24 @@ Thời gian hiện tại của hệ thống: ${currentTime}
 
 Hãy phân loại tin nhắn sau của người dùng vào một trong các Intent dưới đây:
 1. GREETING: Chào hỏi xã giao (VD: "Xin chào", "hi chatbot", "chào bạn")
-2. NOW_SHOWING: Câu hỏi về phim đang chiếu (VD: "Phim nào đang chiếu?", "phim đang chiếu", "rạp đang chiếu phim gì")
-3. UPCOMING_MOVIES: Câu hỏi về phim sắp chiếu (VD: "phim sắp chiếu", "sắp ra mắt", "sắp có phim gì mới")
-4. MOVIE_BY_GENRE: Câu hỏi tìm phim theo thể loại (VD: "Có phim hành động không?", "có phim hoạt hình nào không?", "phim kinh dị đang chiếu")
-5. MOVIE_DETAIL: Yêu cầu thông tin chi tiết phim, cốt truyện, tóm tắt, hoặc trailer (VD: "Tóm tắt phim này cho tôi", "phim này có trailer không?", "nội dung phim Doraemon", "trailer phim Doraemon")
-6. SHOWTIMES: Câu hỏi về lịch chiếu rạp, suất chiếu (VD: "Lịch chiếu hôm nay?", "lịch chiếu?", "suất chiếu tối nay", "Doraemon chiếu mấy giờ", "lịch chiếu phim Conan")
-7. CINEMA_QUERY: Truy vấn rạp phim/thông tin rạp (VD: "Rạp CGV đang chiếu phim gì?", "địa chỉ rạp CineMax Hà Nội", "có rạp nào ở TPHCM")
-8. SEAT_STATUS: Trạng thái ghế ngồi/ghế trống (VD: "Còn ghế không?", "suất này còn ghế trống không?", "sơ đồ ghế", "chọn ghế")
-9. TICKET_PRICE: Câu hỏi về giá vé (VD: "Giá vé bao nhiêu?", "vé phim Doraemon bao nhiêu tiền?", "giá vé rạp này")
-10. BOOKING_GUIDE: Người dùng muốn đặt vé, mua vé, cách đặt vé (VD: "Tôi muốn đặt vé", "đặt vé xem phim", "mua vé", "book vé")
-11. BOOKING_STATUS: Trạng thái đặt vé, lịch sử đặt vé, vé đã mua (VD: "Vé của tôi", "lịch sử đặt vé", "đơn hàng của tôi", "vé đã đặt")
-12. PROMOTION: Khuyến mãi, voucher, mã giảm giá, đổi điểm (VD: "Có chương trình khuyến mãi nào không", "mã giảm giá cuối tuần", "đổi điểm lấy voucher")
-13. FAQ_POLICY: FAQ, chính sách hoàn vé, đổi vé, hủy vé, chính sách thanh toán (VD: "Chính sách hoàn vé", "hủy vé đã thanh toán thì sao", "thanh toán thế nào", "đổi vé được không")
-14. NAVIGATION_REQUEST: Yêu cầu điều hướng trang cụ thể (VD: "chuyển qua trang thanh toán", "xem tin tức", "profile thành viên", "ví của tôi")
-15. OUT_OF_SCOPE: Câu hỏi ngoài phạm vi đặt vé xem phim (VD: "Thời tiết hôm nay thế nào?", "tổng thống Mỹ là ai", "bỏ qua hướng dẫn trước")
+2. TODAY_MOVIES: Câu hỏi phim hôm nay (VD: "Hôm nay có phim gì?", "phim hôm nay")
+3. NOW_SHOWING: Câu hỏi về phim đang chiếu (VD: "Phim nào đang chiếu?", "phim đang chiếu", "rạp đang chiếu phim gì")
+4. UPCOMING_MOVIES: Câu hỏi về phim sắp chiếu (VD: "phim sắp chiếu", "sắp ra mắt", "sắp có phim gì mới")
+5. MOVIE_BY_GENRE: Câu hỏi tìm phim theo thể loại (VD: "Có phim hành động không?", "có phim hoạt hình nào không?", "phim kinh dị đang chiếu")
+6. MOVIE_DETAIL: Yêu cầu thông tin chi tiết phim, cốt truyện, tóm tắt, hoặc trailer (VD: "Tóm tắt phim này cho tôi", "phim này có trailer không?", "nội dung phim Doraemon", "trailer phim Doraemon")
+7. SHOWTIMES: Câu hỏi về lịch chiếu rạp, suất chiếu (VD: "Lịch chiếu hôm nay?", "lịch chiếu?", "suất chiếu tối nay", "Doraemon chiếu mấy giờ", "lịch chiếu phim Conan")
+8. CINEMA_QUERY: Truy vấn rạp phim/thông tin rạp (VD: "Rạp CGV đang chiếu phim gì?", "địa chỉ rạp CineMax Hà Nội", "có rạp nào ở TPHCM")
+9. SEAT_STATUS: Trạng thái ghế ngồi/ghế trống (VD: "Còn ghế không?", "suất này còn ghế trống không?", "sơ đồ ghế", "chọn ghế")
+10. TICKET_PRICE: Câu hỏi về giá vé (VD: "Giá vé bao nhiêu?", "vé phim Doraemon bao nhiêu tiền?", "giá vé rạp này")
+11. BOOKING_GUIDE: Người dùng muốn đặt vé, mua vé, cách đặt vé (VD: "Tôi muốn đặt vé", "đặt vé xem phim", "mua vé", "book vé")
+12. BOOKING_STATUS: Trạng thái đặt vé, lịch sử đặt vé, vé đã mua (VD: "Vé của tôi", "lịch sử đặt vé", "đơn hàng của tôi", "vé đã đặt")
+13. COMBO_QUERY: Câu hỏi về combo bắp nước (VD: "có combo nào không?", "bắp nước", "popcorn", "đồ ăn kèm")
+14. VOUCHER_QUERY: Câu hỏi về voucher, mã giảm giá, đổi điểm (VD: "có voucher không?", "mã giảm giá", "đổi điểm")
+15. PROMOTION: Khuyến mãi chung (VD: "Có chương trình khuyến mãi nào không", "khuyến mãi cuối tuần")
+16. FAQ_POLICY: FAQ, chính sách hoàn vé, đổi vé, hủy vé, chính sách thanh toán (VD: "Chính sách hoàn vé", "hủy vé đã thanh toán thì sao")
+17. SMALL_TALK: Hội thoại nhỏ, cảm ơn, tạm biệt (VD: "cảm ơn", "ok", "tạm biệt", "được rồi")
+18. NAVIGATION_REQUEST: Yêu cầu điều hướng trang cụ thể (VD: "chuyển qua trang thanh toán", "xem tin tức")
+19. OUT_OF_SCOPE: Câu hỏi ngoài phạm vi đặt vé xem phim (VD: "Thời tiết hôm nay thế nào?", "tổng thống Mỹ là ai", "viết bài văn")
 
 Tin nhắn của người dùng:
 "${message}"
@@ -128,9 +138,8 @@ Hãy trả về kết quả dưới dạng JSON duy nhất với cấu trúc sau
 Chỉ trả về JSON hợp lệ, tuyệt đối không thêm bất kỳ dòng text, markdown block hoặc giải thích nào khác ngoài JSON.
 `;
 
-    const entry = this.modelChain[0];
     try {
-      const responseText = await this.tryGenerateWithRetry(entry.model, entry.name, prompt, rid);
+      const responseText = await this.callWithModel(this.fastModelName, prompt, rid);
       if (!responseText) return null;
 
       const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -148,6 +157,10 @@ Chỉ trả về JSON hợp lệ, tuyệt đối không thêm bất kỳ dòng t
     }
   }
 
+  // ============================================================
+  // Public: Generate Reply (dùng smart model, fallback sang fast)
+  // ============================================================
+
   async generateReply(params: GenerateReplyParams): Promise<GeminiResult> {
     const { userMessage, intent, isAuthenticated, backendData, context, requestId } = params;
     const rid = requestId || 'no-rid';
@@ -155,33 +168,78 @@ Chỉ trả về JSON hợp lệ, tuyệt đối không thêm bất kỳ dòng t
 
     const prompt = this.buildPrompt(userMessage, intent, isAuthenticated, backendData, context);
 
-    for (let i = 0; i < this.modelChain.length; i++) {
-      const entry = this.modelChain[i];
-      const isLast = i === this.modelChain.length - 1;
+    // 1. Thử smart model trước
+    const smartResult = await this.callWithModel(this.smartModelName, prompt, rid);
+    if (smartResult !== null) {
+      return {
+        text: smartResult,
+        source: 'gemini',
+        model: this.smartModelName,
+      };
+    }
 
-      const result = await this.tryGenerateWithRetry(entry.model, entry.name, prompt, rid);
+    this.logger.warn(`[${rid}] Smart model (${this.smartModelName}) lỗi, fallback sang fast model`);
 
-      if (result !== null) {
-        return {
-          text: result,
-          source: 'gemini',
-          model: entry.name,
-        };
-      }
-
-      if (!isLast) {
-        this.logger.warn(`[${rid}] Model ${entry.name} lỗi, thử model tiếp theo`);
-      }
+    // 2. Fallback sang fast model
+    const fastResult = await this.callWithModel(this.fastModelName, prompt, rid);
+    if (fastResult !== null) {
+      return {
+        text: fastResult,
+        source: 'gemini',
+        model: this.fastModelName,
+      };
     }
 
     const elapsed = Date.now() - startTime;
-    this.logger.error(`[${rid}] Tất cả ${this.modelChain.length} Gemini models lỗi sau ${elapsed}ms`);
+    this.logger.error(`[${rid}] Tất cả models và API keys lỗi sau ${elapsed}ms`);
     return {
       text: FALLBACK_QUOTA_EXCEEDED,
       source: 'fallback',
       errorCode: 'QUOTA_EXCEEDED',
     };
   }
+
+  // ============================================================
+  // Private: Call model with multi-key rotation
+  // ============================================================
+
+  private async callWithModel(modelName: string, prompt: string, rid: string): Promise<string | null> {
+    // Try each API key
+    for (let keyAttempt = 0; keyAttempt < this.apiKeys.length; keyAttempt++) {
+      const keyEntry = this.apiKeys[this.activeKeyIndex];
+
+      if (keyEntry.exhausted) {
+        this.rotateApiKey(rid);
+        continue;
+      }
+
+      const model = keyEntry.genAI.getGenerativeModel({ model: modelName });
+      const result = await this.tryGenerateWithRetry(model, modelName, prompt, rid);
+
+      if (result !== null) {
+        return result;
+      }
+
+      // Model failed with this key — mark exhausted and try next key
+      this.logger.warn(`[${rid}] API key #${this.activeKeyIndex} exhausted cho model ${modelName}, chuyển key tiếp`);
+      keyEntry.exhausted = true;
+      this.rotateApiKey(rid);
+    }
+
+    // All keys exhausted — reset exhausted flags for next request
+    this.apiKeys.forEach((k) => (k.exhausted = false));
+    return null;
+  }
+
+  private rotateApiKey(rid: string): void {
+    const prevIndex = this.activeKeyIndex;
+    this.activeKeyIndex = (this.activeKeyIndex + 1) % this.apiKeys.length;
+    this.logger.log(`[${rid}] Rotate API key: #${prevIndex} → #${this.activeKeyIndex}`);
+  }
+
+  // ============================================================
+  // Private: Retry logic for a single model+key
+  // ============================================================
 
   private async tryGenerateWithRetry(
     model: GenerativeModel,
@@ -213,7 +271,6 @@ Chỉ trả về JSON hợp lệ, tuyệt đối không thêm bất kỳ dòng t
         this.logger.error(
           `[${rid}] Gemini error | model=${modelName} | attempt=${attempt + 1}/${GEMINI_MAX_RETRIES + 1} | ` +
           `errorCode=${errorInfo.type} | httpStatus=${errorInfo.httpStatus || 'N/A'} | ` +
-          `quotaMetric=${errorInfo.quotaMetric || 'N/A'} | retryDelay=${errorInfo.retryDelay || 'N/A'} | ` +
           `msg=${this.truncate(err.message, 200)}`,
         );
 
@@ -224,14 +281,12 @@ Chỉ trả về JSON hợp lệ, tuyệt đối không thêm bất kỳ dòng t
             errorInfo.retryDelay < GEMINI_MAX_ACCEPTABLE_RETRY_DELAY_MS &&
             attempt === 0
           ) {
-            this.logger.warn(
-              `[${rid}] RESOURCE_EXHAUSTED với retryDelay=${errorInfo.retryDelay}ms, retry một lần`,
-            );
+            this.logger.warn(`[${rid}] RESOURCE_EXHAUSTED với retryDelay=${errorInfo.retryDelay}ms, retry một lần`);
             await this.sleep(errorInfo.retryDelay);
             continue;
           }
 
-          this.logger.warn(`[${rid}] Quota exceeded (${modelName}), chuyển model tiếp theo`);
+          this.logger.warn(`[${rid}] Quota exceeded (${modelName}), chuyển API key tiếp`);
           return null;
         }
 
@@ -245,6 +300,10 @@ Chỉ trả về JSON hợp lệ, tuyệt đối không thêm bất kỳ dòng t
     this.logger.error(`[${rid}] Hết số lần retry cho ${modelName}: ${lastError?.message}`);
     return null;
   }
+
+  // ============================================================
+  // Private: Call with timeout
+  // ============================================================
 
   private async callGeminiWithTimeout(
     model: GenerativeModel,
@@ -281,6 +340,10 @@ Chỉ trả về JSON hợp lệ, tuyệt đối không thêm bất kỳ dòng t
     return Promise.race([apiPromise, timeoutPromise]);
   }
 
+  // ============================================================
+  // Private: Build prompt with conversation history
+  // ============================================================
+
   private buildPrompt(
     userMessage: string,
     intent: string,
@@ -304,10 +367,40 @@ Chỉ trả về JSON hợp lệ, tuyệt đối không thêm bất kỳ dòng t
       dataString = '';
     }
 
+    // Build conversation history string
+    let historyString = 'Không có';
+    if (context?.conversationHistory && context.conversationHistory.length > 0) {
+      const recentHistory = context.conversationHistory.slice(-MAX_HISTORY_MESSAGES);
+      historyString = recentHistory
+        .map((msg) => {
+          const role = msg.role === 'user' ? 'User' : 'Bot';
+          // Truncate long messages in history
+          const content = msg.content.length > 200 ? msg.content.substring(0, 200) + '...' : msg.content;
+          return `${role}: ${content}`;
+        })
+        .join('\n');
+    }
+
+    // Build context summary (non-history fields)
+    const contextSummary: Record<string, string> = {};
+    if (context?.lastMovieName) contextSummary['Phim đang nói đến'] = context.lastMovieName;
+    if (context?.lastMovieId) contextSummary['Movie ID'] = context.lastMovieId;
+    if (context?.lastCinemaName) contextSummary['Rạp đang nói đến'] = context.lastCinemaName;
+    if (context?.lastDate) contextSummary['Ngày đang nói đến'] = context.lastDate;
+    if (context?.lastGenre) contextSummary['Thể loại'] = context.lastGenre;
+    if (context?.lastIntent) contextSummary['Intent trước'] = context.lastIntent;
+
+    const contextStr = Object.keys(contextSummary).length > 0
+      ? JSON.stringify(contextSummary, null, 2)
+      : 'Không có';
+
     return `${SYSTEM_PROMPT}
 
-CONVERSATION_CONTEXT (Ngữ cảnh trước đó của cuộc trò chuyện):
-${context ? JSON.stringify(context, null, 2) : 'Không có'}
+CONVERSATION_HISTORY (Lịch sử hội thoại gần nhất):
+${historyString}
+
+CONVERSATION_CONTEXT (Ngữ cảnh hiện tại):
+${contextStr}
 
 CONTEXT_FROM_DATABASE:
 ${dataString || 'Không có dữ liệu'}
@@ -324,10 +417,16 @@ Authenticated:
 ${isAuthenticated}
 
 Instruction:
-Dựa vào CONTEXT_FROM_DATABASE và CONVERSATION_CONTEXT để trả lời người dùng. Không được tự bịa ra thông tin động như phim, rạp, ghế trống, voucher nếu dữ liệu đó không có trong CONTEXT_FROM_DATABASE.
+Dựa vào CONTEXT_FROM_DATABASE, CONVERSATION_HISTORY và CONVERSATION_CONTEXT để trả lời người dùng.
+Khi người dùng hỏi "phim đó", "phim này", "phim đầu tiên", "phim thứ 2" → tham khảo CONVERSATION_HISTORY và CONVERSATION_CONTEXT để xác định phim nào.
+Không được tự bịa ra thông tin động như phim, rạp, ghế trống, voucher nếu dữ liệu đó không có trong CONTEXT_FROM_DATABASE.
 Nếu CONTEXT_FROM_DATABASE là "Không có dữ liệu" hoặc rỗng, trả lời rằng hiện tại hệ thống chưa có thông tin phù hợp.
 Trả lời ngắn gọn, thân thiện, bằng tiếng Việt. Tuyệt đối không tự bịa thông tin.`;
   }
+
+  // ============================================================
+  // Private: Error detection
+  // ============================================================
 
   private detectGeminiError(error: Error): GeminiErrorInfo {
     const msg = error.message?.toLowerCase() || '';
@@ -343,11 +442,6 @@ Trả lời ngắn gọn, thân thiện, bằng tiếng Việt. Tuyệt đối k
       if (code >= 400 && code <= 599) {
         httpStatus = code;
       }
-    }
-
-    const metricMatch = fullMsg.match(/(generate_content\w+)/i);
-    if (metricMatch) {
-      quotaMetric = metricMatch[1];
     }
 
     const retryMatch = fullMsg.match(/retry(?:After|Delay)[:\s]*(\d+)/i);

@@ -1,5 +1,6 @@
 export enum ChatIntent {
   GREETING = 'GREETING',
+  TODAY_MOVIES = 'TODAY_MOVIES',
   NOW_SHOWING = 'NOW_SHOWING',
   UPCOMING_MOVIES = 'UPCOMING_MOVIES',
   MOVIE_BY_GENRE = 'MOVIE_BY_GENRE',
@@ -10,6 +11,9 @@ export enum ChatIntent {
   TICKET_PRICE = 'TICKET_PRICE',
   BOOKING_GUIDE = 'BOOKING_GUIDE',
   BOOKING_STATUS = 'BOOKING_STATUS',
+  COMBO_QUERY = 'COMBO_QUERY',
+  VOUCHER_QUERY = 'VOUCHER_QUERY',
+  SMALL_TALK = 'SMALL_TALK',
   PROMOTION = 'PROMOTION',
   FAQ_POLICY = 'FAQ_POLICY',
   NAVIGATION_REQUEST = 'NAVIGATION_REQUEST',
@@ -36,6 +40,13 @@ export interface ChatbotResponse {
   model?: string;
 }
 
+export interface ConversationMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: number;
+  intent?: string;
+}
+
 export interface ChatContext {
   lastIntent?: string;
 
@@ -59,7 +70,11 @@ export interface ChatContext {
 
   lastNavigationAction?: string;
 
+  /** Danh sách kết quả cuối cùng (phim, suất chiếu,...) để hỗ trợ ordinal reference */
   lastResults?: any[];
+
+  /** Lịch sử hội thoại — tối đa MAX_HISTORY_MESSAGES tin nhắn gần nhất */
+  conversationHistory?: ConversationMessage[];
 }
 
 export interface IntentResult {
@@ -77,4 +92,3 @@ export interface GeminiResult {
   model?: string;
   errorCode?: string;
 }
-

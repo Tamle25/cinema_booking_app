@@ -1,6 +1,16 @@
-export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+// ============================================================
+// Gemini Model Defaults
+// ============================================================
 
-export const DEFAULT_GEMINI_MODELS = 'gemini-2.5-flash,gemini-2.0-flash-lite';
+/** Model nhanh/nhẹ: phân loại intent, trích xuất entity, câu hỏi đơn giản */
+export const DEFAULT_FAST_MODEL = 'gemini-3.1-flash-lite';
+
+/** Model thông minh: viết câu trả lời tự nhiên, hội thoại nhiều lượt */
+export const DEFAULT_SMART_MODEL = 'gemini-3.5-flash';
+
+// ============================================================
+// Timeouts & Retries
+// ============================================================
 
 export const GEMINI_REQUEST_TIMEOUT_MS = 30_000;
 
@@ -10,17 +20,30 @@ export const GEMINI_RETRY_BASE_DELAY_MS = 1_000;
 
 export const GEMINI_MAX_ACCEPTABLE_RETRY_DELAY_MS = 60_000;
 
-export const MAX_HISTORY_MESSAGES = 5;
+// ============================================================
+// Message Limits
+// ============================================================
+
+/** Số lượng tin nhắn conversation history tối đa gửi cho Gemini */
+export const MAX_HISTORY_MESSAGES = 12;
 
 export const MAX_MESSAGE_LENGTH = 500;
 
 export const MAX_BACKEND_DATA_LENGTH = 3_000;
+
+// ============================================================
+// Rate Limiting
+// ============================================================
 
 export const RATE_LIMIT_GUEST_MAX = 10;
 export const RATE_LIMIT_GUEST_TTL_MS = 60_000;
 
 export const RATE_LIMIT_USER_MAX = 30;
 export const RATE_LIMIT_USER_TTL_MS = 60_000;
+
+// ============================================================
+// Fallback Messages
+// ============================================================
 
 export const FALLBACK_QUOTA_EXCEEDED =
   'Chatbot hiện đang quá tải. Vui lòng thử lại sau vài giây.';

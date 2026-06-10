@@ -580,3 +580,25 @@
 .chat-msg__cta-btn:hover {
   background: #b91c1c;
 }
+
+.chat-msg__link {
+  color: #dc2626;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  word-break: break-all;
+}
+
+.chat-msg__link:hover {
+  color: #b91c1c;
+}
+
+.chat-msg--bot .chat-msg__bubble code {
+  background: #f3f4f6;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  color: #dc2626;
+}

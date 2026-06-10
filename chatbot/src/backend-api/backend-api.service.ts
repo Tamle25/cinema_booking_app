@@ -42,6 +42,10 @@ export class BackendApiService {
     }
   }
 
+  // ============================================================
+  // Movies
+  // ============================================================
+
   async getAllMovies(): Promise<any> {
     return this.get('/movies');
   }
@@ -78,14 +82,26 @@ export class BackendApiService {
     const movies = await this.get('/movies');
     if (!movies || !Array.isArray(movies)) return null;
 
-    const normalizedKeyword = keyword.toLowerCase().trim();
+    const normalizedKeyword = this.normalizeVietnamese(keyword);
 
-    const found = movies.find((movie: any) =>
-      movie.title?.toLowerCase().includes(normalizedKeyword),
+    // Exact match first
+    const exact = movies.find((movie: any) =>
+      this.normalizeVietnamese(movie.title || '') === normalizedKeyword,
+    );
+    if (exact) return exact;
+
+    // Partial match
+    const partial = movies.find((movie: any) =>
+      this.normalizeVietnamese(movie.title || '').includes(normalizedKeyword) ||
+      normalizedKeyword.includes(this.normalizeVietnamese(movie.title || '')),
     );
 
-    return found || null;
+    return partial || null;
   }
+
+  // ============================================================
+  // Showtimes
+  // ============================================================
 
   async getShowtimes(params?: {
     cinemaId?: string;
@@ -116,6 +132,10 @@ export class BackendApiService {
     return this.get(path);
   }
 
+  // ============================================================
+  // Cinemas
+  // ============================================================
+
   async getAllCinemas(): Promise<any> {
     return this.get('/cinemas');
   }
@@ -128,19 +148,52 @@ export class BackendApiService {
     return this.get('/cinemas/cities');
   }
 
+  // ============================================================
+  // Combos
+  // ============================================================
+
   async getActiveCombos(): Promise<any> {
     return this.get('/combos');
   }
+
+  // ============================================================
+  // News
+  // ============================================================
 
   async getPublishedNews(): Promise<any> {
     return this.get('/news');
   }
 
+  // ============================================================
+  // Bookings
+  // ============================================================
+
   async getMyBookings(authToken: string): Promise<any> {
     return this.get('/bookings/my-bookings', authToken);
   }
 
+  // ============================================================
+  // Vouchers / Promotions
+  // ============================================================
+
   async getActivePromotions(): Promise<any> {
     return this.get('/vouchers/active-promotions');
+  }
+
+  async getExchangeableVouchers(): Promise<any> {
+    return this.get('/vouchers/exchangeable');
+  }
+
+  // ============================================================
+  // Helpers
+  // ============================================================
+
+  private normalizeVietnamese(str: string): string {
+    return str
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .trim();
   }
 }

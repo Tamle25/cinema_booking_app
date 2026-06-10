@@ -67,6 +67,21 @@ export default function BookingPage() {
     const handleSeatStateSync = (data: { showtimeId: string; lockedSeats: Record<string, ILockedSeat> }) => {
       if (data.showtimeId === showtimeId) {
         setLockedSeats(data.lockedSeats || {});
+
+        if (userId) {
+          const mySeats: string[] = [];
+          Object.entries(data.lockedSeats || {}).forEach(([seatName, lock]) => {
+            if (lock.userId === userId) {
+              mySeats.push(seatName);
+            }
+          });
+          if (mySeats.length > 0) {
+            setSelectedSeats(prev => {
+              const merged = [...new Set([...prev, ...mySeats])];
+              return merged;
+            });
+          }
+        }
       }
     };
 
@@ -80,14 +95,26 @@ export default function BookingPage() {
             socketId: data.lockedBy
           }
         }));
+
+        const isMyLock = (userId && data.userId === userId) || (data.lockedBy === socket.id);
+
         setPendingLockSeats(prev => {
-          if (prev.has(data.seatName) && data.lockedBy === socket.id) {
+          if (prev.has(data.seatName) && isMyLock) {
             const next = new Set(prev);
             next.delete(data.seatName);
             return next;
           }
           return prev;
         });
+
+        if (isMyLock) {
+          setSelectedSeats(prev => {
+            if (!prev.includes(data.seatName)) {
+              return [...prev, data.seatName];
+            }
+            return prev;
+          });
+        }
       }
     };
 
@@ -97,6 +124,14 @@ export default function BookingPage() {
           const next = { ...prev };
           delete next[data.seatName];
           return next;
+        });
+
+        setShowtime(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            booked_seats: (prev.booked_seats || []).filter(s => s !== data.seatName)
+          };
         });
       }
     };
@@ -176,13 +211,6 @@ export default function BookingPage() {
       socket.off('seat_lock_expired', handleSeatLockExpired);
       socket.off('seat_booked', handleSeatBooked);
       socket.off('seat_lock_error', handleSeatLockError);
-      const currentSeats = selectedSeatsRef.current;
-      if (socket.connected && currentSeats.length > 0) {
-        currentSeats.forEach(seatName => {
-          socket.emit('unlock_seat', { showtimeId, seatName });
-        });
-      }
-      socket.emit('leave_showtime', { showtimeId });
       toast.dismiss(DISCONNECT_TOAST_ID);
       disconnectToastShownRef.current = false;
     };
@@ -196,6 +224,8 @@ export default function BookingPage() {
   pendingLockSeatsRef.current = pendingLockSeats;
   const showtimeIdRef = useRef(showtimeId);
   showtimeIdRef.current = showtimeId;
+  const socketRef = useRef(socket);
+  socketRef.current = socket;
 
   useEffect(() => {
     if (!hasEverConnected) return;
@@ -226,22 +256,38 @@ export default function BookingPage() {
 
   useEffect(() => {
     if (socket && isConnected && showtimeId) {
-      const currentUserId = userIdRef.current;
-      socket.emit('join_showtime', { showtimeId, userId: currentUserId });
+      socket.emit('join_showtime', { showtimeId, userId });
 
       const seatsToLock = [...new Set([...selectedSeatsRef.current, ...pendingLockSeatsRef.current])];
       if (seatsToLock.length > 0) {
         setPendingLockSeats(new Set(seatsToLock));
         seatsToLock.forEach(seatName => {
-          socket.emit('lock_seat', { showtimeId, seatName, userId: currentUserId });
+          socket.emit('lock_seat', { showtimeId, seatName, userId });
         });
       }
     }
-  }, [socket, isConnected, showtimeId]);
+  }, [socket, isConnected, showtimeId, userId]);
+
+  useEffect(() => {
+    return () => {
+      const currentSocket = socketRef.current;
+      const currentShowtimeId = showtimeIdRef.current;
+      const currentSeats = selectedSeatsRef.current;
+
+      if (currentSocket && currentSocket.connected && currentShowtimeId) {
+        if (currentSeats.length > 0) {
+          currentSeats.forEach(seatName => {
+            currentSocket.emit('unlock_seat', { showtimeId: currentShowtimeId, seatName });
+          });
+        }
+        currentSocket.emit('leave_showtime', { showtimeId: currentShowtimeId });
+      }
+    };
+  }, [showtimeId]);
 
   useEffect(() => {
     const handleBeforeUnload = () => {
-      const currentSocket = socket;
+      const currentSocket = socketRef.current;
       const currentShowtimeId = showtimeIdRef.current;
       const currentSeats = selectedSeatsRef.current;
 
@@ -255,7 +301,7 @@ export default function BookingPage() {
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [socket]);
+  }, []);
 
   useEffect(() => {
     const fetchShowtime = async () => {
@@ -389,7 +435,10 @@ export default function BookingPage() {
   const handleSeatClick = (seatName: string, isBooked: boolean) => {
     if (isBooked) return;
 
-    const isLockedByOthers = lockedSeats[seatName] && lockedSeats[seatName].socketId !== socket?.id;
+    const isLockedByOthers = lockedSeats[seatName] && 
+      (userId 
+        ? lockedSeats[seatName].userId !== userId 
+        : lockedSeats[seatName].socketId !== socket?.id);
     if (isLockedByOthers) {
       toastWarning("Ghế này đang được giữ bởi người dùng khác!");
       return;
@@ -627,7 +676,10 @@ export default function BookingPage() {
 
                 const isBooked = booked_seats.includes(seatName);
                 const isSelected = selectedSeats.includes(seatName);
-                const isLockedByOthers = lockedSeats[seatName] && lockedSeats[seatName].socketId !== socket?.id;
+                const isLockedByOthers = lockedSeats[seatName] && 
+                  (userId 
+                    ? lockedSeats[seatName].userId !== userId 
+                    : lockedSeats[seatName].socketId !== socket?.id);
                 const isPendingLock = pendingLockSeats.has(seatName);
 
                 return (

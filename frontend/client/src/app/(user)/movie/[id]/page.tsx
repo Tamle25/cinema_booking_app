@@ -285,7 +285,7 @@ export default function MovieDetailPage() {
       const matchCity = cinema.city === selectedCity;
       const matchBrand = !selectedBrand ||
         (typeof cinema.cinema_system === 'object'
-          ? cinema.cinema_system._id === selectedBrand
+          ? cinema.cinema_system?._id === selectedBrand
           : cinema.cinema_system === selectedBrand);
       return matchCity && matchBrand;
     });
@@ -294,10 +294,12 @@ export default function MovieDetailPage() {
   const filteredShowtimes = useMemo(() => {
     const filteredCinemaIds = filteredCinemas.map(c => c._id);
     return showtimes.filter(show => {
+      if (!show.cinema) return false;
       const showDateTime = new Date(show.start_time);
       const showDate = `${showDateTime.getFullYear()}-${String(showDateTime.getMonth() + 1).padStart(2, '0')}-${String(showDateTime.getDate()).padStart(2, '0')}`;
-      const cinemaId = typeof show.cinema === 'object' ? show.cinema._id : show.cinema;
-      return showDate === selectedDate && filteredCinemaIds.includes(cinemaId);
+      const cinemaId = typeof show.cinema === 'object' ? show.cinema?._id : show.cinema;
+      if (!cinemaId) return false;
+      return showDate === selectedDate && filteredCinemaIds.includes(String(cinemaId));
     });
   }, [showtimes, selectedDate, filteredCinemas]);
 
@@ -306,7 +308,7 @@ export default function MovieDetailPage() {
 
     filteredShowtimes.forEach(show => {
       if (!show.cinema) return;
-      const cinema = typeof show.cinema === 'object' && show.cinema._id ? show.cinema : filteredCinemas.find(c => c._id === show.cinema);
+      const cinema = typeof show.cinema === 'object' && show.cinema?._id ? show.cinema : filteredCinemas.find(c => c._id === show.cinema);
       if (!cinema) return;
 
       const cinemaId = cinema._id;
@@ -337,9 +339,11 @@ export default function MovieDetailPage() {
     cinemas.forEach(cinema => {
       if (cinema.city === selectedCity) {
         const systemId = typeof cinema.cinema_system === 'object'
-          ? cinema.cinema_system._id
+          ? cinema.cinema_system?._id
           : cinema.cinema_system;
-        brandIds.add(systemId);
+        if (systemId) {
+          brandIds.add(systemId);
+        }
       }
     });
     return cinemaSystems.filter(system => brandIds.has(system._id));

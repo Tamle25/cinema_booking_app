@@ -85,7 +85,23 @@ function formatInline(text: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
+  // Bold
   safe = safe.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+  // Markdown links [text](url)
+  safe = safe.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="chat-msg__link" data-internal-link="$2">$1</a>');
+
+  // Auto-link internal paths like /movie/xxx, /movies/xxx
+  safe = safe.replace(
+    /(?:^|\s)(\/(?:movie|movies|booking|showtimes|promotions|profile|news|checkout)[^\s<)]*)/g,
+    (match, path) => {
+      const trimmedPath = path.trim();
+      return match.replace(path, `<a href="${trimmedPath}" class="chat-msg__link" data-internal-link="${trimmedPath}">${trimmedPath}</a>`);
+    }
+  );
+
+  // Inline code
+  safe = safe.replace(/`([^`]+)`/g, '<code>$1</code>');
 
   return safe;
 }
@@ -106,6 +122,16 @@ const ChatMessage = memo(function ChatMessage({ message, onActionClick }: ChatMe
     return renderMarkdown(message.content);
   }, [isUser, message.content]);
 
+  const handleContentClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'A' && target.dataset.internalLink) {
+      e.preventDefault();
+      if (onActionClick) {
+        onActionClick(target.dataset.internalLink);
+      }
+    }
+  };
+
   return (
     <div
       className={`chat-msg chat-msg--${isUser ? 'user' : 'bot'}${message.isError ? ' chat-msg--error' : ''}${isFallback ? ' chat-msg--fallback' : ''}`}
@@ -113,7 +139,10 @@ const ChatMessage = memo(function ChatMessage({ message, onActionClick }: ChatMe
       <div className="chat-msg__bubble"
         {...(isUser
           ? { children: message.content }
-          : { dangerouslySetInnerHTML: { __html: renderedContent || '' } }
+          : {
+              dangerouslySetInnerHTML: { __html: renderedContent || '' },
+              onClick: handleContentClick,
+            }
         )}
       />
       {!isUser && message.actions && message.actions.length > 0 && (
