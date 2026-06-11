@@ -83,7 +83,10 @@ export class CombosController {
 
   @Put(':id')
   @AdminOnly()
-  update(@Param('id', ParseObjectIdPipe) id: string, @Body() updateComboDto: UpdateComboDto) {
+  update(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Body() updateComboDto: UpdateComboDto,
+  ) {
     return this.combosService.update(id, updateComboDto);
   }
 

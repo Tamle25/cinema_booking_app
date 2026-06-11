@@ -18,7 +18,11 @@ export class Cinema {
   @Prop()
   city: string;
 
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'CinemaSystem', required: true })
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CinemaSystem',
+    required: true,
+  })
   cinema_system: CinemaSystem;
 
   @Prop()

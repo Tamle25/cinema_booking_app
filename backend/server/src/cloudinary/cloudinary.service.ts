@@ -89,9 +89,7 @@ export class CloudinaryService {
             );
             if (error) {
               this.logger.error(`error.message: ${error.message}`);
-              this.logger.error(
-                `error.name: ${(error as any).name || 'N/A'}`,
-              );
+              this.logger.error(`error.name: ${(error as any).name || 'N/A'}`);
               this.logger.error(
                 `error.http_code: ${(error as any).http_code || 'N/A'}`,
               );
@@ -115,9 +113,7 @@ export class CloudinaryService {
       );
 
       uploadStream.on('error', (streamError) => {
-        this.logger.error(
-          `Upload stream error: ${streamError.message}`,
-        );
+        this.logger.error(`Upload stream error: ${streamError.message}`);
         reject(streamError);
       });
 

@@ -17,11 +17,7 @@ import { CloudinaryService } from '../cloudinary/cloudinary.service';
 type MovieImageType = 'poster' | 'banner';
 
 const MAX_IMAGE_SIZE_BYTES = 8 * 1024 * 1024;
-const ALLOWED_MIME_TYPES = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-]);
+const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 const POSTER_EXPECTED_RATIO = 2 / 3; // ~0.6667
 const POSTER_RATIO_TOLERANCE = 0.135; // ~20% sai số (cho phép tỉ lệ từ ~0.531 đến ~0.801)
@@ -126,8 +122,8 @@ export class UploadsController {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      const httpCode = (error as any)?.http_code;
-      const errorName = (error as any)?.name;
+      const httpCode = error?.http_code;
+      const errorName = error?.name;
 
       this.logger.error('=== UPLOAD MOVIE IMAGE FAILED ===');
       this.logger.error(`error.message: ${errorMessage}`);

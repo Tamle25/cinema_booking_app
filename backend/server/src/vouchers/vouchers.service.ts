@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  Logger,
+} from '@nestjs/common';
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
 import { Model, Connection } from 'mongoose';
 import * as crypto from 'crypto';
@@ -18,13 +23,16 @@ export class VouchersService {
   constructor(
     @InjectModel(Voucher.name) private voucherModel: Model<Voucher>,
     @InjectModel(UserVoucher.name) private userVoucherModel: Model<UserVoucher>,
-    @InjectModel(VoucherUsage.name) private voucherUsageModel: Model<VoucherUsage>,
+    @InjectModel(VoucherUsage.name)
+    private voucherUsageModel: Model<VoucherUsage>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectConnection() private connection: Connection,
     private readonly loyaltyService: LoyaltyService,
   ) {}
 
-  private async runInTransaction<T>(callback: (session: any) => Promise<T>): Promise<T> {
+  private async runInTransaction<T>(
+    callback: (session: any) => Promise<T>,
+  ): Promise<T> {
     let session;
     try {
       session = await this.connection.startSession();
@@ -36,19 +44,20 @@ export class VouchersService {
       if (session && session.inTransaction()) {
         try {
           await session.abortTransaction();
-        } catch {
-        }
+        } catch {}
       }
-      
+
       const errorMsg = error.message || '';
-      const isReplicaSetError = 
-        errorMsg.includes('replica set') || 
+      const isReplicaSetError =
+        errorMsg.includes('replica set') ||
         errorMsg.includes('Transaction numbers are only allowed') ||
         errorMsg.includes('transactions are not supported') ||
         error.code === 20;
 
       if (isReplicaSetError || !session) {
-        this.logger.warn('MongoDB không hỗ trợ transaction, chạy voucher flow không dùng session');
+        this.logger.warn(
+          'MongoDB không hỗ trợ transaction, chạy voucher flow không dùng session',
+        );
         return callback(undefined);
       }
       throw error;
@@ -72,7 +81,9 @@ export class VouchersService {
 
   async createAdminVoucher(dto: any) {
     if (dto.code) {
-      const exists = await this.voucherModel.findOne({ code: dto.code.toUpperCase() });
+      const exists = await this.voucherModel.findOne({
+        code: dto.code.toUpperCase(),
+      });
       if (exists) throw new BadRequestException('Mã voucher đã tồn tại');
     }
 
@@ -100,12 +111,19 @@ export class VouchersService {
     if (!voucher) throw new NotFoundException('Voucher không tồn tại');
 
     if (dto.code && dto.code.toUpperCase() !== voucher.code) {
-      const exists = await this.voucherModel.findOne({ code: dto.code.toUpperCase(), _id: { $ne: id } });
+      const exists = await this.voucherModel.findOne({
+        code: dto.code.toUpperCase(),
+        _id: { $ne: id },
+      });
       if (exists) throw new BadRequestException('Mã voucher đã tồn tại');
       dto.code = dto.code.toUpperCase();
     }
 
-    return this.voucherModel.findByIdAndUpdate(id, { $set: dto }, { new: true, runValidators: true });
+    return this.voucherModel.findByIdAndUpdate(
+      id,
+      { $set: dto },
+      { new: true, runValidators: true },
+    );
   }
 
   async toggleVoucherStatus(id: string) {
@@ -113,7 +131,11 @@ export class VouchersService {
     if (!voucher) throw new NotFoundException('Voucher không tồn tại');
 
     const newStatus = voucher.status === 'active' ? 'inactive' : 'active';
-    return this.voucherModel.findByIdAndUpdate(id, { status: newStatus }, { new: true });
+    return this.voucherModel.findByIdAndUpdate(
+      id,
+      { status: newStatus },
+      { new: true },
+    );
   }
 
   async deleteVoucher(id: string) {
@@ -121,14 +143,21 @@ export class VouchersService {
     if (!voucher) throw new NotFoundException('Voucher không tồn tại');
 
     if (voucher.usedCount > 0 || voucher.exchangedCount > 0) {
-      throw new BadRequestException('Không thể xóa voucher đã có lượt sử dụng/đổi. Hãy tắt thay vì xóa.');
+      throw new BadRequestException(
+        'Không thể xóa voucher đã có lượt sử dụng/đổi. Hãy tắt thay vì xóa.',
+      );
     }
 
     await this.voucherModel.findByIdAndDelete(id);
     return { message: 'Đã xóa voucher thành công' };
   }
 
-  async getVoucherList(filters: { voucherType?: string; status?: string; page?: number; limit?: number }) {
+  async getVoucherList(filters: {
+    voucherType?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) {
     const { voucherType, status, page = 1, limit = 20 } = filters;
     const query: any = {};
     if (voucherType) query.voucherType = voucherType;
@@ -152,7 +181,11 @@ export class VouchersService {
     };
   }
 
-  async getVoucherUsageHistory(filters: { voucherId?: string; page?: number; limit?: number }) {
+  async getVoucherUsageHistory(filters: {
+    voucherId?: string;
+    page?: number;
+    limit?: number;
+  }) {
     const { voucherId, page = 1, limit = 20 } = filters;
     const query: any = {};
     if (voucherId) query.voucher = voucherId;
@@ -189,7 +222,9 @@ export class VouchersService {
   }
 
   async getExchangeableVouchers(userId: string) {
-    const user = await this.userModel.findById(userId).select('availablePoints membershipRank');
+    const user = await this.userModel
+      .findById(userId)
+      .select('availablePoints membershipRank');
     if (!user) throw new BadRequestException('Người dùng không tồn tại');
 
     const templates = await this.voucherModel
@@ -218,32 +253,53 @@ export class VouchersService {
 
   async exchangeVoucher(userId: string, templateId: string) {
     return this.runInTransaction(async (session) => {
-      const template = await this.voucherModel.findById(templateId).session(session);
+      const template = await this.voucherModel
+        .findById(templateId)
+        .session(session);
       if (!template) throw new NotFoundException('Mẫu voucher không tồn tại');
       if (template.voucherType !== 'POINT_EXCHANGE_TEMPLATE') {
         throw new BadRequestException('Đây không phải mẫu voucher đổi điểm');
       }
-      if (template.status !== 'active') throw new BadRequestException('Mẫu voucher đã ngừng hoạt động');
-      if (template.exchangeLimit > 0 && template.exchangedCount >= template.exchangeLimit) {
+      if (template.status !== 'active')
+        throw new BadRequestException('Mẫu voucher đã ngừng hoạt động');
+      if (
+        template.exchangeLimit > 0 &&
+        template.exchangedCount >= template.exchangeLimit
+      ) {
         throw new BadRequestException('Mẫu voucher đã hết lượt đổi');
       }
 
       const user = await this.userModel.findById(userId).session(session);
       if (!user) throw new BadRequestException('Người dùng không tồn tại');
       if (user.availablePoints < template.requiredPoints) {
-        throw new BadRequestException(`Không đủ điểm. Cần ${template.requiredPoints} điểm, bạn có ${user.availablePoints} điểm`);
+        throw new BadRequestException(
+          `Không đủ điểm. Cần ${template.requiredPoints} điểm, bạn có ${user.availablePoints} điểm`,
+        );
       }
-      if (!this.isRankSufficient(user.membershipRank, template.requiredMembershipRank)) {
-        throw new BadRequestException(`Cần hạng ${template.requiredMembershipRank} trở lên để đổi voucher này`);
+      if (
+        !this.isRankSufficient(
+          user.membershipRank,
+          template.requiredMembershipRank,
+        )
+      ) {
+        throw new BadRequestException(
+          `Cần hạng ${template.requiredMembershipRank} trở lên để đổi voucher này`,
+        );
       }
 
       let voucherCode = this.generateVoucherCode();
-      while (await this.userVoucherModel.findOne({ code: voucherCode }).session(session)) {
+      while (
+        await this.userVoucherModel
+          .findOne({ code: voucherCode })
+          .session(session)
+      ) {
         voucherCode = this.generateVoucherCode();
       }
 
       const expiredAt = new Date();
-      expiredAt.setDate(expiredAt.getDate() + (template.validDaysAfterExchange || 30));
+      expiredAt.setDate(
+        expiredAt.getDate() + (template.validDaysAfterExchange || 30),
+      );
 
       const [userVoucher] = await this.userVoucherModel.create(
         [
@@ -258,9 +314,15 @@ export class VouchersService {
         { session },
       );
 
-      await this.userModel.findByIdAndUpdate(userId, { $inc: { availablePoints: -template.requiredPoints } }, { session });
+      await this.userModel.findByIdAndUpdate(
+        userId,
+        { $inc: { availablePoints: -template.requiredPoints } },
+        { session },
+      );
 
-      const pointTransactionModel = this.connection.model(PointTransaction.name);
+      const pointTransactionModel = this.connection.model(
+        PointTransaction.name,
+      );
       await pointTransactionModel.create(
         [
           {
@@ -273,7 +335,11 @@ export class VouchersService {
         { session },
       );
 
-      await this.voucherModel.findByIdAndUpdate(templateId, { $inc: { exchangedCount: 1 } }, { session });
+      await this.voucherModel.findByIdAndUpdate(
+        templateId,
+        { $inc: { exchangedCount: 1 } },
+        { session },
+      );
 
       return {
         success: true,
@@ -311,23 +377,50 @@ export class VouchersService {
     userId: string,
     cinemaId: string,
     orderAmount: number,
-  ): Promise<{ valid: boolean; message: string; discount?: number; voucherType?: string; voucherId?: string; userVoucherId?: string }> {
+  ): Promise<{
+    valid: boolean;
+    message: string;
+    discount?: number;
+    voucherType?: string;
+    voucherId?: string;
+    userVoucherId?: string;
+  }> {
     const upperCode = code.toUpperCase();
 
-    const adminVoucher = await this.voucherModel.findOne({ code: upperCode, voucherType: 'ADMIN_CODE' });
+    const adminVoucher = await this.voucherModel.findOne({
+      code: upperCode,
+      voucherType: 'ADMIN_CODE',
+    });
     if (adminVoucher) {
-      return this.validateAdminVoucher(adminVoucher, userId, cinemaId, orderAmount);
+      return this.validateAdminVoucher(
+        adminVoucher,
+        userId,
+        cinemaId,
+        orderAmount,
+      );
     }
 
-    const userVoucher = await this.userVoucherModel.findOne({ code: upperCode }).populate('voucherTemplate');
+    const userVoucher = await this.userVoucherModel
+      .findOne({ code: upperCode })
+      .populate('voucherTemplate');
     if (userVoucher) {
-      return this.validateUserVoucher(userVoucher, userId, cinemaId, orderAmount);
+      return this.validateUserVoucher(
+        userVoucher,
+        userId,
+        cinemaId,
+        orderAmount,
+      );
     }
 
     return { valid: false, message: 'Mã voucher không tồn tại' };
   }
 
-  private async validateAdminVoucher(voucher: any, userId: string, cinemaId: string, orderAmount: number) {
+  private async validateAdminVoucher(
+    voucher: any,
+    userId: string,
+    cinemaId: string,
+    orderAmount: number,
+  ) {
     if (voucher.status !== 'active') {
       return { valid: false, message: 'Voucher đã ngừng hoạt động' };
     }
@@ -340,20 +433,35 @@ export class VouchersService {
       return { valid: false, message: 'Voucher đã hết hạn' };
     }
 
-    if (!voucher.isUnlimited && voucher.usageLimit > 0 && voucher.usedCount >= voucher.usageLimit) {
+    if (
+      !voucher.isUnlimited &&
+      voucher.usageLimit > 0 &&
+      voucher.usedCount >= voucher.usageLimit
+    ) {
       return { valid: false, message: 'Voucher đã hết lượt sử dụng' };
     }
 
     if (!voucher.isAllCinemas && voucher.applicableCinemaIds.length > 0) {
-      const cinemaIds = voucher.applicableCinemaIds.map((id: any) => id.toString());
+      const cinemaIds = voucher.applicableCinemaIds.map((id: any) =>
+        id.toString(),
+      );
       if (!cinemaIds.includes(cinemaId)) {
         return { valid: false, message: 'Voucher không áp dụng cho rạp này' };
       }
     }
 
     const user = await this.userModel.findById(userId).select('membershipRank');
-    if (user && !this.isRankSufficient(user.membershipRank, voucher.requiredMembershipRank)) {
-      return { valid: false, message: `Cần hạng ${voucher.requiredMembershipRank} trở lên để dùng voucher này` };
+    if (
+      user &&
+      !this.isRankSufficient(
+        user.membershipRank,
+        voucher.requiredMembershipRank,
+      )
+    ) {
+      return {
+        valid: false,
+        message: `Cần hạng ${voucher.requiredMembershipRank} trở lên để dùng voucher này`,
+      };
     }
 
     const existingUsage = await this.voucherUsageModel.findOne({
@@ -365,7 +473,10 @@ export class VouchersService {
     }
 
     if (voucher.minOrderAmount > 0 && orderAmount < voucher.minOrderAmount) {
-      return { valid: false, message: `Đơn hàng tối thiểu ${voucher.minOrderAmount.toLocaleString()}đ` };
+      return {
+        valid: false,
+        message: `Đơn hàng tối thiểu ${voucher.minOrderAmount.toLocaleString()}đ`,
+      };
     }
 
     const discount = this.calculateDiscount(voucher, orderAmount);
@@ -379,7 +490,12 @@ export class VouchersService {
     };
   }
 
-  private async validateUserVoucher(userVoucher: any, userId: string, cinemaId: string, orderAmount: number) {
+  private async validateUserVoucher(
+    userVoucher: any,
+    userId: string,
+    cinemaId: string,
+    orderAmount: number,
+  ) {
     if (userVoucher.user.toString() !== userId) {
       return { valid: false, message: 'Voucher này không thuộc về bạn' };
     }
@@ -387,7 +503,10 @@ export class VouchersService {
     if (userVoucher.status === 'USED') {
       return { valid: false, message: 'Voucher đã được sử dụng' };
     }
-    if (userVoucher.status === 'EXPIRED' || new Date() > new Date(userVoucher.expiredAt)) {
+    if (
+      userVoucher.status === 'EXPIRED' ||
+      new Date() > new Date(userVoucher.expiredAt)
+    ) {
       return { valid: false, message: 'Voucher đã hết hạn' };
     }
 
@@ -397,14 +516,19 @@ export class VouchersService {
     }
 
     if (!template.isAllCinemas && template.applicableCinemaIds.length > 0) {
-      const cinemaIds = template.applicableCinemaIds.map((id: any) => id.toString());
+      const cinemaIds = template.applicableCinemaIds.map((id: any) =>
+        id.toString(),
+      );
       if (!cinemaIds.includes(cinemaId)) {
         return { valid: false, message: 'Voucher không áp dụng cho rạp này' };
       }
     }
 
     if (template.minOrderAmount > 0 && orderAmount < template.minOrderAmount) {
-      return { valid: false, message: `Đơn hàng tối thiểu ${template.minOrderAmount.toLocaleString()}đ` };
+      return {
+        valid: false,
+        message: `Đơn hàng tối thiểu ${template.minOrderAmount.toLocaleString()}đ`,
+      };
     }
 
     const discount = this.calculateDiscount(template, orderAmount);
@@ -439,18 +563,33 @@ export class VouchersService {
     return this.runInTransaction(async (session) => {
       const upperCode = voucherCode.toUpperCase();
 
-      const adminVoucher = await this.voucherModel.findOne({ code: upperCode, voucherType: 'ADMIN_CODE' }).session(session);
+      const adminVoucher = await this.voucherModel
+        .findOne({ code: upperCode, voucherType: 'ADMIN_CODE' })
+        .session(session);
       if (adminVoucher) {
-        await this.voucherModel.findByIdAndUpdate(adminVoucher._id, { $inc: { usedCount: 1 } }, { session });
+        await this.voucherModel.findByIdAndUpdate(
+          adminVoucher._id,
+          { $inc: { usedCount: 1 } },
+          { session },
+        );
 
         await this.voucherUsageModel.create(
-          [{ user: userId, voucher: adminVoucher._id, order: orderId, discountAmount }],
+          [
+            {
+              user: userId,
+              voucher: adminVoucher._id,
+              order: orderId,
+              discountAmount,
+            },
+          ],
           { session },
         );
         return;
       }
 
-      const userVoucher = await this.userVoucherModel.findOne({ code: upperCode, user: userId }).session(session);
+      const userVoucher = await this.userVoucherModel
+        .findOne({ code: upperCode, user: userId })
+        .session(session);
       if (userVoucher) {
         await this.userVoucherModel.findByIdAndUpdate(
           userVoucher._id,
@@ -459,7 +598,14 @@ export class VouchersService {
         );
 
         await this.voucherUsageModel.create(
-          [{ user: userId, userVoucher: userVoucher._id, order: orderId, discountAmount }],
+          [
+            {
+              user: userId,
+              userVoucher: userVoucher._id,
+              order: orderId,
+              discountAmount,
+            },
+          ],
           { session },
         );
         return;

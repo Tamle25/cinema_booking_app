@@ -57,6 +57,10 @@ function FitBounds({ cinemas, userCoords }: {
 
   useEffect(() => {
     if (!map) return;
+
+    let cancelled = false;
+    let timer: NodeJS.Timeout | null = null;
+
     const points: L.LatLngExpression[] = [];
 
     cinemas.forEach(c => {
@@ -75,14 +79,87 @@ function FitBounds({ cinemas, userCoords }: {
     }
 
     if (points.length > 0) {
-      try {
-        const bounds = L.latLngBounds(points);
-        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
-      } catch (err) {
-        console.error('Error fitting bounds:', err);
-      }
+      // Dùng setTimeout ngắn để đảm bảo DOM container đã hoàn thành mount và có kích thước thực tế
+      timer = setTimeout(() => {
+        if (cancelled) return;
+
+        try {
+          // Kiểm tra map container còn trong DOM trước khi thao tác
+          const container = map.getContainer();
+          if (!container || !document.body.contains(container)) {
+            return;
+          }
+
+          // Kiểm tra xem pane chính của Leaflet map đã được tạo chưa
+          const pane = map.getPane('mapPane');
+          if (!pane) return;
+
+          const bounds = L.latLngBounds(points);
+          map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
+        } catch (err) {
+          console.error('Error fitting bounds:', err);
+        }
+      }, 100);
     }
+
+    return () => {
+      cancelled = true;
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
   }, [cinemas, userCoords, map]);
+
+  return null;
+}
+
+function MapResizeHandler() {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map) return;
+
+    let cancelled = false;
+
+    // Tránh việc map render bị vỡ (gray tiles) khi container thay đổi kích thước hoặc mới mount
+    const timer = setTimeout(() => {
+      if (cancelled) return;
+      try {
+        const container = map.getContainer();
+        if (!container || !document.body.contains(container)) return;
+
+        const pane = map.getPane('mapPane');
+        if (!pane) return;
+
+        map.invalidateSize();
+      } catch (err) {
+        console.error('Error invalidating map size:', err);
+      }
+    }, 150);
+
+    const handleResize = () => {
+      if (cancelled) return;
+      try {
+        const container = map.getContainer();
+        if (!container || !document.body.contains(container)) return;
+
+        const pane = map.getPane('mapPane');
+        if (!pane) return;
+
+        map.invalidateSize();
+      } catch (err) {
+        console.error('Error invalidating map size on resize:', err);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [map]);
 
   return null;
 }
@@ -91,9 +168,10 @@ interface CinemaMapProps {
   cinemas: IComparedCinema[];
   userCoords: { lat: number; lng: number } | null;
   onSelectCinema?: (cinemaId: string) => void;
+  isLoading?: boolean;
 }
 
-export default function CinemaMapInner({ cinemas, userCoords, onSelectCinema }: CinemaMapProps) {
+export default function CinemaMapInner({ cinemas, userCoords, onSelectCinema, isLoading }: CinemaMapProps) {
   const defaultCenter: L.LatLngExpression = isValidCoords(userCoords)
     ? [userCoords.lat, userCoords.lng]
     : DEFAULT_MAP_CENTER;
@@ -107,12 +185,12 @@ export default function CinemaMapInner({ cinemas, userCoords, onSelectCinema }: 
   );
 
   return (
-    <div className="w-full h-full rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+    <div className="w-full h-full rounded-xl overflow-hidden border border-gray-200 shadow-sm relative">
       <MapContainer
         center={defaultCenter}
         zoom={12}
         className="w-full h-full"
-        style={{ minHeight: '400px' }}
+        style={{ minHeight: '450px' }}
         scrollWheelZoom={true}
       >
         <TileLayer
@@ -121,6 +199,7 @@ export default function CinemaMapInner({ cinemas, userCoords, onSelectCinema }: 
         />
 
         <FitBounds cinemas={cinemas} userCoords={userCoords} />
+        <MapResizeHandler />
 
         {/* User location marker */}
         {isValidCoords(userCoords) && (
@@ -170,6 +249,16 @@ export default function CinemaMapInner({ cinemas, userCoords, onSelectCinema }: 
           </Marker>
         ))}
       </MapContainer>
+
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="absolute inset-0 bg-white/40 backdrop-blur-[0.5px] z-[1000] flex items-center justify-center transition-all duration-300">
+          <div className="bg-white/95 p-3 rounded-xl shadow-lg border border-gray-100 flex items-center gap-3">
+            <div className="w-5 h-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-xs font-bold text-gray-700">Đang cập nhật rạp chiếu...</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

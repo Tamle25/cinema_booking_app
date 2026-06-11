@@ -7,6 +7,7 @@ import Pagination from '@/components/Pagination';
 import { authHeaders } from '@/lib/api';
 import { toastSuccess, toastWarning, toastError } from '@/utils/toast';
 import ConfirmModal from '@/components/ConfirmModal';
+import { Flame } from 'lucide-react';
 
 export default function AdminCombosPage() {
   const [combos, setCombos] = useState<ICombo[]>([]);
@@ -18,6 +19,7 @@ export default function AdminCombosPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [cinemaSystems, setCinemaSystems] = useState<ICinemaSystem[]>([]);
   const [filterCategory, setFilterCategory] = useState('');
+  const [filterCinemaSystem, setFilterCinemaSystem] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -45,7 +47,7 @@ export default function AdminCombosPage() {
       ]);
       const combosData = await combosRes.json();
       const systemsData = await systemsRes.json();
-      
+
       setCombos(Array.isArray(combosData) ? combosData : []);
       setCinemaSystems(Array.isArray(systemsData) ? systemsData : (systemsData.data || []));
     } catch (error) {
@@ -65,7 +67,7 @@ export default function AdminCombosPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    
+
     if (type === 'checkbox') {
       setFormData(prev => ({
         ...prev,
@@ -265,14 +267,20 @@ export default function AdminCombosPage() {
 
   const filteredCombos = combos.filter(combo => {
     const matchSearch = combo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       combo.description.toLowerCase().includes(searchTerm.toLowerCase());
+      combo.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchCategory = !filterCategory || combo.category === filterCategory;
-    return matchSearch && matchCategory;
+
+    const systemId = (typeof combo.cinema_system === 'object' && combo.cinema_system !== null)
+      ? combo.cinema_system._id
+      : combo.cinema_system;
+    const matchCinemaSystem = !filterCinemaSystem || systemId === filterCinemaSystem;
+
+    return matchSearch && matchCategory && matchCinemaSystem;
   });
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterCategory]);
+  }, [searchTerm, filterCategory, filterCinemaSystem]);
 
   const totalPages = Math.ceil(filteredCombos.length / itemsPerPage);
   const paginatedCombos = useMemo(() => {
@@ -290,7 +298,7 @@ export default function AdminCombosPage() {
 
   return (
     <div className="space-y-6">
-      
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Quản lý Combo Bắp Nước</h1>
@@ -307,7 +315,7 @@ export default function AdminCombosPage() {
         </button>
       </div>
 
-      
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
           <p className="text-sm text-gray-500">Tổng combo</p>
@@ -333,7 +341,7 @@ export default function AdminCombosPage() {
         </div>
       </div>
 
-      
+
       <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
         <div className="flex flex-wrap items-center gap-4">
           <div className="relative flex-1 min-w-[200px]">
@@ -348,6 +356,16 @@ export default function AdminCombosPage() {
               className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
             />
           </div>
+          <select
+            value={filterCinemaSystem}
+            onChange={(e) => setFilterCinemaSystem(e.target.value)}
+            className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+          >
+            <option value="">Tất cả hãng rạp</option>
+            {cinemaSystems.map(system => (
+              <option key={system._id} value={system._id}>{system.name}</option>
+            ))}
+          </select>
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
@@ -364,7 +382,7 @@ export default function AdminCombosPage() {
         </div>
       </div>
 
-      
+
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full table-fixed min-w-[800px]">
@@ -404,7 +422,7 @@ export default function AdminCombosPage() {
                         <div>
                           <p className="font-semibold text-gray-800">{combo.name}</p>
                           <p className="text-xs text-blue-600 font-medium mb-1">
-                             {(typeof combo.cinema_system === 'object' && combo.cinema_system !== null) ? combo.cinema_system.name : 'Chưa có Hãng Rạp'}
+                            {(typeof combo.cinema_system === 'object' && combo.cinema_system !== null) ? combo.cinema_system.name : 'Chưa có Hãng Rạp'}
                           </p>
                           <p className="text-sm text-gray-500 truncate max-w-[200px]">{combo.description}</p>
                         </div>
@@ -420,24 +438,32 @@ export default function AdminCombosPage() {
                     </td>
                     <td className="px-6 py-4 text-center">
                       <button
+                        type="button"
                         onClick={() => handleTogglePopular(combo)}
-                        className={`text-xs font-semibold transition ${combo.is_popular ? 'text-red-600' : 'text-gray-400'}`}
+                        className={`
+                          inline-flex h-8 w-8 items-center justify-center rounded-full
+                          transition hover:bg-red-50
+                          ${combo.is_popular ? 'text-red-600' : 'text-gray-400 hover:text-red-500'}
+                        `}
                         title={combo.is_popular ? 'Bỏ đánh dấu bán chạy' : 'Đánh dấu bán chạy'}
+                        aria-label={combo.is_popular ? 'Bỏ đánh dấu bán chạy' : 'Đánh dấu bán chạy'}
                       >
-                        Bán chạy
+                        <Flame
+                          size={24}
+                          strokeWidth={2.2}
+                          className={combo.is_popular ? 'fill-red-500 text-red-600' : 'text-gray-400'}
+                        />
                       </button>
                     </td>
                     <td className="px-6 py-4 text-center">
                       <button
                         onClick={() => handleToggleActive(combo)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          combo.is_active ? 'bg-green-500' : 'bg-gray-300'
-                        }`}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${combo.is_active ? 'bg-green-500' : 'bg-gray-300'
+                          }`}
                       >
                         <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            combo.is_active ? 'translate-x-6' : 'translate-x-1'
-                          }`}
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${combo.is_active ? 'translate-x-6' : 'translate-x-1'
+                            }`}
                         />
                       </button>
                     </td>
@@ -470,7 +496,7 @@ export default function AdminCombosPage() {
           </table>
         </div>
 
-        
+
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
@@ -484,7 +510,7 @@ export default function AdminCombosPage() {
         />
       </div>
 
-      
+
       <ConfirmModal
         open={isConfirmOpen}
         title="Xác nhận xóa combo"
@@ -505,7 +531,7 @@ export default function AdminCombosPage() {
               </h3>
             </div>
             <div className="p-6 space-y-4">
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Hãng rạp <span className="text-red-500">*</span>
@@ -523,7 +549,7 @@ export default function AdminCombosPage() {
                 </select>
               </div>
 
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Tên combo <span className="text-red-500">*</span>
@@ -538,7 +564,7 @@ export default function AdminCombosPage() {
                 />
               </div>
 
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Mô tả <span className="text-red-500">*</span>
@@ -553,7 +579,7 @@ export default function AdminCombosPage() {
                 />
               </div>
 
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -583,7 +609,7 @@ export default function AdminCombosPage() {
                 </div>
               </div>
 
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Hình ảnh</label>
                 <div className="flex items-center gap-4">
@@ -621,7 +647,7 @@ export default function AdminCombosPage() {
                 </div>
               </div>
 
-              
+
               <div className="flex items-center gap-6">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -646,7 +672,7 @@ export default function AdminCombosPage() {
               </div>
             </div>
 
-            
+
             <div className="p-6 border-t border-gray-100 flex justify-end gap-3">
               <button
                 onClick={closeModal}

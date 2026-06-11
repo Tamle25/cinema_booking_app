@@ -1,13 +1,17 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
-import { UsersService } from '../users/users.service'; 
+import {
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private usersService: UsersService, 
-    private jwtService: JwtService
+    private usersService: UsersService,
+    private jwtService: JwtService,
   ) {}
 
   async signUp(full_name: string, email: string, pass: string): Promise<any> {
@@ -19,7 +23,9 @@ export class AuthService {
         email,
         password: hashPassword,
       });
-      const userObject = (user as any).toObject ? (user as any).toObject() : user;
+      const userObject = (user as any).toObject
+        ? (user as any).toObject()
+        : user;
       delete userObject.password;
       return userObject;
     } catch (error: any) {
@@ -35,13 +41,13 @@ export class AuthService {
     if (!user || !(await bcrypt.compare(pass, user.password))) {
       throw new UnauthorizedException();
     }
-    const payload = { 
-      sub: (user as any)._id, 
-      email: user.email, 
+    const payload = {
+      sub: (user as any)._id,
+      email: user.email,
       role: user.role,
-      full_name: user.full_name 
+      full_name: user.full_name,
     };
-    
+
     return {
       access_token: await this.jwtService.signAsync(payload),
     };

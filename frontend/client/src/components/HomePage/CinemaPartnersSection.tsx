@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import SafeImage from '@/components/SafeImage';
 import { useState, useEffect } from "react";
@@ -16,7 +16,7 @@ const CinemaPartnersSection = () => {
         const res = await axios.get(`${API_URL}/cinema-systems`);
         setCinemaChains(res.data);
       } catch (error) {
-        console.error("Lá»—i táº£i danh sÃ¡ch ráº¡p Ä‘á»‘i tÃ¡c:", error);
+        console.error("Lỗi tải danh sách rạp đối tác:", error);
       } finally {
         setLoading(false);
       }
@@ -69,12 +69,12 @@ const CinemaPartnersSection = () => {
             <div className="flex items-center justify-center gap-3 mb-2">
               <div className="w-8 h-px bg-gray-300" />
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
-                Há»‡ Thá»‘ng Ráº¡p Äá»‘i TÃ¡c
+                Hệ Thống Rạp Đối Tác
               </h2>
               <div className="w-8 h-px bg-gray-300" />
             </div>
             <p className="text-[#666666] text-sm">
-              Máº¡ng lÆ°á»›i ráº¡p chiáº¿u phim hÃ ng Ä‘áº§u trÃªn toÃ n quá»‘c
+              Mạng lưới rạp chiếu phim hàng đầu trên toàn quốc
             </p>
           </div>
         </div>

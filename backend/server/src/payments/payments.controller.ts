@@ -1,4 +1,13 @@
-import { Body, Controller, Post, Get, Query, Req, UseGuards, Param } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  Get,
+  Query,
+  Req,
+  UseGuards,
+  Param,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { PaymentsService, CreatePaymentDto } from './payments.service';
 import type { MomoCallbackParams } from './momo.service';
@@ -7,14 +16,19 @@ import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
 
 @Controller('payments')
 export class PaymentsController {
-  constructor(
-    private readonly paymentsService: PaymentsService,
-  ) { }
+  constructor(private readonly paymentsService: PaymentsService) {}
 
   @UseGuards(AuthGuard('jwt'))
   @Post('create-momo')
   async createMomoPayment(
-    @Body() body: { showtime_id: string; seats: string[]; payment_type?: string; combos?: Array<{ combo_id: string; quantity: number }>; voucherCode?: string },
+    @Body()
+    body: {
+      showtime_id: string;
+      seats: string[];
+      payment_type?: string;
+      combos?: Array<{ combo_id: string; quantity: number }>;
+      voucherCode?: string;
+    },
     @Req() req: Request & { user: any },
   ) {
     const userId = req.user._id || req.user.id;
@@ -33,7 +47,9 @@ export class PaymentsController {
 
   @Get('momo-return')
   async momoReturn(@Query() query: Record<string, string>) {
-    const result = await this.paymentsService.handleMomoReturn(query as unknown as MomoCallbackParams);
+    const result = await this.paymentsService.handleMomoReturn(
+      query as unknown as MomoCallbackParams,
+    );
     return result;
   }
 
@@ -49,7 +65,11 @@ export class PaymentsController {
     @Req() req: Request & { user: any },
   ) {
     const userId = req.user._id || req.user.id;
-    return this.paymentsService.checkPaymentStatus(bookingId, userId, req.user.role);
+    return this.paymentsService.checkPaymentStatus(
+      bookingId,
+      userId,
+      req.user.role,
+    );
   }
 
   @UseGuards(AuthGuard('jwt'))

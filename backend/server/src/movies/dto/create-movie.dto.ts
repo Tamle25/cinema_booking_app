@@ -1,4 +1,13 @@
-import { IsNotEmpty, IsNumber, IsString, IsDateString, IsOptional, IsBoolean, IsArray, IsMongoId } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsString,
+  IsDateString,
+  IsOptional,
+  IsBoolean,
+  IsArray,
+  IsMongoId,
+} from 'class-validator';
 
 export class CreateMovieDto {
   @IsNotEmpty()
@@ -7,7 +16,7 @@ export class CreateMovieDto {
 
   @IsNotEmpty()
   @IsString()
-  slug: string; 
+  slug: string;
 
   @IsOptional()
   @IsString()
@@ -48,5 +57,5 @@ export class CreateMovieDto {
 
   @IsNotEmpty()
   @IsDateString()
-  release_date: string; 
+  release_date: string;
 }

@@ -88,9 +88,12 @@ export default function NewsDetailPage() {
           <div className="px-6 md:px-8 pb-8">
             <p className="text-lg text-gray-600 leading-8">{news.shortDescription}</p>
             <div className="mt-6 h-px bg-gray-100" />
-            <div className="mt-6 whitespace-pre-wrap text-gray-800 leading-8">
-              {news.content}
-            </div>
+            <div 
+              className="rich-content-container mt-6 text-gray-800 leading-8"
+              dangerouslySetInnerHTML={{
+                __html: news.content.replace(/src="\/uploads\//g, `src="${API_URL}/uploads/`)
+              }}
+            />
           </div>
         </div>
       </article>

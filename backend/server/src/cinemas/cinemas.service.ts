@@ -11,7 +11,7 @@ export class CinemasService {
 
   async create(createDto: CreateCinemaDto): Promise<Cinema> {
     const { cinema_system_id, ...rest } = createDto;
-    
+
     const newCinema = new this.cinemaModel({
       ...rest,
       cinema_system: cinema_system_id,
@@ -38,7 +38,7 @@ export class CinemasService {
     const totalPages = Math.ceil(totalItems / limit);
 
     return {
-      message: "Lấy danh sách rạp thành công",
+      message: 'Lấy danh sách rạp thành công',
       data,
       meta: {
         currentPage: page,
@@ -47,34 +47,40 @@ export class CinemasService {
         totalPages,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
-      }
+      },
     };
   }
-  
+
   async findBySystem(systemId: string): Promise<Cinema[]> {
-    return this.cinemaModel.find({ cinema_system: systemId }).populate('cinema_system').exec();
+    return this.cinemaModel
+      .find({ cinema_system: systemId })
+      .populate('cinema_system')
+      .exec();
   }
 
   async getCities(): Promise<string[]> {
     const cities = await this.cinemaModel.distinct('city').exec();
-    return cities.filter(city => city);
+    return cities.filter((city) => city);
   }
 
   async filterCinemas(systemId?: string, city?: string): Promise<Cinema[]> {
     const filter: any = {};
-    
+
     if (systemId) {
       filter.cinema_system = systemId;
     }
     if (city) {
       filter.city = city;
     }
-    
+
     return this.cinemaModel.find(filter).populate('cinema_system').exec();
   }
 
   async findOne(id: string): Promise<Cinema> {
-    const cinema = await this.cinemaModel.findById(id).populate('cinema_system').exec();
+    const cinema = await this.cinemaModel
+      .findById(id)
+      .populate('cinema_system')
+      .exec();
     if (!cinema) {
       throw new NotFoundException(`Không tìm thấy rạp với ID: ${id}`);
     }
@@ -83,17 +89,17 @@ export class CinemasService {
 
   async update(id: string, updateDto: UpdateCinemaDto): Promise<Cinema> {
     const { cinema_system_id, ...rest } = updateDto;
-    
+
     const updateData: any = { ...rest };
     if (cinema_system_id) {
       updateData.cinema_system = cinema_system_id;
     }
-    
+
     const updated = await this.cinemaModel
       .findByIdAndUpdate(id, updateData, { new: true })
       .populate('cinema_system')
       .exec();
-    
+
     if (!updated) {
       throw new NotFoundException(`Không tìm thấy rạp với ID: ${id}`);
     }

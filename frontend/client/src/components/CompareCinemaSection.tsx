@@ -11,7 +11,7 @@ import { getErrorMessage } from '@/utils/errorMessage';
 const CinemaMap = dynamic(() => import('@/components/CinemaMap'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-[400px] rounded-xl bg-gray-100 flex items-center justify-center">
+    <div className="w-full h-[450px] rounded-xl bg-gray-100 flex items-center justify-center">
       <div className="text-center">
         <div className="w-8 h-8 border-2 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
         <p className="text-sm text-gray-500">Đang tải bản đồ...</p>
@@ -233,181 +233,174 @@ export default function CompareCinemaSection({ movieId }: CompareCinemaSectionPr
       </div>
 
       
-      {loading ? (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          <div className="lg:col-span-3 space-y-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="bg-white rounded-xl border border-gray-100 p-5 animate-pulse">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
-                  <div className="flex-1">
-                    <div className="h-5 w-48 bg-gray-200 rounded mb-2"></div>
-                    <div className="h-3 w-64 bg-gray-200 rounded"></div>
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Cột trái: Danh sách rạp / Loading / Error / Empty */}
+        <div className="lg:col-span-3">
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="bg-white rounded-xl border border-gray-100 p-5 animate-pulse">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
+                    <div className="flex-1">
+                      <div className="h-5 w-48 bg-gray-200 rounded mb-2"></div>
+                      <div className="h-3 w-64 bg-gray-200 rounded"></div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mb-3">
+                    <div className="h-6 w-16 bg-gray-200 rounded-full"></div>
+                    <div className="h-6 w-20 bg-gray-200 rounded-full"></div>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="h-10 w-20 bg-gray-200 rounded-lg"></div>
+                    <div className="h-10 w-20 bg-gray-200 rounded-lg"></div>
+                    <div className="h-10 w-20 bg-gray-200 rounded-lg"></div>
                   </div>
                 </div>
-                <div className="flex gap-2 mb-3">
-                  <div className="h-6 w-16 bg-gray-200 rounded-full"></div>
-                  <div className="h-6 w-20 bg-gray-200 rounded-full"></div>
-                </div>
-                <div className="flex gap-2">
-                  <div className="h-10 w-20 bg-gray-200 rounded-lg"></div>
-                  <div className="h-10 w-20 bg-gray-200 rounded-lg"></div>
-                  <div className="h-10 w-20 bg-gray-200 rounded-lg"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="lg:col-span-2">
-            <div className="h-[400px] bg-gray-200 rounded-xl animate-pulse"></div>
-          </div>
-        </div>
-      ) : error ? (
-        <div className="text-center py-16 bg-white rounded-xl border border-red-100">
-          <svg className="w-14 h-14 mx-auto text-red-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          <p className="text-red-600 font-medium mb-2">Đã xảy ra lỗi</p>
-          <p className="text-gray-500 text-sm mb-4">{error}</p>
-          <button
-            onClick={fetchCompare}
-            className="px-6 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition"
-          >
-            Thử lại
-          </button>
-        </div>
-      ) : cinemas.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
-          <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 4V2m0 2a2 2 0 012-2h6a2 2 0 012 2m-10 0h10m0 0v12a2 2 0 01-2 2H9a2 2 0 01-2-2V4" />
-          </svg>
-          <p className="text-gray-600 font-medium text-lg mb-1">Không có suất chiếu</p>
-          <p className="text-gray-400 text-sm max-w-md mx-auto">
-            Phim này chưa có suất chiếu trong ngày{' '}
-            <strong>{dateTabs.find(t => t.dateISO === selectedDate)?.dayName}</strong>
-            {' '}({new Date(selectedDate).toLocaleDateString('vi-VN')}).
-            <br />Vui lòng chọn ngày khác.
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          
-          <div className="lg:col-span-3 space-y-4">
-            {cinemas.map(cinema => (
-              <div
-                key={cinema.cinemaId}
-                ref={el => { cinemaCardRefs.current[cinema.cinemaId] = el; }}
-                className={`bg-white rounded-xl border overflow-hidden transition-all duration-300 ${
-                  highlightedCinemaId === cinema.cinemaId
-                    ? 'border-red-400 shadow-lg shadow-red-100 ring-2 ring-red-200'
-                    : 'border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200'
-                }`}
+              ))}
+            </div>
+          ) : error ? (
+            <div className="text-center py-16 bg-white rounded-xl border border-red-100">
+              <svg className="w-14 h-14 mx-auto text-red-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <p className="text-red-600 font-medium mb-2">Đã xảy ra lỗi</p>
+              <p className="text-gray-500 text-sm mb-4">{error}</p>
+              <button
+                onClick={fetchCompare}
+                className="px-6 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition"
               >
-                
-                <div className="p-4 sm:p-5">
-                  <div className="flex items-start gap-3 mb-3">
-                    
-                    <div className="w-10 h-10 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0 p-1">
-                      {cinema.brandLogo ? (
-                        <SafeImage src={cinema.brandLogo} alt={cinema.brand} className="w-full h-full object-contain" />
-                      ) : (
-                        <span className="text-xs font-bold text-gray-500">{cinema.brand?.slice(0, 3)}</span>
+                Thử lại
+              </button>
+            </div>
+          ) : cinemas.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+              <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 4V2m0 2a2 2 0 012-2h6a2 2 0 012 2m-10 0h10m0 0v12a2 2 0 01-2 2H9a2 2 0 01-2-2V4" />
+              </svg>
+              <p className="text-gray-600 font-medium text-lg mb-1">Không có suất chiếu</p>
+              <p className="text-gray-400 text-sm max-w-md mx-auto">
+                Phim này chưa có suất chiếu trong ngày{' '}
+                <strong>{dateTabs.find(t => t.dateISO === selectedDate)?.dayName}</strong>
+                {' '}({new Date(selectedDate).toLocaleDateString('vi-VN')}).
+                <br />Vui lòng chọn ngày khác.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4 max-h-[500px] md:max-h-[600px] overflow-y-auto pr-2 movie-detail-scroll-container">
+              {cinemas.map(cinema => (
+                <div
+                  key={cinema.cinemaId}
+                  ref={el => { cinemaCardRefs.current[cinema.cinemaId] = el; }}
+                  className={`bg-white rounded-xl border overflow-hidden transition-all duration-300 ${
+                    highlightedCinemaId === cinema.cinemaId
+                      ? 'border-red-400 shadow-lg shadow-red-100 ring-2 ring-red-200'
+                      : 'border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200'
+                  }`}
+                >
+                  <div className="p-4 sm:p-5">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0 p-1">
+                        {cinema.brandLogo ? (
+                          <SafeImage src={cinema.brandLogo} alt={cinema.brand} className="w-full h-full object-contain" />
+                        ) : (
+                          <span className="text-xs font-bold text-gray-500">{cinema.brand?.slice(0, 3)}</span>
+                        )}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-bold text-gray-900 text-base leading-tight">{cinema.cinemaName}</h3>
+                          {cinema.labels.map(label => (
+                            <span
+                              key={label}
+                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${LABEL_COLORS[label] || 'bg-gray-100 text-gray-600 border-gray-200'}`}
+                            >
+                              {label}
+                            </span>
+                          ))}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1 truncate">{cinema.address}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm mb-4">
+                      {cinema.minPrice != null && (
+                        <div className="flex items-center gap-1">
+                          <svg className="w-3.5 h-3.5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="text-gray-600">Từ</span>
+                          <span className="font-bold text-red-600">{cinema.minPrice.toLocaleString()}đ</span>
+                        </div>
+                      )}
+                      {cinema.distanceKm != null && (
+                        <div className="flex items-center gap-1">
+                          <svg className="w-3.5 h-3.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          </svg>
+                          <span className="font-semibold text-gray-700">{cinema.distanceKm} km</span>
+                        </div>
+                      )}
+                      {cinema.availableSeats > 0 && (
+                        <div className="flex items-center gap-1">
+                          <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span className="text-gray-600">{cinema.availableSeats} ghế trống</span>
+                        </div>
                       )}
                     </div>
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-bold text-gray-900 text-base leading-tight">{cinema.cinemaName}</h3>
-                        
-                        {cinema.labels.map(label => (
-                          <span
-                            key={label}
-                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${LABEL_COLORS[label] || 'bg-gray-100 text-gray-600 border-gray-200'}`}
-                          >
-                            {label}
+                    <div className="flex flex-wrap gap-2">
+                      {cinema.showtimes.map(st => (
+                        <Link
+                          key={st.showtimeId}
+                          href={`/booking/${st.showtimeId}`}
+                          className="group relative inline-flex flex-col items-center px-3 py-2 border border-gray-200 rounded-lg hover:border-red-500 hover:bg-red-50 transition-all bg-white shadow-sm hover:shadow"
+                        >
+                          <span className="font-bold text-gray-900 group-hover:text-red-600 text-base leading-none">
+                            {st.startTime}
                           </span>
-                        ))}
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1 truncate">{cinema.address}</p>
+                          <span className="text-gray-400 text-[10px] mt-0.5">
+                            {st.format} &bull; {st.availableSeats} ghế
+                          </span>
+                          <span className="text-red-600 text-[10px] font-semibold mt-0.5">
+                            {st.price.toLocaleString()}đ
+                          </span>
+                        </Link>
+                      ))}
                     </div>
                   </div>
-
-                  
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm mb-4">
-                    {cinema.minPrice != null && (
-                      <div className="flex items-center gap-1">
-                        <svg className="w-3.5 h-3.5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span className="text-gray-600">Từ</span>
-                        <span className="font-bold text-red-600">{cinema.minPrice.toLocaleString()}đ</span>
-                      </div>
-                    )}
-                    {cinema.distanceKm != null && (
-                      <div className="flex items-center gap-1">
-                        <svg className="w-3.5 h-3.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        </svg>
-                        <span className="font-semibold text-gray-700">{cinema.distanceKm} km</span>
-                      </div>
-                    )}
-                    {cinema.availableSeats > 0 && (
-                      <div className="flex items-center gap-1">
-                        <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        <span className="text-gray-600">{cinema.availableSeats} ghế trống</span>
-                      </div>
-                    )}
-                  </div>
-
-                  
-                  <div className="flex flex-wrap gap-2">
-                    {cinema.showtimes.map(st => (
-                      <Link
-                        key={st.showtimeId}
-                        href={`/booking/${st.showtimeId}`}
-                        className="group relative inline-flex flex-col items-center px-3 py-2 border border-gray-200 rounded-lg hover:border-red-500 hover:bg-red-50 transition-all bg-white shadow-sm hover:shadow"
-                      >
-                        <span className="font-bold text-gray-900 group-hover:text-red-600 text-base leading-none">
-                          {st.startTime}
-                        </span>
-                        <span className="text-gray-400 text-[10px] mt-0.5">
-                          {st.format} &bull; {st.availableSeats} ghế
-                        </span>
-                        <span className="text-red-600 text-[10px] font-semibold mt-0.5">
-                          {st.price.toLocaleString()}đ
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
                 </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Cột phải: Bản đồ */}
+        <div className="lg:col-span-2">
+          <div className="sticky top-20">
+            <CinemaMap
+              cinemas={error ? [] : cinemas}
+              userCoords={coords}
+              onSelectCinema={handleSelectCinemaFromMap}
+              isLoading={loading}
+            />
+
+            <div className="mt-3 flex items-center gap-4 text-xs text-gray-500 justify-center">
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                <span>Vị trí bạn</span>
               </div>
-            ))}
-          </div>
-
-          
-          <div className="lg:col-span-2">
-            <div className="sticky top-20">
-              <CinemaMap
-                cinemas={cinemas}
-                userCoords={coords}
-                onSelectCinema={handleSelectCinemaFromMap}
-              />
-              
-              <div className="mt-3 flex items-center gap-4 text-xs text-gray-500 justify-center">
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                  <span>Vị trí bạn</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                  <span>Rạp chiếu</span>
-                </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                <span>Rạp chiếu</span>
               </div>
             </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -11,7 +11,7 @@ export class User {
   @Prop({ required: true, unique: true })
   email: string;
 
-  @Prop() 
+  @Prop()
   avatar_url: string;
 
   @Prop({ required: true })
@@ -26,7 +26,10 @@ export class User {
   @Prop({ default: 0 })
   lifetimePoints: number;
 
-  @Prop({ default: 'Member', enum: ['Member', 'Silver', 'Gold', 'Platinum', 'Diamond'] })
+  @Prop({
+    default: 'Member',
+    enum: ['Member', 'Silver', 'Gold', 'Platinum', 'Diamond'],
+  })
   membershipRank: string;
 }
 

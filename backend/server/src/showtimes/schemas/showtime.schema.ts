@@ -29,7 +29,7 @@ export class Showtime {
   @Prop({ default: true })
   is_active: boolean;
 
-  @Prop({ type: [String], default: [] }) 
+  @Prop({ type: [String], default: [] })
   booked_seats: string[];
 }
 

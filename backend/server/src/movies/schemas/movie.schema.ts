@@ -7,12 +7,12 @@ export type MovieDocument = HydratedDocument<Movie>;
 @Schema({
   timestamps: true,
   toJSON: { virtuals: true },
-  toObject: { virtuals: true }
+  toObject: { virtuals: true },
 })
 export class Movie {
   @Prop({ required: true })
   title: string;
-  
+
   @Prop({ required: true, unique: true })
   slug: string;
 
@@ -22,16 +22,16 @@ export class Movie {
   @Prop()
   poster_url: string;
 
-  @Prop({ default: "" })
+  @Prop({ default: '' })
   poster_public_id: string;
 
-  @Prop({ default: "" })
+  @Prop({ default: '' })
   banner_url: string;
 
-  @Prop({ default: "" })
+  @Prop({ default: '' })
   banner_public_id: string;
 
-  @Prop({ default: "" })
+  @Prop({ default: '' })
   trailer_url: string;
 
   @Prop({ default: 0 })
@@ -43,7 +43,10 @@ export class Movie {
   @Prop({ default: true })
   is_active: boolean;
 
-  @Prop({ type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Genre' }], default: [] })
+  @Prop({
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Genre' }],
+    default: [],
+  })
   genres: Genre[];
 
   @Prop()
@@ -57,7 +60,7 @@ export const MovieSchema = SchemaFactory.createForClass(Movie);
 
 MovieSchema.virtual('status').get(function (this: MovieDocument) {
   if (!this.release_date) return 'Sắp chiếu';
-  
+
   const now = new Date();
   const releaseDate = new Date(this.release_date);
 

@@ -7,11 +7,15 @@ export type BookingDocument = HydratedDocument<Booking>;
 
 @Schema({ timestamps: true })
 export class Booking {
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Showtime', required: true })
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Showtime',
+    required: true,
+  })
   showtime: Showtime;
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true })
-  user: User; 
+  user: User;
 
   @Prop([String])
   seats: string[];
@@ -19,7 +23,10 @@ export class Booking {
   @Prop({ required: true })
   total_price: number;
 
-  @Prop({ default: 'pending', enum: ['pending', 'confirmed', 'failed', 'expired', 'cancelled'] }) 
+  @Prop({
+    default: 'pending',
+    enum: ['pending', 'confirmed', 'failed', 'expired', 'cancelled'],
+  })
   status: string;
 
   @Prop({ default: 'momo', enum: ['momo'] })
@@ -38,12 +45,14 @@ export class Booking {
   payment_note: string;
 
   @Prop({
-    type: [{
-      combo_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Combo' },
-      name: String,
-      price: Number,
-      quantity: Number,
-    }],
+    type: [
+      {
+        combo_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Combo' },
+        name: String,
+        price: Number,
+        quantity: Number,
+      },
+    ],
     default: [],
   })
   combos: Array<{

@@ -1,7 +1,7 @@
 'use client';
 
 import SafeImage from '@/components/SafeImage';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Pagination from '@/components/Pagination';
 import { authHeaders } from '@/lib/api';
@@ -38,9 +38,17 @@ interface IMovie {
     title: string;
 }
 
+interface ICinemaSystem {
+    _id: string;
+    name: string;
+    logo_url?: string;
+}
+
 interface ICinema {
     _id: string;
     name: string;
+    city?: string;
+    cinema_system?: string | { _id: string; name: string };
 }
 
 export default function AdminShowtimesPage() {
@@ -54,7 +62,9 @@ export default function AdminShowtimesPage() {
 
     const [movies, setMovies] = useState<IMovie[]>([]);
     const [cinemas, setCinemas] = useState<ICinema[]>([]);
+    const [cinemaSystems, setCinemaSystems] = useState<ICinemaSystem[]>([]);
     const [filterMovie, setFilterMovie] = useState('');
+    const [filterCinemaSystem, setFilterCinemaSystem] = useState('');
     const [filterCinema, setFilterCinema] = useState('');
     const [filterDate, setFilterDate] = useState('');
 
@@ -66,18 +76,38 @@ export default function AdminShowtimesPage() {
     useEffect(() => {
         const fetchOptions = async () => {
             try {
-                const [moviesRes, cinemasRes] = await Promise.all([
+                const [moviesRes, cinemasRes, systemsRes] = await Promise.all([
                     fetch(`${API_URL}/movies`),
-                    fetch(`${API_URL}/cinemas`)
+                    fetch(`${API_URL}/cinemas`),
+                    fetch(`${API_URL}/cinema-systems`)
                 ]);
                 setMovies(await moviesRes.json());
                 setCinemas(await cinemasRes.json());
+                setCinemaSystems(await systemsRes.json());
             } catch (error) {
                 console.error('Lỗi tải dữ liệu:', error);
             }
         };
         fetchOptions();
     }, [API_URL]);
+
+    const filteredCinemas = useMemo(() => {
+        if (!filterCinemaSystem) return cinemas;
+        return cinemas.filter(c => {
+            if (!c.cinema_system) return false;
+            const systemId = typeof c.cinema_system === 'object' ? c.cinema_system._id : c.cinema_system;
+            return systemId === filterCinemaSystem;
+        });
+    }, [cinemas, filterCinemaSystem]);
+
+    useEffect(() => {
+        if (filterCinema && filterCinemaSystem) {
+            const hasCinema = filteredCinemas.some(c => c._id === filterCinema);
+            if (!hasCinema) {
+                setFilterCinema('');
+            }
+        }
+    }, [filterCinemaSystem, filteredCinemas, filterCinema]);
 
     useEffect(() => {
         const fetchShowtimes = async () => {
@@ -88,6 +118,7 @@ export default function AdminShowtimesPage() {
                     limit: itemsPerPage.toString(),
                 });
                 if (filterMovie) params.append('movie_id', filterMovie);
+                if (filterCinemaSystem) params.append('cinema_system_id', filterCinemaSystem);
                 if (filterCinema) params.append('cinema_id', filterCinema);
                 if (filterDate) params.append('date', filterDate);
 
@@ -106,11 +137,11 @@ export default function AdminShowtimesPage() {
             }
         };
         fetchShowtimes();
-    }, [API_URL, currentPage, filterMovie, filterCinema, filterDate, itemsPerPage]);
+    }, [API_URL, currentPage, filterMovie, filterCinemaSystem, filterCinema, filterDate, itemsPerPage]);
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [filterMovie, filterCinema, filterDate]);
+    }, [filterMovie, filterCinemaSystem, filterCinema, filterDate]);
 
     const formatDateTime = (dateStr: string) => {
         const date = new Date(dateStr);
@@ -179,7 +210,7 @@ export default function AdminShowtimesPage() {
 
             
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Phim</label>
                         <select
@@ -194,6 +225,19 @@ export default function AdminShowtimesPage() {
                         </select>
                     </div>
                     <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Hệ thống rạp</label>
+                        <select
+                            value={filterCinemaSystem}
+                            onChange={(e) => setFilterCinemaSystem(e.target.value)}
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                        >
+                            <option value="">Tất cả hệ thống</option>
+                            {cinemaSystems.map((sys) => (
+                                <option key={sys._id} value={sys._id}>{sys.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Rạp</label>
                         <select
                             value={filterCinema}
@@ -201,7 +245,7 @@ export default function AdminShowtimesPage() {
                             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
                         >
                             <option value="">Tất cả rạp</option>
-                            {cinemas.map((c) => (
+                            {filteredCinemas.map((c) => (
                                 <option key={c._id} value={c._id}>{c.name}</option>
                             ))}
                         </select>
@@ -219,6 +263,7 @@ export default function AdminShowtimesPage() {
                         <button
                             onClick={() => {
                                 setFilterMovie('');
+                                setFilterCinemaSystem('');
                                 setFilterCinema('');
                                 setFilterDate('');
                             }}

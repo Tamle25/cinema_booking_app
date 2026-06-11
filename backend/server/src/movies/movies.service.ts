@@ -108,7 +108,9 @@ export class MoviesService {
       existingMovie.poster_public_id &&
       existingMovie.poster_public_id !== updateMovieDto.poster_public_id
     ) {
-      tasks.push(this.cloudinaryService.destroyImage(existingMovie.poster_public_id));
+      tasks.push(
+        this.cloudinaryService.destroyImage(existingMovie.poster_public_id),
+      );
     }
 
     if (
@@ -116,7 +118,9 @@ export class MoviesService {
       existingMovie.banner_public_id &&
       existingMovie.banner_public_id !== updateMovieDto.banner_public_id
     ) {
-      tasks.push(this.cloudinaryService.destroyImage(existingMovie.banner_public_id));
+      tasks.push(
+        this.cloudinaryService.destroyImage(existingMovie.banner_public_id),
+      );
     }
 
     await Promise.all(tasks);

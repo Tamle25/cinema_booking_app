@@ -508,7 +508,7 @@ export default function MovieDetailPage() {
           )}
 
           
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[450px] md:max-h-[600px] overflow-y-auto pr-2 movie-detail-scroll-container">
             {Object.keys(groupedShowtimes).length === 0 ? (
               <div className="text-center text-gray-500 py-16 bg-gray-50 rounded-lg border border-gray-200 border-dashed">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12 mx-auto mb-3 text-gray-400">

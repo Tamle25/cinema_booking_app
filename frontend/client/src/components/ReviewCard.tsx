@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import SafeImage from '@/components/SafeImage';
 import { IReview } from "@/types";
@@ -11,10 +11,10 @@ const getRelativeTime = (dateStr: string) => {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return "Vá»«a xong";
-  if (diffMins < 60) return `${diffMins} phÃºt trÆ°á»›c`;
-  if (diffHours < 24) return `${diffHours} giá» trÆ°á»›c`;
-  if (diffDays < 30) return `${diffDays} ngÃ y trÆ°á»›c`;
+  if (diffMins < 1) return "Vừa xong";
+  if (diffMins < 60) return `${diffMins} phút trước`;
+  if (diffHours < 24) return `${diffHours} giờ trước`;
+  if (diffDays < 30) return `${diffDays} ngày trước`;
   return date.toLocaleDateString("vi-VN");
 };
 
@@ -27,7 +27,7 @@ interface ReviewCardProps {
 const ReviewCard = ({ review, compact = false, onLike }: ReviewCardProps) => {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-  const userName = review.user?.full_name || "NgÆ°á»i dÃ¹ng";
+  const userName = review.user?.full_name || "Người dùng";
   const userAvatar = review.user?.avatar_url || null;
   const userInitial = userName.charAt(0).toUpperCase();
 
@@ -67,7 +67,17 @@ const ReviewCard = ({ review, compact = false, onLike }: ReviewCardProps) => {
               {userName}
             </span>
 
-            
+            {/* Cấp độ thành viên */}
+            {review.user?.membershipRank ? (
+              <span className="inline-flex items-center bg-red-50 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-200">
+                {review.user.membershipRank}
+              </span>
+            ) : (
+              <span className="inline-flex items-center bg-gray-50 text-gray-600 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-gray-200">
+                Thành viên
+              </span>
+            )}
+
             {review.is_verified && (
               <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-green-200">
                 <svg
@@ -81,7 +91,7 @@ const ReviewCard = ({ review, compact = false, onLike }: ReviewCardProps) => {
                     clipRule="evenodd"
                   />
                 </svg>
-                ÄÃ£ mua vÃ©
+                Đã mua vé
               </span>
             )}
           </div>
@@ -105,7 +115,7 @@ const ReviewCard = ({ review, compact = false, onLike }: ReviewCardProps) => {
             <span className="text-sm font-bold text-yellow-600">
               {review.rating}/10
             </span>
-            <span className="text-xs text-gray-400">â€¢</span>
+            <span className="text-xs text-gray-400">•</span>
             <span className="text-xs text-gray-400">
               {getRelativeTime(review.createdAt)}
             </span>
@@ -139,7 +149,7 @@ const ReviewCard = ({ review, compact = false, onLike }: ReviewCardProps) => {
                 d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
               />
             </svg>
-            <span>{review.likes_count > 0 ? review.likes_count : "ThÃ­ch"}</span>
+            <span>{review.likes_count > 0 ? review.likes_count : "Thích"}</span>
           </button>
         </div>
       )}

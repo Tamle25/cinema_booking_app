@@ -48,13 +48,19 @@ export class Voucher {
   @Prop({ default: 'active', enum: ['active', 'inactive'] })
   status: string;
 
-  @Prop({ type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Cinema' }], default: [] })
+  @Prop({
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Cinema' }],
+    default: [],
+  })
   applicableCinemaIds: Cinema[];
 
   @Prop({ default: true })
   isAllCinemas: boolean;
 
-  @Prop({ default: 'Member', enum: ['Member', 'Silver', 'Gold', 'Platinum', 'Diamond'] })
+  @Prop({
+    default: 'Member',
+    enum: ['Member', 'Silver', 'Gold', 'Platinum', 'Diamond'],
+  })
   requiredMembershipRank: string;
 
   @Prop({ default: 0 })

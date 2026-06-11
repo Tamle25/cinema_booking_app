@@ -7,6 +7,7 @@ import { ReviewLike, ReviewLikeSchema } from './schemas/review-like.schema';
 import { Movie, MovieSchema } from '../movies/schemas/movie.schema';
 import { Booking, BookingSchema } from '../bookings/schemas/booking.schema';
 import { Showtime, ShowtimeSchema } from '../showtimes/schemas/showtime.schema';
+import { User, UserSchema } from '../users/user.schema';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { Showtime, ShowtimeSchema } from '../showtimes/schemas/showtime.schema';
       { name: Movie.name, schema: MovieSchema },
       { name: Booking.name, schema: BookingSchema },
       { name: Showtime.name, schema: ShowtimeSchema },
+      { name: User.name, schema: UserSchema },
     ]),
   ],
   controllers: [ReviewsController],

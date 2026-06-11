@@ -1,4 +1,10 @@
-import { Injectable, BadRequestException, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
 import { Model, Connection } from 'mongoose';
 import { User, UserDocument } from '../users/user.schema';
@@ -28,29 +34,37 @@ export class LoyaltyService implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
-    @InjectModel(PointTransaction.name) private pointTransactionModel: Model<PointTransaction>,
+    @InjectModel(PointTransaction.name)
+    private pointTransactionModel: Model<PointTransaction>,
     @InjectModel(Booking.name) private bookingModel: Model<Booking>,
     @InjectConnection() private connection: Connection,
   ) {}
 
   onModuleInit() {
-    this.expireInterval = setInterval(() => {
-      this.expireOldPoints()
-        .then((count) => {
-          if (count > 0) {
-            this.logger.log(`Đã xử lý ${count} giao dịch điểm hết hạn`);
-          }
-        })
-        .catch((err) => this.logger.error('Lỗi xử lý điểm hết hạn', err));
-    }, 24 * 60 * 60 * 1000);
+    this.expireInterval = setInterval(
+      () => {
+        this.expireOldPoints()
+          .then((count) => {
+            if (count > 0) {
+              this.logger.log(`Đã xử lý ${count} giao dịch điểm hết hạn`);
+            }
+          })
+          .catch((err) => this.logger.error('Lỗi xử lý điểm hết hạn', err));
+      },
+      24 * 60 * 60 * 1000,
+    );
 
     this.expireOldPoints()
       .then((count) => {
         if (count > 0) {
-          this.logger.log(`Đã xử lý ${count} giao dịch điểm hết hạn khi khởi động`);
+          this.logger.log(
+            `Đã xử lý ${count} giao dịch điểm hết hạn khi khởi động`,
+          );
         }
       })
-      .catch((err) => this.logger.error('Lỗi xử lý điểm hết hạn khi khởi động', err));
+      .catch((err) =>
+        this.logger.error('Lỗi xử lý điểm hết hạn khi khởi động', err),
+      );
   }
 
   onModuleDestroy() {
@@ -73,7 +87,9 @@ export class LoyaltyService implements OnModuleInit, OnModuleDestroy {
   }
 
   getNextRankInfo(currentRank: string, lifetimePoints: number) {
-    const currentIndex = RANK_THRESHOLDS.findIndex((t) => t.rank === currentRank);
+    const currentIndex = RANK_THRESHOLDS.findIndex(
+      (t) => t.rank === currentRank,
+    );
     if (currentIndex <= 0) {
       return null;
     }
@@ -85,7 +101,9 @@ export class LoyaltyService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  private async runInTransaction<T>(callback: (session: any) => Promise<T>): Promise<T> {
+  private async runInTransaction<T>(
+    callback: (session: any) => Promise<T>,
+  ): Promise<T> {
     let session;
     try {
       session = await this.connection.startSession();
@@ -97,19 +115,20 @@ export class LoyaltyService implements OnModuleInit, OnModuleDestroy {
       if (session && session.inTransaction()) {
         try {
           await session.abortTransaction();
-        } catch {
-        }
+        } catch {}
       }
-      
+
       const errorMsg = error.message || '';
-      const isReplicaSetError = 
-        errorMsg.includes('replica set') || 
+      const isReplicaSetError =
+        errorMsg.includes('replica set') ||
         errorMsg.includes('Transaction numbers are only allowed') ||
         errorMsg.includes('transactions are not supported') ||
         error.code === 20;
 
       if (isReplicaSetError || !session) {
-        this.logger.warn('MongoDB không hỗ trợ transaction, chạy loyalty flow không dùng session');
+        this.logger.warn(
+          'MongoDB không hỗ trợ transaction, chạy loyalty flow không dùng session',
+        );
         return callback(undefined);
       }
       throw error;
@@ -120,9 +139,15 @@ export class LoyaltyService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async awardPoints(userId: string, orderId: string, amount: number): Promise<number> {
+  async awardPoints(
+    userId: string,
+    orderId: string,
+    amount: number,
+  ): Promise<number> {
     return this.runInTransaction(async (session) => {
-      const booking = await this.bookingModel.findById(orderId).session(session);
+      const booking = await this.bookingModel
+        .findById(orderId)
+        .session(session);
       if (!booking) {
         throw new BadRequestException('Đơn hàng không tồn tại');
       }
@@ -161,13 +186,23 @@ export class LoyaltyService implements OnModuleInit, OnModuleDestroy {
         { session },
       );
 
-      await this.bookingModel.findByIdAndUpdate(orderId, { pointsAwarded: true }, { session });
+      await this.bookingModel.findByIdAndUpdate(
+        orderId,
+        { pointsAwarded: true },
+        { session },
+      );
 
-      const updatedUser = await this.userModel.findById(userId).session(session);
+      const updatedUser = await this.userModel
+        .findById(userId)
+        .session(session);
       if (updatedUser) {
         const newRank = this.getRankFromPoints(updatedUser.lifetimePoints);
         if (newRank !== updatedUser.membershipRank) {
-          await this.userModel.findByIdAndUpdate(userId, { membershipRank: newRank }, { session });
+          await this.userModel.findByIdAndUpdate(
+            userId,
+            { membershipRank: newRank },
+            { session },
+          );
         }
       }
 
@@ -175,11 +210,16 @@ export class LoyaltyService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async deductPoints(userId: string, points: number, description: string): Promise<void> {
+  async deductPoints(
+    userId: string,
+    points: number,
+    description: string,
+  ): Promise<void> {
     return this.runInTransaction(async (session) => {
       const user = await this.userModel.findById(userId).session(session);
       if (!user) throw new BadRequestException('Người dùng không tồn tại');
-      if (user.availablePoints < points) throw new BadRequestException('Không đủ điểm khả dụng');
+      if (user.availablePoints < points)
+        throw new BadRequestException('Không đủ điểm khả dụng');
 
       await this.pointTransactionModel.create(
         [
@@ -193,7 +233,11 @@ export class LoyaltyService implements OnModuleInit, OnModuleDestroy {
         { session },
       );
 
-      await this.userModel.findByIdAndUpdate(userId, { $inc: { availablePoints: -points } }, { session });
+      await this.userModel.findByIdAndUpdate(
+        userId,
+        { $inc: { availablePoints: -points } },
+        { session },
+      );
     });
   }
 
@@ -210,11 +254,20 @@ export class LoyaltyService implements OnModuleInit, OnModuleDestroy {
     for (const transaction of expiredTransactions) {
       try {
         await this.runInTransaction(async (session) => {
-          await this.pointTransactionModel.findByIdAndUpdate(transaction._id, { isExpired: true }, { session });
+          await this.pointTransactionModel.findByIdAndUpdate(
+            transaction._id,
+            { isExpired: true },
+            { session },
+          );
 
-          const user = await this.userModel.findById(transaction.user).session(session);
+          const user = await this.userModel
+            .findById(transaction.user)
+            .session(session);
           if (user && user.availablePoints > 0) {
-            const pointsToExpire = Math.min(transaction.points, user.availablePoints);
+            const pointsToExpire = Math.min(
+              transaction.points,
+              user.availablePoints,
+            );
             if (pointsToExpire > 0) {
               await this.userModel.findByIdAndUpdate(
                 transaction.user,
@@ -240,7 +293,10 @@ export class LoyaltyService implements OnModuleInit, OnModuleDestroy {
         });
         count++;
       } catch (error) {
-        this.logger.error(`Lỗi hết hạn điểm cho transaction ${transaction._id}`, error);
+        this.logger.error(
+          `Lỗi hết hạn điểm cho transaction ${transaction._id}`,
+          error,
+        );
       }
     }
 
@@ -248,11 +304,16 @@ export class LoyaltyService implements OnModuleInit, OnModuleDestroy {
   }
 
   async getMembershipInfo(userId: string) {
-    const user = await this.userModel.findById(userId).select('availablePoints lifetimePoints membershipRank full_name');
+    const user = await this.userModel
+      .findById(userId)
+      .select('availablePoints lifetimePoints membershipRank full_name');
     if (!user) throw new BadRequestException('Người dùng không tồn tại');
 
     const discount = this.getMembershipDiscount(user.membershipRank);
-    const nextRank = this.getNextRankInfo(user.membershipRank, user.lifetimePoints);
+    const nextRank = this.getNextRankInfo(
+      user.membershipRank,
+      user.lifetimePoints,
+    );
 
     return {
       availablePoints: user.availablePoints,
@@ -291,7 +352,12 @@ export class LoyaltyService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async adminAdjustPoints(adminId: string, userId: string, points: number, description: string) {
+  async adminAdjustPoints(
+    adminId: string,
+    userId: string,
+    points: number,
+    description: string,
+  ) {
     return this.runInTransaction(async (session) => {
       const user = await this.userModel.findById(userId).session(session);
       if (!user) throw new BadRequestException('Người dùng không tồn tại');
@@ -319,16 +385,25 @@ export class LoyaltyService implements OnModuleInit, OnModuleDestroy {
       await this.userModel.findByIdAndUpdate(userId, updateFields, { session });
 
       if (points > 0) {
-        const updatedUser = await this.userModel.findById(userId).session(session);
+        const updatedUser = await this.userModel
+          .findById(userId)
+          .session(session);
         if (updatedUser) {
           const newRank = this.getRankFromPoints(updatedUser.lifetimePoints);
           if (newRank !== updatedUser.membershipRank) {
-            await this.userModel.findByIdAndUpdate(userId, { membershipRank: newRank }, { session });
+            await this.userModel.findByIdAndUpdate(
+              userId,
+              { membershipRank: newRank },
+              { session },
+            );
           }
         }
       }
 
-      return { success: true, message: `Đã điều chỉnh ${points > 0 ? '+' : ''}${points} điểm cho người dùng` };
+      return {
+        success: true,
+        message: `Đã điều chỉnh ${points > 0 ? '+' : ''}${points} điểm cho người dùng`,
+      };
     });
   }
 }

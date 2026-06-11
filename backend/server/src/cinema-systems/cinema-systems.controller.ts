@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+} from '@nestjs/common';
 import { CinemaSystemsService } from './cinema-systems.service';
 import { CreateCinemaSystemDto } from './dto/create-cinema-system.dto';
 import { UpdateCinemaSystemDto } from './dto/update-cinema-system.dto';
@@ -27,7 +35,10 @@ export class CinemaSystemsController {
 
   @Put(':id')
   @AdminOnly()
-  update(@Param('id', ParseObjectIdPipe) id: string, @Body() updateDto: UpdateCinemaSystemDto) {
+  update(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Body() updateDto: UpdateCinemaSystemDto,
+  ) {
     return this.cinemaSystemsService.update(id, updateDto);
   }
 

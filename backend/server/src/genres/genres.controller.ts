@@ -1,4 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Put,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { GenresService } from './genres.service';
@@ -39,7 +48,10 @@ export class GenresController {
 
   @Put(':id')
   @AdminOnly()
-  update(@Param('id', ParseObjectIdPipe) id: string, @Body() updateGenreDto: UpdateGenreDto) {
+  update(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Body() updateGenreDto: UpdateGenreDto,
+  ) {
     return this.genresService.update(id, updateGenreDto);
   }
 

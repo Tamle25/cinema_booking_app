@@ -117,6 +117,7 @@ export interface IReviewUser {
   _id: string;
   full_name: string;
   avatar_url?: string;
+  membershipRank?: string;
 }
 
 export interface IReview {

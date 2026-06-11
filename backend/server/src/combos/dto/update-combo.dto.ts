@@ -1,4 +1,10 @@
-import { IsOptional, IsNumber, IsString, IsBoolean, IsIn } from 'class-validator';
+import {
+  IsOptional,
+  IsNumber,
+  IsString,
+  IsBoolean,
+  IsIn,
+} from 'class-validator';
 
 export class UpdateComboDto {
   @IsOptional()

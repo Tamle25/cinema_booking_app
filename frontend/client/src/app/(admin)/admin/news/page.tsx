@@ -7,6 +7,13 @@ import Pagination from '@/components/Pagination';
 import { authHeaders } from '@/lib/api';
 import { toastError, toastWarning, toastSuccess } from '@/utils/toast';
 import ConfirmModal from '@/components/ConfirmModal';
+import dynamic from 'next/dynamic';
+
+const RichTextEditor = dynamic(() => import('@/components/RichTextEditor'), {
+  ssr: false,
+  loading: () => <div className="h-[350px] bg-gray-50 border border-gray-200 rounded-lg animate-pulse flex items-center justify-center text-gray-400">Đang tải bộ soạn thảo...</div>
+});
+
 
 const emptyForm = {
   title: '',
@@ -142,6 +149,7 @@ export default function AdminNewsPage() {
         return;
       }
 
+      toastSuccess(editingNews ? 'Cập nhật tin tức thành công!' : 'Thêm tin tức thành công!');
       closeModal();
       fetchNews();
     } catch (error) {
@@ -191,10 +199,15 @@ export default function AdminNewsPage() {
       });
 
       if (res.ok) {
+        toastSuccess('Cập nhật trạng thái xuất bản thành công!');
         fetchNews();
+      } else {
+        const error = await res.json();
+        toastError(error.message || 'Cập nhật trạng thái xuất bản thất bại');
       }
     } catch (error) {
       console.error('Lỗi cập nhật trạng thái:', error);
+      toastError('Cập nhật trạng thái xuất bản thất bại');
     }
   };
 
@@ -449,12 +462,9 @@ export default function AdminNewsPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nội dung chi tiết</label>
-                <textarea
-                  name="content"
+                <RichTextEditor
                   value={formData.content}
-                  onChange={handleInputChange}
-                  rows={10}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  onChange={(html) => setFormData((prev) => ({ ...prev, content: html }))}
                 />
               </div>
 

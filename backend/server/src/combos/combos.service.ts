@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Combo } from './schemas/combo.schema';
@@ -22,9 +26,12 @@ export class CombosService {
     return newCombo.save();
   }
 
-  async findActive(cinemaSystemId?: string, cinemaId?: string): Promise<Combo[]> {
+  async findActive(
+    cinemaSystemId?: string,
+    cinemaId?: string,
+  ): Promise<Combo[]> {
     const query: any = { is_active: true };
-    
+
     if (cinemaId) {
       const cinema = await this.cinemaModel.findById(cinemaId).exec();
       if (!cinema) throw new NotFoundException('Không tìm thấy rạp này');
@@ -32,7 +39,7 @@ export class CombosService {
     } else if (cinemaSystemId) {
       query.cinema_system = cinemaSystemId;
     }
-    
+
     return this.comboModel
       .find(query)
       .populate('cinema_system', 'name')
@@ -85,8 +92,15 @@ export class CombosService {
   async validateCombos(
     combos: Array<{ combo_id: string; quantity: number }>,
     cinemaId?: string,
-  ): Promise<Array<{ combo_id: string; name: string; price: number; quantity: number }>> {
-    const validatedCombos: Array<{ combo_id: string; name: string; price: number; quantity: number }> = [];
+  ): Promise<
+    Array<{ combo_id: string; name: string; price: number; quantity: number }>
+  > {
+    const validatedCombos: Array<{
+      combo_id: string;
+      name: string;
+      price: number;
+      quantity: number;
+    }> = [];
 
     let cinemaSystemId: string | undefined;
     if (cinemaId) {
@@ -101,14 +115,21 @@ export class CombosService {
 
       const combo = await this.comboModel.findById(item.combo_id).exec();
       if (!combo) {
-        throw new NotFoundException(`Combo với ID ${item.combo_id} không tồn tại`);
+        throw new NotFoundException(
+          `Combo với ID ${item.combo_id} không tồn tại`,
+        );
       }
       if (!combo.is_active) {
         throw new NotFoundException(`Combo "${combo.name}" hiện không còn bán`);
       }
-      
-      if (cinemaSystemId && combo.cinema_system?.toString() !== cinemaSystemId) {
-        throw new NotFoundException(`Combo "${combo.name}" không thuộc về hệ thống rạp này`);
+
+      if (
+        cinemaSystemId &&
+        combo.cinema_system?.toString() !== cinemaSystemId
+      ) {
+        throw new NotFoundException(
+          `Combo "${combo.name}" không thuộc về hệ thống rạp này`,
+        );
       }
 
       validatedCombos.push({

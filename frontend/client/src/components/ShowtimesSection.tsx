@@ -40,6 +40,8 @@ interface IMovieGroup {
   showtimes: IShowtime[];
 }
 
+const VISIBLE_CINEMA_COUNT = 6;
+
 export default function ShowtimesSection() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -167,6 +169,9 @@ export default function ShowtimesSection() {
     return cinemas.filter(c => c.name.toLowerCase().includes(cinemaSearchTerm.toLowerCase()));
   }, [cinemas, cinemaSearchTerm]);
 
+  const visibleCinemas = isCinemasExpanded ? filteredCinemas : filteredCinemas.slice(0, VISIBLE_CINEMA_COUNT);
+  const remainingCinemaCount = filteredCinemas.length - VISIBLE_CINEMA_COUNT;
+
   const groupedShowtimes = useMemo(() => {
     if (!showtimes || showtimes.length === 0) return [];
     
@@ -264,10 +269,10 @@ export default function ShowtimesSection() {
         </div>
 
         
-        <div className="flex flex-col md:flex-row min-h-[500px]">
+        <div className="flex flex-col md:flex-row h-[650px]">
           
           
-          <div className="w-full md:w-[30%] lg:w-[25%] flex flex-col border-r border-gray-200 bg-white shrink-0 h-[400px] md:h-auto overflow-hidden">
+          <div className="w-full md:w-[30%] lg:w-[25%] flex flex-col border-r border-gray-200 bg-white shrink-0 h-[400px] md:h-full overflow-hidden">
             <div className="p-4 border-b border-gray-100 z-10 shrink-0 bg-white">
                <div className="relative group">
                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
@@ -296,12 +301,12 @@ export default function ShowtimesSection() {
                </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 pb-16">
+            <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200">
                {isLoadingCinemas ? (
                  <div className="p-4 flex justify-center"><div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div></div>
                ) : filteredCinemas.length > 0 ? (
                  <div className="divide-y divide-gray-100/60">
-                   {(isCinemasExpanded ? filteredCinemas : filteredCinemas.slice(0, 10)).map(cinema => (
+                   {visibleCinemas.map(cinema => (
                      <button
                        key={cinema._id}
                        onClick={() => setSelectedCinemaId(cinema._id)}
@@ -343,21 +348,6 @@ export default function ShowtimesSection() {
                         </div>
                      </button>
                    ))}
-                   
-                   
-                   {filteredCinemas.length > 10 && (
-                     <div className="p-3 sticky bottom-0 bg-white border-t border-gray-100/60 shadow-[0_-10px_10px_-10px_rgba(0,0,0,0.05)] z-10 w-full mt-auto">
-                       <button
-                         onClick={() => setIsCinemasExpanded(!isCinemasExpanded)}
-                         className="w-full py-2.5 flex items-center justify-center gap-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-100"
-                       >
-                         {isCinemasExpanded ? 'Thu gọn' : `Xem thêm (${filteredCinemas.length - 10} rạp)`}
-                         <svg className={`w-4 h-4 transition-transform duration-300 ${isCinemasExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                         </svg>
-                       </button>
-                     </div>
-                   )}
                  </div>
                ) : (
                  <div className="p-8 text-center text-gray-500 text-sm">
@@ -365,10 +355,24 @@ export default function ShowtimesSection() {
                  </div>
                )}
             </div>
+
+            {!isLoadingCinemas && filteredCinemas.length > VISIBLE_CINEMA_COUNT && (
+              <div className="p-3 bg-white border-t border-gray-100/60 shadow-[0_-10px_10px_-10px_rgba(0,0,0,0.05)] z-10 w-full shrink-0">
+                <button
+                  onClick={() => setIsCinemasExpanded(!isCinemasExpanded)}
+                  className="w-full py-2.5 flex items-center justify-center gap-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-100"
+                >
+                  {isCinemasExpanded ? 'Thu gọn' : `Xem thêm (${remainingCinemaCount} rạp)`}
+                  <svg className={`w-4 h-4 transition-transform duration-300 ${isCinemasExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+            )}
           </div>
 
           
-          <div className="w-full md:w-[70%] lg:w-[75%] flex flex-col bg-white min-h-[500px]">
+          <div className="w-full md:w-[70%] lg:w-[75%] flex flex-col bg-white h-[400px] md:h-full overflow-hidden">
             {selectedCinemaId ? (
               <>
                  

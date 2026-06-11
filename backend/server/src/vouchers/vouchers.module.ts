@@ -4,7 +4,10 @@ import { VouchersController } from './vouchers.controller';
 import { VouchersService } from './vouchers.service';
 import { Voucher, VoucherSchema } from './schemas/voucher.schema';
 import { UserVoucher, UserVoucherSchema } from './schemas/user-voucher.schema';
-import { VoucherUsage, VoucherUsageSchema } from './schemas/voucher-usage.schema';
+import {
+  VoucherUsage,
+  VoucherUsageSchema,
+} from './schemas/voucher-usage.schema';
 import { User, UserSchema } from '../users/user.schema';
 import { LoyaltyModule } from '../loyalty/loyalty.module';
 

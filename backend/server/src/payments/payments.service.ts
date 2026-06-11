@@ -1,7 +1,18 @@
-import { Injectable, BadRequestException, NotFoundException, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { MomoService, MomoCallbackParams, MomoPaymentType } from './momo.service';
+import {
+  MomoService,
+  MomoCallbackParams,
+  MomoPaymentType,
+} from './momo.service';
 import { Booking } from '../bookings/schemas/booking.schema';
 import { Showtime } from '../showtimes/schemas/showtime.schema';
 import { CombosService } from '../combos/combos.service';
@@ -38,28 +49,35 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     private readonly combosService: CombosService,
     private readonly loyaltyService: LoyaltyService,
     private readonly vouchersService: VouchersService,
-  ) { }
+  ) {}
 
   onModuleInit() {
-    this.cleanupInterval = setInterval(() => {
-      this.cancelExpiredPendingBookings()
-        .then((count) => {
-          if (count > 0) {
-            this.logger.log(`Đã hủy ${count} booking pending hết hạn`);
-          }
-        })
-        .catch((err) => {
-          this.logger.error('Lỗi khi hủy booking hết hạn', err);
-        });
-    }, 5 * 60 * 1000);
+    this.cleanupInterval = setInterval(
+      () => {
+        this.cancelExpiredPendingBookings()
+          .then((count) => {
+            if (count > 0) {
+              this.logger.log(`Đã hủy ${count} booking pending hết hạn`);
+            }
+          })
+          .catch((err) => {
+            this.logger.error('Lỗi khi hủy booking hết hạn', err);
+          });
+      },
+      5 * 60 * 1000,
+    );
 
     this.cancelExpiredPendingBookings()
       .then((count) => {
         if (count > 0) {
-          this.logger.log(`Đã hủy ${count} booking pending hết hạn khi khởi động`);
+          this.logger.log(
+            `Đã hủy ${count} booking pending hết hạn khi khởi động`,
+          );
         }
       })
-      .catch((err) => this.logger.error('Lỗi khi hủy booking hết hạn lúc khởi động', err));
+      .catch((err) =>
+        this.logger.error('Lỗi khi hủy booking hết hạn lúc khởi động', err),
+      );
   }
 
   onModuleDestroy() {
@@ -85,7 +103,10 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     return normalized;
   }
 
-  private async lockSeats(showtimeId: string, seats: string[]): Promise<Showtime> {
+  private async lockSeats(
+    showtimeId: string,
+    seats: string[],
+  ): Promise<Showtime> {
     const showtime = await this.showtimeModel.findOneAndUpdate(
       { _id: showtimeId, booked_seats: { $nin: seats } },
       { $addToSet: { booked_seats: { $each: seats } } },
@@ -120,7 +141,12 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
 
     const ticketPrice = showtime.price * seats.length;
 
-    let validatedCombos: Array<{ combo_id: string; name: string; price: number; quantity: number }> = [];
+    let validatedCombos: Array<{
+      combo_id: string;
+      name: string;
+      price: number;
+      quantity: number;
+    }> = [];
     let comboPrice = 0;
 
     if (createDto.combos && createDto.combos.length > 0) {
@@ -128,15 +154,23 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         createDto.combos,
         showtime.cinema.toString(),
       );
-      comboPrice = validatedCombos.reduce((sum, c) => sum + c.price * c.quantity, 0);
+      comboPrice = validatedCombos.reduce(
+        (sum, c) => sum + c.price * c.quantity,
+        0,
+      );
     }
 
     const originalPrice = ticketPrice + comboPrice;
 
-    const user = await this.userModel.findById(user_id).select('membershipRank');
+    const user = await this.userModel
+      .findById(user_id)
+      .select('membershipRank');
     const membershipRank = user?.membershipRank || 'Member';
-    const membershipDiscountPercent = this.loyaltyService.getMembershipDiscount(membershipRank);
-    const membershipDiscount = Math.floor((originalPrice * membershipDiscountPercent) / 100);
+    const membershipDiscountPercent =
+      this.loyaltyService.getMembershipDiscount(membershipRank);
+    const membershipDiscount = Math.floor(
+      (originalPrice * membershipDiscountPercent) / 100,
+    );
 
     let voucherDiscount = 0;
     let appliedVoucherCode = '';
@@ -155,10 +189,15 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       appliedVoucherCode = createDto.voucherCode.toUpperCase();
     }
 
-    const totalPrice = Math.max(originalPrice - membershipDiscount - voucherDiscount, 0);
+    const totalPrice = Math.max(
+      originalPrice - membershipDiscount - voucherDiscount,
+      0,
+    );
 
     if (totalPrice < 1000) {
-      throw new BadRequestException('Số tiền thanh toán tối thiểu là 1,000 VND');
+      throw new BadRequestException(
+        'Số tiền thanh toán tối thiểu là 1,000 VND',
+      );
     }
 
     const momoOrderId = this.momoService.generateOrderId();
@@ -194,7 +233,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       seats: seats,
     });
 
-    const extraData = Buffer.from(JSON.stringify({ bookingId })).toString('base64');
+    const extraData = Buffer.from(JSON.stringify({ bookingId })).toString(
+      'base64',
+    );
 
     const momoResponse = await this.momoService.createPaymentUrl({
       orderId: momoOrderId,
@@ -210,7 +251,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         status: 'failed',
         payment_note: momoResponse.message,
       });
-      throw new BadRequestException(`Không thể tạo thanh toán MoMo: ${momoResponse.message}`);
+      throw new BadRequestException(
+        `Không thể tạo thanh toán MoMo: ${momoResponse.message}`,
+      );
     }
 
     return {
@@ -236,7 +279,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     let bookingId: string | undefined;
     try {
       if (extraData) {
-        const decodedData = JSON.parse(Buffer.from(extraData, 'base64').toString('utf-8'));
+        const decodedData = JSON.parse(
+          Buffer.from(extraData, 'base64').toString('utf-8'),
+        );
         bookingId = decodedData.bookingId;
       }
     } catch {
@@ -252,7 +297,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     }
 
     if (!booking) {
-      this.logger.warn(`Không tìm thấy booking cho MoMo return orderId=${orderId}`);
+      this.logger.warn(
+        `Không tìm thấy booking cho MoMo return orderId=${orderId}`,
+      );
       return {
         success: false,
         message: 'Không tìm thấy đơn đặt vé',
@@ -261,7 +308,8 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
 
     bookingId = booking._id.toString();
 
-    const { success, message: resultMessage } = this.momoService.getResultMessage(resultCode);
+    const { success, message: resultMessage } =
+      this.momoService.getResultMessage(resultCode);
 
     if (booking.status === 'confirmed') {
       return {
@@ -328,7 +376,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async handleMomoIPN(params: MomoCallbackParams): Promise<{ resultCode: number; message: string }> {
+  async handleMomoIPN(
+    params: MomoCallbackParams,
+  ): Promise<{ resultCode: number; message: string }> {
     try {
       const isValidSignature = this.momoService.verifySignature(params);
       if (!isValidSignature) {
@@ -341,7 +391,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       let bookingId: string | undefined;
       try {
         if (extraData) {
-          const decodedData = JSON.parse(Buffer.from(extraData, 'base64').toString('utf-8'));
+          const decodedData = JSON.parse(
+            Buffer.from(extraData, 'base64').toString('utf-8'),
+          );
           bookingId = decodedData.bookingId;
         }
       } catch {
@@ -357,7 +409,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       }
 
       if (!booking) {
-        this.logger.warn(`Không tìm thấy booking cho MoMo IPN orderId=${orderId}`);
+        this.logger.warn(
+          `Không tìm thấy booking cho MoMo IPN orderId=${orderId}`,
+        );
         return { resultCode: 1, message: 'Order not found' };
       }
 
@@ -378,7 +432,8 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       }
 
       const isSuccess = this.momoService.isPaymentSuccess(resultCode);
-      const { message: resultMessage } = this.momoService.getResultMessage(resultCode);
+      const { message: resultMessage } =
+        this.momoService.getResultMessage(resultCode);
 
       if (isSuccess) {
         await this.bookingModel.findByIdAndUpdate(bookingId, {
@@ -418,7 +473,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         body: JSON.stringify(payload),
       });
       if (!response.ok) {
-        this.logger.warn(`Không thể thông báo websocket ${endpoint}: ${response.statusText}`);
+        this.logger.warn(
+          `Không thể thông báo websocket ${endpoint}: ${response.statusText}`,
+        );
       }
     } catch (error) {
       this.logger.error(`Lỗi thông báo websocket ${wsUrl}${endpoint}`, error);
@@ -430,9 +487,10 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       $pull: { booked_seats: { $in: booking.seats } },
     });
 
-    const showtimeId = booking.showtime && booking.showtime._id 
-      ? booking.showtime._id.toString() 
-      : booking.showtime.toString();
+    const showtimeId =
+      booking.showtime && booking.showtime._id
+        ? booking.showtime._id.toString()
+        : booking.showtime.toString();
 
     await this.notifyWebsocket('/internal/booking-released', {
       showtimeId,
@@ -452,7 +510,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     });
 
     if (!booking) {
-      throw new BadRequestException('Đơn hàng không tồn tại hoặc đã được xử lý');
+      throw new BadRequestException(
+        'Đơn hàng không tồn tại hoặc đã được xử lý',
+      );
     }
 
     const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
@@ -463,7 +523,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         status: 'expired',
         payment_note: 'Hết thời gian thanh toán',
       });
-      throw new BadRequestException('Đơn hàng đã hết hạn thanh toán. Vui lòng đặt vé mới.');
+      throw new BadRequestException(
+        'Đơn hàng đã hết hạn thanh toán. Vui lòng đặt vé mới.',
+      );
     }
 
     const newMomoOrderId = this.momoService.generateOrderId();
@@ -472,7 +534,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       momo_order_id: newMomoOrderId,
     });
 
-    const extraData = Buffer.from(JSON.stringify({ bookingId })).toString('base64');
+    const extraData = Buffer.from(JSON.stringify({ bookingId })).toString(
+      'base64',
+    );
 
     const comboCount = booking.combos?.length || 0;
     const orderInfo = `Thanh toan ve xem phim - ${booking.seats.length} ghe${comboCount > 0 ? ` + ${comboCount} combo` : ''}`;
@@ -486,7 +550,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     });
 
     if (momoResponse.resultCode !== 0) {
-      throw new BadRequestException(`Không thể tạo thanh toán MoMo: ${momoResponse.message}`);
+      throw new BadRequestException(
+        `Không thể tạo thanh toán MoMo: ${momoResponse.message}`,
+      );
     }
 
     return {
@@ -496,7 +562,10 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async cancelPendingBooking(bookingId: string, userId: string): Promise<{ message: string }> {
+  async cancelPendingBooking(
+    bookingId: string,
+    userId: string,
+  ): Promise<{ message: string }> {
     const booking = await this.bookingModel.findOne({
       _id: bookingId,
       user: userId,
@@ -504,7 +573,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     });
 
     if (!booking) {
-      throw new BadRequestException('Đơn hàng không tồn tại hoặc đã được xử lý');
+      throw new BadRequestException(
+        'Đơn hàng không tồn tại hoặc đã được xử lý',
+      );
     }
 
     await this.releaseSeats(booking);
@@ -526,11 +597,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       .findById(bookingId)
       .populate({
         path: 'showtime',
-        populate: [
-          { path: 'movie' },
-          { path: 'cinema' },
-          { path: 'room' },
-        ],
+        populate: [{ path: 'movie' }, { path: 'cinema' }, { path: 'room' }],
       })
       .exec();
 
@@ -569,10 +636,15 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
 
   private async postPaymentSuccess(booking: any): Promise<void> {
     try {
-      const bookingId = booking._id ? booking._id.toString() : booking.toString();
-      const userId = booking.user && booking.user._id 
-        ? booking.user._id.toString() 
-        : (booking.user ? booking.user.toString() : '');
+      const bookingId = booking._id
+        ? booking._id.toString()
+        : booking.toString();
+      const userId =
+        booking.user && booking.user._id
+          ? booking.user._id.toString()
+          : booking.user
+            ? booking.user.toString()
+            : '';
 
       if (!userId || !bookingId) {
         this.logger.warn('Không tìm thấy userId hoặc bookingId sau thanh toán');

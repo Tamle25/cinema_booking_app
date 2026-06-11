@@ -10,6 +10,6 @@ import { CinemasService } from './cinemas.service';
   ],
   controllers: [CinemasController],
   providers: [CinemasService],
-  exports: [CinemasService]
+  exports: [CinemasService],
 })
 export class CinemasModule {}

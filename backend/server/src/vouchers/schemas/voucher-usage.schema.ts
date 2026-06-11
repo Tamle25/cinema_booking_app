@@ -9,7 +9,12 @@ export type VoucherUsageDocument = HydratedDocument<VoucherUsage>;
 
 @Schema({ timestamps: true })
 export class VoucherUsage {
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true })
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true,
+  })
   user: User;
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Voucher' })
@@ -18,7 +23,11 @@ export class VoucherUsage {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'UserVoucher' })
   userVoucher: UserVoucher;
 
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Booking', required: true })
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Booking',
+    required: true,
+  })
   order: Booking;
 
   @Prop({ required: true })

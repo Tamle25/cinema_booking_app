@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import SafeImage from '@/components/SafeImage';
 import { useState, useEffect } from "react";
@@ -79,10 +79,10 @@ const FeaturedReviewsSection = () => {
             <div className="w-1.5 h-10 bg-[#E50914] rounded-full" />
             <div>
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
-                BÃ¬nh Luáº­n Ná»•i Báº­t
+                Bình Luận Nổi Bật
               </h2>
               <p className="text-[#666666] text-sm mt-1">
-                ÄÃ¡nh giÃ¡ chÃ¢n thá»±c tá»« khÃ¡n giáº£ Ä‘Ã£ xem phim
+                Đánh giá chân thực từ khán giả đã xem phim
               </p>
             </div>
           </div>
@@ -90,7 +90,7 @@ const FeaturedReviewsSection = () => {
             href="/reviews"
             className="text-[#E50914] hover:text-red-700 font-medium flex items-center gap-1 transition-colors text-sm"
           >
-            Xem táº¥t cáº£
+            Xem tất cả
             <svg
               className="w-4 h-4"
               fill="none"
@@ -167,7 +167,7 @@ const FeaturedReviewsSection = () => {
                     </span>
                     
                     <span className="text-gray-300 text-xs">
-                      {formatCount(item.review_count)} Ä‘Ã¡nh giÃ¡
+                      {formatCount(item.review_count)} đánh giá
                     </span>
                   </div>
                 </div>
@@ -190,7 +190,7 @@ const FeaturedReviewsSection = () => {
                   href={`/review/${item.movie._id}`}
                   className="mt-3 flex items-center justify-center w-full py-2.5 bg-red-50 text-red-600 font-medium text-sm rounded-lg hover:bg-red-100 transition-colors"
                 >
-                  Xem thÃªm
+                  Xem thêm
                 </Link>
               </div>
             </div>

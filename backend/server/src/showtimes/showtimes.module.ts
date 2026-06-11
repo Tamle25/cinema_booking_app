@@ -8,12 +8,14 @@ import { CinemasModule } from '../cinemas/cinemas.module';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Showtime.name, schema: ShowtimeSchema }]),
+    MongooseModule.forFeature([
+      { name: Showtime.name, schema: ShowtimeSchema },
+    ]),
     MoviesModule,
     CinemasModule,
   ],
   controllers: [ShowtimesController],
   providers: [ShowtimesService],
-  exports: [ShowtimesService]
+  exports: [ShowtimesService],
 })
 export class ShowtimesModule {}

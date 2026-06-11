@@ -8,7 +8,8 @@ import { UpdateCinemaSystemDto } from './dto/update-cinema-system.dto';
 @Injectable()
 export class CinemaSystemsService {
   constructor(
-    @InjectModel(CinemaSystem.name) private cinemaSystemModel: Model<CinemaSystem>,
+    @InjectModel(CinemaSystem.name)
+    private cinemaSystemModel: Model<CinemaSystem>,
   ) {}
 
   async create(createDto: CreateCinemaSystemDto): Promise<CinemaSystem> {
@@ -28,7 +29,10 @@ export class CinemaSystemsService {
     return system;
   }
 
-  async update(id: string, updateDto: UpdateCinemaSystemDto): Promise<CinemaSystem> {
+  async update(
+    id: string,
+    updateDto: UpdateCinemaSystemDto,
+  ): Promise<CinemaSystem> {
     const updatedSystem = await this.cinemaSystemModel
       .findByIdAndUpdate(id, updateDto, { new: true })
       .exec();

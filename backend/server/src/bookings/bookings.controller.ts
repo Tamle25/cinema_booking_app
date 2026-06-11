@@ -1,4 +1,11 @@
-import { Body, Controller, Post, Get, UseGuards, Request } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  Get,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 import { AuthGuard } from '@nestjs/passport';
 import { AdminOnly } from '../common/decorators/admin.decorator';

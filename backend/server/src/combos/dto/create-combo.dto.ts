@@ -1,4 +1,11 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsString, IsBoolean, IsIn } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsBoolean,
+  IsIn,
+} from 'class-validator';
 
 export class CreateComboDto {
   @IsNotEmpty()

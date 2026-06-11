@@ -1,4 +1,12 @@
-import { IsNotEmpty, IsString, IsMongoId, IsUrl, IsOptional, IsNumber, IsBoolean } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsMongoId,
+  IsUrl,
+  IsOptional,
+  IsNumber,
+  IsBoolean,
+} from 'class-validator';
 
 export class CreateCinemaDto {
   @IsNotEmpty()

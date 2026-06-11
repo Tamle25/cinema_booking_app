@@ -20,19 +20,29 @@ export class UsersService {
     return this.userModel.findById(id).exec();
   }
 
-  async updateProfile(id: string, updateData: { full_name?: string; avatar_url?: string }): Promise<UserDocument | null> {
-    return this.userModel.findByIdAndUpdate(
-      id,
-      { $set: updateData },
-      { new: true, runValidators: true }
-    ).exec();
+  async updateProfile(
+    id: string,
+    updateData: { full_name?: string; avatar_url?: string },
+  ): Promise<UserDocument | null> {
+    return this.userModel
+      .findByIdAndUpdate(
+        id,
+        { $set: updateData },
+        { new: true, runValidators: true },
+      )
+      .exec();
   }
 
-  async updatePassword(id: string, hashPassword: string): Promise<UserDocument | null> {
-    return this.userModel.findByIdAndUpdate(
-      id,
-      { $set: { password: hashPassword } },
-      { new: true }
-    ).exec();
+  async updatePassword(
+    id: string,
+    hashPassword: string,
+  ): Promise<UserDocument | null> {
+    return this.userModel
+      .findByIdAndUpdate(
+        id,
+        { $set: { password: hashPassword } },
+        { new: true },
+      )
+      .exec();
   }
 }

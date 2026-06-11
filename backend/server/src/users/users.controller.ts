@@ -54,15 +54,18 @@ export class UsersController {
       throw new BadRequestException('Không có dữ liệu hợp lệ để cập nhật');
     }
 
-    const updatedUser = await this.usersService.updateProfile(userId, updateData);
-    
+    const updatedUser = await this.usersService.updateProfile(
+      userId,
+      updateData,
+    );
+
     if (!updatedUser) {
       throw new BadRequestException('Bản ghi người dùng không tồn tại');
     }
 
     const userObject = updatedUser.toObject();
     delete (userObject as any).password;
-    
+
     return userObject;
   }
 
@@ -76,7 +79,9 @@ export class UsersController {
     const { old_password, new_password } = body;
 
     if (!old_password || !new_password) {
-      throw new BadRequestException('Vui lòng cung cấp mật khẩu cũ và mật khẩu mới');
+      throw new BadRequestException(
+        'Vui lòng cung cấp mật khẩu cũ và mật khẩu mới',
+      );
     }
 
     const user = await this.usersService.findById(userId);
@@ -115,7 +120,9 @@ export class UsersController {
   )
   uploadAvatar(@UploadedFile() file: any) {
     if (!file) {
-      throw new BadRequestException('Không có file nào được upload hoặc sai định dạng');
+      throw new BadRequestException(
+        'Không có file nào được upload hoặc sai định dạng',
+      );
     }
     const imageUrl = `/uploads/users/${file.filename}`;
     return { avatar_url: imageUrl };

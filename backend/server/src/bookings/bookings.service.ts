@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Booking } from './schemas/booking.schema';
@@ -29,7 +33,10 @@ export class BookingsService {
     return normalized;
   }
 
-  private async releaseSeats(showtimeId: string, seats: string[]): Promise<void> {
+  private async releaseSeats(
+    showtimeId: string,
+    seats: string[],
+  ): Promise<void> {
     await this.showtimeModel.findByIdAndUpdate(showtimeId, {
       $pull: { booked_seats: { $in: seats } },
     });

@@ -1,10 +1,16 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Showtime } from './schemas/showtime.schema';
 import { CreateShowtimeDto } from './dto/create-showtime.dto';
 import { UpdateShowtimeDto } from './dto/update-showtime.dto';
 import { MoviesService } from '../movies/movies.service';
+import { CinemasService } from '../cinemas/cinemas.service';
 
 const BUFFER_MINUTES = 15;
 const EARTH_RADIUS_KM = 6371;
@@ -14,8 +20,8 @@ export class ShowtimesService {
   constructor(
     @InjectModel(Showtime.name) private showtimeModel: Model<Showtime>,
     private moviesService: MoviesService,
-  ) { }
-
+    private cinemasService: CinemasService,
+  ) {}
 
   private async checkMovieAvailable(movieId: string): Promise<any> {
     const movie = await this.moviesService.findOne(movieId);
@@ -39,14 +45,12 @@ export class ShowtimesService {
     roomId: string,
     startTime: Date,
     endTime: Date,
-    excludeId?: string
+    excludeId?: string,
   ): Promise<void> {
     const filter: any = {
       room: roomId,
       is_active: true,
-      $or: [
-        { start_time: { $lt: endTime }, end_time: { $gt: startTime } }
-      ]
+      $or: [{ start_time: { $lt: endTime }, end_time: { $gt: startTime } }],
     };
 
     if (excludeId) {
@@ -56,22 +60,31 @@ export class ShowtimesService {
     const overlapping = await this.showtimeModel.findOne(filter).exec();
 
     if (overlapping) {
-      const existingStart = new Date(overlapping.start_time).toLocaleString('vi-VN');
-      const existingEnd = new Date(overlapping.end_time).toLocaleString('vi-VN');
+      const existingStart = new Date(overlapping.start_time).toLocaleString(
+        'vi-VN',
+      );
+      const existingEnd = new Date(overlapping.end_time).toLocaleString(
+        'vi-VN',
+      );
       throw new ConflictException(
-        `Phòng đã có suất chiếu từ ${existingStart} đến ${existingEnd}!`
+        `Phòng đã có suất chiếu từ ${existingStart} đến ${existingEnd}!`,
       );
     }
   }
-
 
   async findAll(query?: {
     page?: number;
     limit?: number;
     cinema_id?: string;
+    cinema_system_id?: string;
     movie_id?: string;
     date?: string;
-  }): Promise<{ data: Showtime[]; total: number; page: number; totalPages: number }> {
+  }): Promise<{
+    data: Showtime[];
+    total: number;
+    page: number;
+    totalPages: number;
+  }> {
     const page = query?.page || 1;
     const limit = query?.limit || 10;
     const skip = (page - 1) * limit;
@@ -80,6 +93,10 @@ export class ShowtimesService {
 
     if (query?.cinema_id) {
       filter.cinema = query.cinema_id;
+    } else if (query?.cinema_system_id) {
+      const cinemasInSystem = await this.cinemasService.findBySystem(query.cinema_system_id);
+      const cinemaIds = cinemasInSystem.map(c => (c as any)._id);
+      filter.cinema = { $in: cinemaIds };
     }
     if (query?.movie_id) {
       filter.movie = query.movie_id;
@@ -117,6 +134,7 @@ export class ShowtimesService {
     page?: number;
     limit?: number;
     cinema_id?: string;
+    cinema_system_id?: string;
     movie_id?: string;
     date?: string;
   }): Promise<any> {
@@ -128,6 +146,10 @@ export class ShowtimesService {
 
     if (query?.cinema_id) {
       filter.cinema = query.cinema_id;
+    } else if (query?.cinema_system_id) {
+      const cinemasInSystem = await this.cinemasService.findBySystem(query.cinema_system_id);
+      const cinemaIds = cinemasInSystem.map(c => (c as any)._id);
+      filter.cinema = { $in: cinemaIds };
     }
     if (query?.movie_id) {
       filter.movie = query.movie_id;
@@ -152,11 +174,11 @@ export class ShowtimesService {
         .exec(),
       this.showtimeModel.countDocuments(filter),
     ]);
-    
+
     const totalPages = Math.ceil(totalItems / limit);
 
     return {
-      message: "Lấy danh sách suất chiếu thành công",
+      message: 'Lấy danh sách suất chiếu thành công',
       data,
       meta: {
         currentPage: page,
@@ -165,7 +187,7 @@ export class ShowtimesService {
         totalPages,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
-      }
+      },
     };
   }
 
@@ -177,7 +199,9 @@ export class ShowtimesService {
     const start = new Date(start_time);
     this.checkNotInPast(start);
 
-    const end = new Date(start.getTime() + (movie.duration + BUFFER_MINUTES) * 60000);
+    const end = new Date(
+      start.getTime() + (movie.duration + BUFFER_MINUTES) * 60000,
+    );
 
     await this.checkNoOverlap(room_id, start, end);
 
@@ -201,19 +225,23 @@ export class ShowtimesService {
 
     let newStart: Date | undefined;
     let newEnd: Date | undefined;
-    let roomId = updateDto.room_id || showtime.room.toString();
+    const roomId = updateDto.room_id || showtime.room.toString();
 
     if (updateDto.start_time || updateDto.movie_id) {
       const movieId = updateDto.movie_id || showtime.movie.toString();
       const movie = await this.checkMovieAvailable(movieId);
 
-      newStart = updateDto.start_time ? new Date(updateDto.start_time) : new Date(showtime.start_time);
+      newStart = updateDto.start_time
+        ? new Date(updateDto.start_time)
+        : new Date(showtime.start_time);
 
       if (updateDto.start_time) {
         this.checkNotInPast(newStart);
       }
 
-      newEnd = new Date(newStart.getTime() + (movie.duration + BUFFER_MINUTES) * 60000);
+      newEnd = new Date(
+        newStart.getTime() + (movie.duration + BUFFER_MINUTES) * 60000,
+      );
 
       await this.checkNoOverlap(roomId, newStart, newEnd, id);
 
@@ -224,7 +252,12 @@ export class ShowtimesService {
     if (updateDto.room_id && !updateDto.start_time) {
       const existingStart = new Date(showtime.start_time);
       const existingEnd = new Date(showtime.end_time);
-      await this.checkNoOverlap(updateDto.room_id, existingStart, existingEnd, id);
+      await this.checkNoOverlap(
+        updateDto.room_id,
+        existingStart,
+        existingEnd,
+        id,
+      );
     }
 
     const updateData: any = { ...updateDto };
@@ -279,7 +312,11 @@ export class ShowtimesService {
       .exec();
   }
 
-  async filterShowtimes(cinemaId: string, date?: string, movieId?: string): Promise<Showtime[]> {
+  async filterShowtimes(
+    cinemaId: string,
+    date?: string,
+    movieId?: string,
+  ): Promise<Showtime[]> {
     const filter: any = { cinema: cinemaId, is_active: true };
 
     if (date) {
@@ -306,11 +343,15 @@ export class ShowtimesService {
 
   async getAvailableDates(cinemaId: string): Promise<string[]> {
     const showtimes = await this.showtimeModel
-      .find({ cinema: cinemaId, is_active: true, start_time: { $gte: new Date() } })
+      .find({
+        cinema: cinemaId,
+        is_active: true,
+        start_time: { $gte: new Date() },
+      })
       .select('start_time')
       .exec();
 
-    const dates = showtimes.map(s => {
+    const dates = showtimes.map((s) => {
       const d = new Date(s.start_time);
       return d.toISOString().split('T')[0];
     });
@@ -319,7 +360,8 @@ export class ShowtimesService {
   }
 
   async findOne(id: string): Promise<Showtime> {
-    const showtime = await this.showtimeModel.findById(id)
+    const showtime = await this.showtimeModel
+      .findById(id)
       .populate('movie')
       .populate('cinema')
       .populate('room')
@@ -332,17 +374,20 @@ export class ShowtimesService {
     return showtime;
   }
 
-
   private calculateHaversineDistance(
-    lat1: number, lon1: number,
-    lat2: number, lon2: number,
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
   ): number {
     const dLat = this.toRad(lat2 - lat1);
     const dLon = this.toRad(lon2 - lon1);
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(this.toRad(lat1)) * Math.cos(this.toRad(lat2)) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      Math.cos(this.toRad(lat1)) *
+        Math.cos(this.toRad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return Math.round(EARTH_RADIUS_KM * c * 10) / 10;
   }
@@ -352,23 +397,37 @@ export class ShowtimesService {
   }
 
   private calculateBestScore(
-    price: number, minAllPrice: number, maxAllPrice: number,
-    distance: number | null, minAllDistance: number | null, maxAllDistance: number | null,
-    time: number, minAllTime: number, maxAllTime: number,
+    price: number,
+    minAllPrice: number,
+    maxAllPrice: number,
+    distance: number | null,
+    minAllDistance: number | null,
+    maxAllDistance: number | null,
+    time: number,
+    minAllTime: number,
+    maxAllTime: number,
   ): number {
     const priceRange = maxAllPrice - minAllPrice;
-    const normalizedPrice = priceRange > 0 ? (price - minAllPrice) / priceRange : 0;
+    const normalizedPrice =
+      priceRange > 0 ? (price - minAllPrice) / priceRange : 0;
 
     let normalizedDistance = 0.5;
-    if (distance !== null && minAllDistance !== null && maxAllDistance !== null) {
+    if (
+      distance !== null &&
+      minAllDistance !== null &&
+      maxAllDistance !== null
+    ) {
       const distRange = maxAllDistance - minAllDistance;
-      normalizedDistance = distRange > 0 ? (distance - minAllDistance) / distRange : 0;
+      normalizedDistance =
+        distRange > 0 ? (distance - minAllDistance) / distRange : 0;
     }
 
     const timeRange = maxAllTime - minAllTime;
     const normalizedTime = timeRange > 0 ? (time - minAllTime) / timeRange : 0;
 
-    return normalizedPrice * 0.5 + normalizedDistance * 0.3 + normalizedTime * 0.2;
+    return (
+      normalizedPrice * 0.5 + normalizedDistance * 0.3 + normalizedTime * 0.2
+    );
   }
 
   async compareByMovie(query: {
@@ -402,10 +461,13 @@ export class ShowtimesService {
       return [];
     }
 
-    const cinemaMap = new Map<string, {
-      cinema: any;
-      showtimes: any[];
-    }>();
+    const cinemaMap = new Map<
+      string,
+      {
+        cinema: any;
+        showtimes: any[];
+      }
+    >();
 
     for (const st of showtimes) {
       if (!st.cinema) continue;
@@ -429,44 +491,65 @@ export class ShowtimesService {
       const { cinema, showtimes: cinemaShowtimes } = group;
       const system = cinema.cinema_system;
 
-      const prices = cinemaShowtimes.map(s => s.price).filter(p => p != null && p > 0);
+      const prices = cinemaShowtimes
+        .map((s) => s.price)
+        .filter((p) => p != null && p > 0);
       const minPrice = prices.length > 0 ? Math.min(...prices) : null;
 
       const sortedByTime = [...cinemaShowtimes].sort(
-        (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
+        (a, b) =>
+          new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
       );
       const earliest = sortedByTime[0];
       const earliestTime = new Date(earliest.start_time);
 
       let totalAvailableSeats = 0;
       for (const st of cinemaShowtimes) {
-        const room = st.room as any;
-        const totalSeats = room?.total_seats || (room?.rows * room?.columns) || 0;
+        const room = st.room;
+        const totalSeats = room?.total_seats || room?.rows * room?.columns || 0;
         const bookedCount = (st.booked_seats || []).length;
         totalAvailableSeats += Math.max(0, totalSeats - bookedCount);
       }
 
       let distanceKm: number | null = null;
-      if (hasUserLocation && cinema.latitude != null && cinema.longitude != null) {
+      if (
+        hasUserLocation &&
+        cinema.latitude != null &&
+        cinema.longitude != null
+      ) {
         distanceKm = this.calculateHaversineDistance(
-          userLat!, userLng!, cinema.latitude, cinema.longitude,
+          userLat,
+          userLng,
+          cinema.latitude,
+          cinema.longitude,
         );
       }
 
-      const formattedShowtimes = cinemaShowtimes.map(st => {
-        const room = st.room as any;
-        const totalSeats = room?.total_seats || (room?.rows * room?.columns) || 0;
-        const bookedCount = (st.booked_seats || []).length;
-        return {
-          showtimeId: st._id,
-          startTime: new Date(st.start_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
-          endTime: new Date(st.end_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
-          format: room?.type || '2D',
-          roomName: room?.name || '',
-          price: st.price || 0,
-          availableSeats: Math.max(0, totalSeats - bookedCount),
-        };
-      }).sort((a, b) => a.startTime.localeCompare(b.startTime));
+      const formattedShowtimes = cinemaShowtimes
+        .map((st) => {
+          const room = st.room;
+          const totalSeats =
+            room?.total_seats || room?.rows * room?.columns || 0;
+          const bookedCount = (st.booked_seats || []).length;
+          return {
+            showtimeId: st._id,
+            startTime: new Date(st.start_time).toLocaleTimeString('vi-VN', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            }),
+            endTime: new Date(st.end_time).toLocaleTimeString('vi-VN', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            }),
+            format: room?.type || '2D',
+            roomName: room?.name || '',
+            price: st.price || 0,
+            availableSeats: Math.max(0, totalSeats - bookedCount),
+          };
+        })
+        .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
       results.push({
         cinemaId,
@@ -480,7 +563,11 @@ export class ShowtimesService {
         longitude: cinema.longitude,
         minPrice,
         distanceKm,
-        earliestShowtime: earliestTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+        earliestShowtime: earliestTime.toLocaleTimeString('vi-VN', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        }),
         earliestTimestamp: earliestTime.getTime(),
         availableSeats: totalAvailableSeats,
         labels: [] as string[],
@@ -491,54 +578,82 @@ export class ShowtimesService {
 
     if (results.length === 0) return [];
 
-    const allMinPrices = results.filter(r => r.minPrice != null).map(r => r.minPrice);
+    const allMinPrices = results
+      .filter((r) => r.minPrice != null)
+      .map((r) => r.minPrice);
     if (allMinPrices.length > 0) {
       const cheapest = Math.min(...allMinPrices);
-      results.filter(r => r.minPrice === cheapest).forEach(r => r.labels.push('Rẻ nhất'));
+      results
+        .filter((r) => r.minPrice === cheapest)
+        .forEach((r) => r.labels.push('Rẻ nhất'));
     }
 
-    const allDistances = results.filter(r => r.distanceKm != null).map(r => r.distanceKm);
+    const allDistances = results
+      .filter((r) => r.distanceKm != null)
+      .map((r) => r.distanceKm);
     if (allDistances.length > 0) {
       const nearest = Math.min(...allDistances);
-      results.filter(r => r.distanceKm === nearest).forEach(r => r.labels.push('Gần nhất'));
+      results
+        .filter((r) => r.distanceKm === nearest)
+        .forEach((r) => r.labels.push('Gần nhất'));
     }
 
-    const allEarliestTimes = results.map(r => r.earliestTimestamp);
+    const allEarliestTimes = results.map((r) => r.earliestTimestamp);
     const earliestOfAll = Math.min(...allEarliestTimes);
-    results.filter(r => r.earliestTimestamp === earliestOfAll).forEach(r => r.labels.push('Suất sớm nhất'));
+    results
+      .filter((r) => r.earliestTimestamp === earliestOfAll)
+      .forEach((r) => r.labels.push('Suất sớm nhất'));
 
-    const validPrices = results.filter(r => r.minPrice != null).map(r => r.minPrice);
+    const validPrices = results
+      .filter((r) => r.minPrice != null)
+      .map((r) => r.minPrice);
     const minAllPrice = validPrices.length > 0 ? Math.min(...validPrices) : 0;
     const maxAllPrice = validPrices.length > 0 ? Math.max(...validPrices) : 0;
 
-    const validDistances = results.filter(r => r.distanceKm != null).map(r => r.distanceKm);
-    const minAllDistance = validDistances.length > 0 ? Math.min(...validDistances) : null;
-    const maxAllDistance = validDistances.length > 0 ? Math.max(...validDistances) : null;
+    const validDistances = results
+      .filter((r) => r.distanceKm != null)
+      .map((r) => r.distanceKm);
+    const minAllDistance =
+      validDistances.length > 0 ? Math.min(...validDistances) : null;
+    const maxAllDistance =
+      validDistances.length > 0 ? Math.max(...validDistances) : null;
 
     const minAllTime = Math.min(...allEarliestTimes);
     const maxAllTime = Math.max(...allEarliestTimes);
 
     for (const r of results) {
       r.bestScore = this.calculateBestScore(
-        r.minPrice || 0, minAllPrice, maxAllPrice,
-        r.distanceKm, minAllDistance, maxAllDistance,
-        r.earliestTimestamp, minAllTime, maxAllTime,
+        r.minPrice || 0,
+        minAllPrice,
+        maxAllPrice,
+        r.distanceKm,
+        minAllDistance,
+        maxAllDistance,
+        r.earliestTimestamp,
+        minAllTime,
+        maxAllTime,
       );
     }
 
-    const bestScoreMin = Math.min(...results.map(r => r.bestScore));
-    results.filter(r => r.bestScore === bestScoreMin).forEach(r => {
-      if (!r.labels.includes('Đáng chọn nhất')) {
-        r.labels.push('Đáng chọn nhất');
-      }
-    });
+    const bestScoreMin = Math.min(...results.map((r) => r.bestScore));
+    results
+      .filter((r) => r.bestScore === bestScoreMin)
+      .forEach((r) => {
+        if (!r.labels.includes('Đáng chọn nhất')) {
+          r.labels.push('Đáng chọn nhất');
+        }
+      });
 
     switch (sort) {
       case 'cheapest':
-        results.sort((a, b) => (a.minPrice || Infinity) - (b.minPrice || Infinity));
+        results.sort(
+          (a, b) => (a.minPrice || Infinity) - (b.minPrice || Infinity),
+        );
         break;
       case 'nearest':
-        results.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
+        results.sort(
+          (a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity),
+        );
         break;
       case 'earliest':
         results.sort((a, b) => a.earliestTimestamp - b.earliestTimestamp);
@@ -554,7 +669,7 @@ export class ShowtimesService {
         break;
     }
 
-    return results.map(r => {
+    return results.map((r) => {
       const { earliestTimestamp, bestScore, ...rest } = r;
       return rest;
     });

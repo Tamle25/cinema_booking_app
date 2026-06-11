@@ -7,13 +7,21 @@ export type PointTransactionDocument = HydratedDocument<PointTransaction>;
 
 @Schema({ timestamps: true })
 export class PointTransaction {
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true })
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true,
+  })
   user: User;
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Booking' })
   order: Booking;
 
-  @Prop({ required: true, enum: ['EARN', 'REDEEM', 'EXPIRE', 'REFUND', 'ADJUST'] })
+  @Prop({
+    required: true,
+    enum: ['EARN', 'REDEEM', 'EXPIRE', 'REFUND', 'ADJUST'],
+  })
   type: string;
 
   @Prop({ required: true })
@@ -29,7 +37,8 @@ export class PointTransaction {
   isExpired: boolean;
 }
 
-export const PointTransactionSchema = SchemaFactory.createForClass(PointTransaction);
+export const PointTransactionSchema =
+  SchemaFactory.createForClass(PointTransaction);
 
 PointTransactionSchema.index({ user: 1, createdAt: -1 });
 PointTransactionSchema.index({ type: 1, isExpired: 1, expiredAt: 1 });

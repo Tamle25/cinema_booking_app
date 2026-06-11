@@ -88,7 +88,11 @@ export class ReviewsController {
 
   @UseGuards(AuthGuard('jwt'))
   @Patch(':id')
-  updateReview(@Param('id') id: string, @Body() dto: CreateReviewDto, @Request() req: any) {
+  updateReview(
+    @Param('id') id: string,
+    @Body() dto: CreateReviewDto,
+    @Request() req: any,
+  ) {
     const userId = req.user._id || req.user.id;
     return this.reviewsService.updateReview(id, userId, dto);
   }

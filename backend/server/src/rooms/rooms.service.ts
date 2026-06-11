@@ -7,7 +7,7 @@ import { UpdateRoomDto } from './dto/update-room.dto';
 
 @Injectable()
 export class RoomsService {
-  constructor(@InjectModel(Room.name) private roomModel: Model<Room>) { }
+  constructor(@InjectModel(Room.name) private roomModel: Model<Room>) {}
 
   async create(createDto: CreateRoomDto): Promise<Room> {
     const { cinema_id, rows, columns, ...rest } = createDto;
@@ -109,11 +109,11 @@ export class RoomsService {
         .exec(),
       this.roomModel.countDocuments(filter),
     ]);
-    
+
     const totalPages = Math.ceil(totalItems / limit);
 
     return {
-      message: "Lấy danh sách phòng chiếu thành công",
+      message: 'Lấy danh sách phòng chiếu thành công',
       data,
       meta: {
         currentPage: page,
@@ -122,7 +122,7 @@ export class RoomsService {
         totalPages,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
-      }
+      },
     };
   }
 }

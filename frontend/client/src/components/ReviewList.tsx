@@ -79,12 +79,12 @@ const ReviewList = ({ movieId }: ReviewListProps) => {
         prev.map((r) =>
           r._id === reviewId
             ? {
-                ...r,
-                likes_count: res.data.liked
-                  ? r.likes_count + 1
-                  : r.likes_count - 1,
-                is_liked: res.data.liked,
-              }
+              ...r,
+              likes_count: res.data.liked
+                ? r.likes_count + 1
+                : r.likes_count - 1,
+              is_liked: res.data.liked,
+            }
             : r
         )
       );
@@ -125,18 +125,17 @@ const ReviewList = ({ movieId }: ReviewListProps) => {
 
   return (
     <div>
-      
+
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           {sortOptions.map((opt) => (
             <button
               key={opt.value}
               onClick={() => setSortBy(opt.value as typeof sortBy)}
-              className={`px-4 py-2 text-sm font-medium rounded-full transition-all ${
-                sortBy === opt.value
-                  ? "bg-red-600 text-white shadow-sm"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
+              className={`px-4 py-2 text-sm font-medium rounded-full transition-all ${sortBy === opt.value
+                ? "bg-red-600 text-white shadow-sm"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
             >
               {opt.label}
             </button>
@@ -147,7 +146,7 @@ const ReviewList = ({ movieId }: ReviewListProps) => {
         </span>
       </div>
 
-      
+
       {reviews.length === 0 ? (
         <div className="text-center py-16 bg-gray-50 rounded-xl border border-dashed border-gray-200">
           <svg
@@ -180,7 +179,7 @@ const ReviewList = ({ movieId }: ReviewListProps) => {
         </div>
       )}
 
-      
+
       {hasMore && reviews.length > 0 && (
         <div className="text-center mt-8">
           <button

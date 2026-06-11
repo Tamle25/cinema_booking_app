@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+} from '@nestjs/common';
 import { ShowtimesService } from './showtimes.service';
 import { CreateShowtimeDto } from './dto/create-showtime.dto';
 import { UpdateShowtimeDto } from './dto/update-showtime.dto';
@@ -7,13 +16,14 @@ import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
 
 @Controller('showtimes')
 export class ShowtimesController {
-  constructor(private readonly showtimesService: ShowtimesService) { }
+  constructor(private readonly showtimesService: ShowtimesService) {}
 
   @Get()
   findAll(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('cinema_id') cinema_id?: string,
+    @Query('cinema_system_id') cinema_system_id?: string,
     @Query('movie_id') movie_id?: string,
     @Query('date') date?: string,
   ) {
@@ -21,6 +31,7 @@ export class ShowtimesController {
       page: page ? parseInt(page) : 1,
       limit: limit ? parseInt(limit) : 10,
       cinema_id,
+      cinema_system_id,
       movie_id,
       date,
     });
@@ -32,6 +43,7 @@ export class ShowtimesController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('cinema_id') cinema_id?: string,
+    @Query('cinema_system_id') cinema_system_id?: string,
     @Query('movie_id') movie_id?: string,
     @Query('date') date?: string,
   ) {
@@ -39,6 +51,7 @@ export class ShowtimesController {
       page: page ? parseInt(page) : 1,
       limit: limit ? parseInt(limit) : 10,
       cinema_id,
+      cinema_system_id,
       movie_id,
       date,
     });
@@ -52,7 +65,10 @@ export class ShowtimesController {
 
   @Put(':id')
   @AdminOnly()
-  update(@Param('id', ParseObjectIdPipe) id: string, @Body() updateDto: UpdateShowtimeDto) {
+  update(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Body() updateDto: UpdateShowtimeDto,
+  ) {
     return this.showtimesService.update(id, updateDto);
   }
 

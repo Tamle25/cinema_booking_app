@@ -1,6 +1,15 @@
 import {
-  Controller, Get, Post, Put, Patch, Delete,
-  Body, Query, Req, Param, UseGuards,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Patch,
+  Delete,
+  Body,
+  Query,
+  Req,
+  Param,
+  UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { VouchersService } from './vouchers.service';
@@ -40,12 +49,14 @@ export class VouchersController {
 
   @UseGuards(AuthGuard('jwt'))
   @Post('validate')
-  async validateVoucher(
-    @Req() req: any,
-    @Body() body: ValidateVoucherDto,
-  ) {
+  async validateVoucher(@Req() req: any, @Body() body: ValidateVoucherDto) {
     const userId = req.user._id || req.user.id;
-    return this.vouchersService.validateVoucher(body.code, userId, body.cinemaId, body.orderAmount);
+    return this.vouchersService.validateVoucher(
+      body.code,
+      userId,
+      body.cinemaId,
+      body.orderAmount,
+    );
   }
 
   @Get('active-promotions')

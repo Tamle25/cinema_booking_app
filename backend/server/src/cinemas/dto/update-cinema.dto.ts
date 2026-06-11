@@ -1,4 +1,11 @@
-import { IsString, IsMongoId, IsUrl, IsOptional, IsNumber, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsMongoId,
+  IsUrl,
+  IsOptional,
+  IsNumber,
+  IsBoolean,
+} from 'class-validator';
 
 export class UpdateCinemaDto {
   @IsOptional()

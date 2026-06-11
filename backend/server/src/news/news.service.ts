@@ -11,7 +11,9 @@ import { News } from './schemas/news.schema';
 
 @Injectable()
 export class NewsService {
-  constructor(@InjectModel(News.name) private readonly newsModel: Model<News>) {}
+  constructor(
+    @InjectModel(News.name) private readonly newsModel: Model<News>,
+  ) {}
 
   async findPublished(): Promise<News[]> {
     return this.newsModel
@@ -45,7 +47,10 @@ export class NewsService {
   }
 
   async create(createNewsDto: CreateNewsDto): Promise<News> {
-    const slug = await this.buildUniqueSlug(createNewsDto.title, createNewsDto.slug);
+    const slug = await this.buildUniqueSlug(
+      createNewsDto.title,
+      createNewsDto.slug,
+    );
 
     try {
       const created = new this.newsModel({
@@ -107,7 +112,11 @@ export class NewsService {
     return { message: 'Xóa tin tức thành công' };
   }
 
-  private async buildUniqueSlug(title: string, customSlug?: string, excludeId?: string) {
+  private async buildUniqueSlug(
+    title: string,
+    customSlug?: string,
+    excludeId?: string,
+  ) {
     const baseSlug = this.slugify(customSlug || title);
     let slug = baseSlug;
     let counter = 1;

@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Query, Req, UseGuards, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Query,
+  Req,
+  UseGuards,
+  Param,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { LoyaltyService } from './loyalty.service';
 import { AdminOnly } from '../common/decorators/admin.decorator';
@@ -7,7 +16,6 @@ import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
 @Controller('loyalty')
 export class LoyaltyController {
   constructor(private readonly loyaltyService: LoyaltyService) {}
-
 
   @UseGuards(AuthGuard('jwt'))
   @Get('membership')
@@ -24,7 +32,11 @@ export class LoyaltyController {
     @Query('limit') limit?: string,
   ) {
     const userId = req.user._id || req.user.id;
-    return this.loyaltyService.getPointsHistory(userId, parseInt(page || '1'), parseInt(limit || '20'));
+    return this.loyaltyService.getPointsHistory(
+      userId,
+      parseInt(page || '1'),
+      parseInt(limit || '20'),
+    );
   }
 
   @UseGuards(AuthGuard('jwt'))
@@ -37,7 +49,6 @@ export class LoyaltyController {
       discountPercent: info.discountPercent,
     };
   }
-
 
   @AdminOnly()
   @Get('admin/user-points/:userId')
@@ -52,7 +63,11 @@ export class LoyaltyController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.loyaltyService.getPointsHistory(userId, parseInt(page || '1'), parseInt(limit || '20'));
+    return this.loyaltyService.getPointsHistory(
+      userId,
+      parseInt(page || '1'),
+      parseInt(limit || '20'),
+    );
   }
 
   @AdminOnly()
@@ -65,6 +80,11 @@ export class LoyaltyController {
     if (!body.userId || body.points === undefined || !body.description) {
       throw new Error('Thiếu thông tin: userId, points, description');
     }
-    return this.loyaltyService.adminAdjustPoints(adminId, body.userId, body.points, body.description);
+    return this.loyaltyService.adminAdjustPoints(
+      adminId,
+      body.userId,
+      body.points,
+      body.description,
+    );
   }
 }
