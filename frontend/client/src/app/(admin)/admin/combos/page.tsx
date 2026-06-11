@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import SafeImage from '@/components/SafeImage';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ICombo, ICinemaSystem } from '@/types';
 import Pagination from '@/components/Pagination';
 import { authHeaders } from '@/lib/api';
@@ -36,7 +37,7 @@ export default function AdminCombosPage() {
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-  const fetchCombos = async () => {
+  const fetchCombos = useCallback(async () => {
     try {
       const [combosRes, systemsRes] = await Promise.all([
         fetch(`${API_URL}/combos/all`, { headers: authHeaders() }),
@@ -52,11 +53,11 @@ export default function AdminCombosPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_URL]);
 
   useEffect(() => {
     fetchCombos();
-  }, []);
+  }, [fetchCombos]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
@@ -390,7 +391,7 @@ export default function AdminCombosPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         {combo.image_url ? (
-                          <img
+                          <SafeImage
                             src={combo.image_url.startsWith('/') ? `${API_URL}${combo.image_url}` : combo.image_url}
                             alt={combo.name}
                             className="w-12 h-12 object-cover rounded-lg shadow-sm"
@@ -587,7 +588,7 @@ export default function AdminCombosPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Hình ảnh</label>
                 <div className="flex items-center gap-4">
                   {formData.image_url && (
-                    <img
+                    <SafeImage
                       src={formData.image_url.startsWith('/') ? `${API_URL}${formData.image_url}` : formData.image_url}
                       alt="Preview"
                       className="w-16 h-16 object-cover rounded-lg shadow-sm"

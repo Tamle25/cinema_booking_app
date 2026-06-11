@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toastSuccess, toastError } from '@/utils/toast';
 import { authHeaders, API_URL } from '@/lib/api';
 import Pagination from '@/components/Pagination';
@@ -91,12 +91,7 @@ export default function AdminVouchersPage() {
   const [usageHistory, setUsageHistory] = useState<IUsageHistory[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
-  useEffect(() => {
-    fetchVouchers();
-    fetchCinemas();
-  }, [activeTab]);
-
-  const fetchVouchers = async () => {
+  const fetchVouchers = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/vouchers/admin/list?voucherType=${activeTab}&limit=200`, {
@@ -113,9 +108,9 @@ export default function AdminVouchersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab]);
 
-  const fetchCinemas = async () => {
+  const fetchCinemas = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/cinemas`);
       if (res.ok) {
@@ -125,7 +120,12 @@ export default function AdminVouchersPage() {
     } catch (error) {
       console.error('Lỗi tải danh sách rạp:', error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchVouchers();
+    fetchCinemas();
+  }, [fetchVouchers, fetchCinemas]);
 
   const filteredVouchers = vouchers.filter(v => {
     const matchSearch = v.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

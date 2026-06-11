@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import SafeImage from '@/components/SafeImage';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { INews } from '@/types';
 import Pagination from '@/components/Pagination';
 import { authHeaders } from '@/lib/api';
@@ -34,7 +35,7 @@ export default function AdminNewsPage() {
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-  const fetchNews = async () => {
+  const fetchNews = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/news/admin/all`, {
         headers: authHeaders(),
@@ -46,11 +47,11 @@ export default function AdminNewsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_URL]);
 
   useEffect(() => {
     fetchNews();
-  }, []);
+  }, [fetchNews]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -315,7 +316,7 @@ export default function AdminNewsPage() {
                       <div className="flex items-start gap-4">
                         <div className="w-20 h-14 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
                           {news.thumbnail ? (
-                            <img
+                            <SafeImage
                               src={news.thumbnail.startsWith('/') ? `${API_URL}${news.thumbnail}` : news.thumbnail}
                               alt={news.title}
                               className="w-full h-full object-cover"
@@ -462,7 +463,7 @@ export default function AdminNewsPage() {
                 <div className="flex flex-col md:flex-row gap-4">
                   <div className="w-full md:w-52 h-32 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
                     {formData.thumbnail ? (
-                      <img
+                      <SafeImage
                         src={formData.thumbnail.startsWith('/') ? `${API_URL}${formData.thumbnail}` : formData.thumbnail}
                         alt="Thumbnail"
                         className="w-full h-full object-cover"

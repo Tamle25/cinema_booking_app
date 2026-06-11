@@ -1,5 +1,6 @@
 'use client';
 
+import SafeImage from '@/components/SafeImage';
 import { useEffect, useState, useMemo } from 'react';
 import { authHeaders } from '@/lib/api';
 import { getCloudinaryImageUrl, movieImagePresets } from '@/lib/cloudinary';
@@ -619,7 +620,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
                       {movie.poster_url ? (
-                        <img
+                        <SafeImage
                           src={getCloudinaryImageUrl(movie.poster_url, movieImagePresets.posterThumb)}
                           alt={movie.title}
                           className="w-full h-full object-cover"

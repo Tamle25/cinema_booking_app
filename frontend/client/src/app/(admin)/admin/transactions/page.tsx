@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import SafeImage from '@/components/SafeImage';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Pagination from '@/components/Pagination';
 import { authHeaders } from '@/lib/api';
 import { getCloudinaryImageUrl, movieImagePresets } from '@/lib/cloudinary';
@@ -46,7 +47,7 @@ export default function TransactionsPage() {
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/bookings`, { headers: authHeaders() });
       const data = await res.json();
@@ -56,11 +57,11 @@ export default function TransactionsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_URL]);
 
   useEffect(() => {
     fetchTransactions();
-  }, []);
+  }, [fetchTransactions]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
@@ -244,7 +245,7 @@ export default function TransactionsPage() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           {trans.showtime?.movie?.poster_url && (
-                            <img 
+                            <SafeImage 
                               src={getCloudinaryImageUrl(trans.showtime.movie.poster_url, movieImagePresets.posterThumb)}
                               alt="" 
                               className="w-10 h-14 object-cover rounded shadow-sm"

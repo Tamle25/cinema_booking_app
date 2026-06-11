@@ -1,5 +1,6 @@
 'use client';
 
+import SafeImage from '@/components/SafeImage';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { INews } from '@/types';
@@ -77,7 +78,7 @@ export default function NewsSection() {
                 <div className="relative aspect-[16/10] overflow-hidden bg-gray-100 cursor-pointer">
                   <Link href={`/news/${news.slug}`} className="absolute inset-0 z-10" aria-label={news.title}></Link>
                   {news.thumbnail ? (
-                    <img
+                    <SafeImage
                       src={news.thumbnail.startsWith('/') ? `${API_URL}${news.thumbnail}` : news.thumbnail}
                       alt={news.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"

@@ -84,7 +84,7 @@ export default function AdminRoomsPage() {
             }
         };
         fetchRooms();
-    }, [API_URL, currentPage, filterCinema]);
+    }, [API_URL, currentPage, filterCinema, itemsPerPage]);
 
     // Reset page when filter changes
     useEffect(() => {

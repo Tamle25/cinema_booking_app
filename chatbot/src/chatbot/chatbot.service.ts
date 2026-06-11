@@ -5,6 +5,22 @@ import { IntentService } from '../intent/intent.service';
 import { BackendApiService } from '../backend-api/backend-api.service';
 import { GeminiService } from '../gemini/gemini.service';
 import { MAX_MESSAGE_LENGTH, MAX_HISTORY_MESSAGES } from '../gemini/gemini.constants';
+import {
+  buildBookingUrl,
+  buildLoginUrl,
+  buildMarkdownLink,
+  buildMovieDetailUrl,
+  buildMovieListUrl,
+  buildMovieScheduleUrl,
+  buildMyTicketsUrl,
+  buildNewsUrl,
+  buildProfileUrl,
+  buildShowtimeListUrl,
+  getEntityId,
+  isKnownChatbotRoute,
+  normalizeChatbotReplyLinks,
+} from './chatbot-link.helper';
+import { formatMovieListMarkdown } from './chatbot-movie-format.helper';
 
 @Injectable()
 export class ChatbotService {
@@ -19,7 +35,7 @@ export class ChatbotService {
     private intentService: IntentService,
     private backendApiService: BackendApiService,
     private geminiService: GeminiService,
-  ) {}
+  ) { }
 
   async processMessage(
     dto: ChatbotMessageDto,
@@ -172,7 +188,7 @@ export class ChatbotService {
       // ==============================================================
       if (intentResult.intent === ChatIntent.BOOKING_STATUS && !isAuthenticated) {
         const reply = 'Bạn cần đăng nhập để xem vé đã đặt hoặc lịch sử đặt vé.';
-        const actions = [{ type: 'NAVIGATE' as const, label: 'Đăng nhập', url: '/profile/bookings' }];
+        const actions = [{ type: 'NAVIGATE' as const, label: 'Đăng nhập', url: buildLoginUrl(buildMyTicketsUrl()) }];
         const suggestions = ['Hôm nay có phim gì?', 'Xem lịch chiếu', 'Voucher khuyến mãi'];
 
         this.appendToHistory(context, truncatedMessage, reply, intentResult.intent);
@@ -273,27 +289,35 @@ export class ChatbotService {
       let finalReply = '';
       let responseSource: ResponseSource = 'gemini';
       let modelUsed = '';
+      const structuredReply = this.shouldUseStructuredMovieList(effectiveIntent)
+        ? this.formatRuleBasedResponse(effectiveIntent, backendData)
+        : null;
 
-      try {
-        const geminiResult = await this.geminiService.generateReply({
-          userMessage: truncatedMessage,
-          intent: effectiveIntent,
-          isAuthenticated: isAuthenticated || false,
-          backendData: sanitizedBackendData,
-          context,
-          requestId,
-        });
-
-        if (geminiResult.source === 'gemini') {
-          finalReply = geminiResult.text;
-          modelUsed = geminiResult.model || '';
-        } else {
-          responseSource = 'fallback';
-          finalReply = this.formatRuleBasedResponse(effectiveIntent, backendData) || geminiResult.text;
-        }
-      } catch (geminiError) {
+      if (structuredReply) {
         responseSource = 'fallback';
-        finalReply = this.formatRuleBasedResponse(effectiveIntent, backendData) || 'Mình chưa lấy được dữ liệu lúc này, bạn thử lại sau nhé.';
+        finalReply = structuredReply;
+      } else {
+        try {
+          const geminiResult = await this.geminiService.generateReply({
+            userMessage: truncatedMessage,
+            intent: effectiveIntent,
+            isAuthenticated: isAuthenticated || false,
+            backendData: sanitizedBackendData,
+            context,
+            requestId,
+          });
+
+          if (geminiResult.source === 'gemini') {
+            finalReply = geminiResult.text;
+            modelUsed = geminiResult.model || '';
+          } else {
+            responseSource = 'fallback';
+            finalReply = this.formatRuleBasedResponse(effectiveIntent, backendData) || geminiResult.text;
+          }
+        } catch (geminiError) {
+          responseSource = 'fallback';
+          finalReply = this.formatRuleBasedResponse(effectiveIntent, backendData) || 'Mình chưa lấy được dữ liệu lúc này, bạn thử lại sau nhé.';
+        }
       }
 
       // Validate response
@@ -309,6 +333,8 @@ export class ChatbotService {
           finalReply = this.formatRuleBasedResponse(effectiveIntent, backendData) || 'Hiện chưa có thông tin phù hợp với rạp hoặc bộ phim này.';
         }
       }
+
+      finalReply = normalizeChatbotReplyLinks(finalReply);
 
       // ==============================================================
       // 11. GENERATE ACTIONS & SUGGESTIONS
@@ -424,10 +450,10 @@ export class ChatbotService {
 
   private getSmallTalkReply(message: string): string {
     if (/cảm ơn|cám ơn|thank/.test(message)) {
-      return 'Không có gì! Bạn cần hỗ trợ gì thêm về phim hoặc đặt vé không? 😊';
+      return 'Không có gì! Bạn cần hỗ trợ gì thêm về phim hoặc đặt vé không?';
     }
     if (/tạm biệt|bye/.test(message)) {
-      return 'Tạm biệt bạn! Chúc bạn xem phim vui vẻ! 🎬';
+      return 'Tạm biệt bạn! Chúc bạn xem phim vui vẻ! ';
     }
     return 'Rồi! Bạn cần mình hỗ trợ gì về phim hoặc đặt vé không?';
   }
@@ -475,8 +501,9 @@ export class ChatbotService {
       }
     }
 
-    if (movie && movie._id) {
-      context.lastMovieId = movie._id;
+    const movieId = getEntityId(movie);
+    if (movie && movieId) {
+      context.lastMovieId = movieId;
       context.lastMovieName = movie.title;
       context.lastMovieSlug = movie.slug || '';
     }
@@ -493,8 +520,9 @@ export class ChatbotService {
         }
       }
     }
-    if (cinema && cinema._id) {
-      context.lastCinemaId = cinema._id;
+    const cinemaId = getEntityId(cinema);
+    if (cinema && cinemaId) {
+      context.lastCinemaId = cinemaId;
       context.lastCinemaName = cinema.name;
     }
 
@@ -505,8 +533,9 @@ export class ChatbotService {
         showtime = backendData[0];
       }
     }
-    if (showtime && showtime._id) {
-      context.lastShowtimeId = showtime._id;
+    const showtimeId = getEntityId(showtime);
+    if (showtime && showtimeId) {
+      context.lastShowtimeId = showtimeId;
     }
 
     if (intentResult.date) {
@@ -516,32 +545,33 @@ export class ChatbotService {
     // Generate actions
     if (context.lastMovieId) {
       const id = context.lastMovieId;
+      const detailUrl = buildMovieDetailUrl(id);
+      const scheduleUrl = buildMovieScheduleUrl(id);
       if (intent === ChatIntent.MOVIE_DETAIL) {
-        actions.push({ type: 'NAVIGATE', label: 'Xem chi tiết phim', url: `/movie/${id}` });
-        actions.push({ type: 'NAVIGATE', label: 'Đặt vé ngay', url: `/booking?movieId=${id}` });
+        this.addNavigationAction(actions, 'Xem chi tiết phim', detailUrl);
+        this.addNavigationAction(actions, 'Xem lịch chiếu', scheduleUrl);
       } else if (intent === ChatIntent.SHOWTIMES) {
-        actions.push({ type: 'NAVIGATE', label: 'Xem lịch chiếu', url: `/movie/${id}` });
-        actions.push({ type: 'NAVIGATE', label: 'Đặt vé ngay', url: `/booking?movieId=${id}` });
+        this.addNavigationAction(actions, 'Xem lịch chiếu', scheduleUrl);
       } else if (intent === ChatIntent.BOOKING_GUIDE) {
-        actions.push({ type: 'NAVIGATE', label: 'Đặt vé ngay', url: `/booking?movieId=${id}` });
+        this.addNavigationAction(actions, 'Xem lịch chiếu', scheduleUrl);
       }
     }
 
     if (context.lastShowtimeId && (intent === ChatIntent.SEAT_STATUS || intent === ChatIntent.SHOWTIMES)) {
-      actions.push({ type: 'NAVIGATE', label: 'Chọn ghế', url: `/booking/seats?showtimeId=${context.lastShowtimeId}` });
+      this.addNavigationAction(actions, 'Đặt vé', buildBookingUrl(context.lastShowtimeId));
     }
 
     if (intent === ChatIntent.BOOKING_STATUS) {
-      actions.push({ type: 'NAVIGATE', label: 'Vé của tôi', url: '/profile/bookings' });
+      this.addNavigationAction(actions, 'Vé của tôi', buildMyTicketsUrl());
     }
 
     if (intent === ChatIntent.PROMOTION || intent === ChatIntent.VOUCHER_QUERY) {
-      actions.push({ type: 'NAVIGATE', label: 'Xem khuyến mãi', url: '/promotions' });
+      this.addNavigationAction(actions, 'Xem phim đang chiếu', buildMovieListUrl('now_showing'));
     }
 
     if (intent === ChatIntent.FAQ_POLICY) {
       if (backendData && backendData.url) {
-        actions.push({ type: 'NAVIGATE', label: backendData.label || 'Xem chi tiết', url: backendData.url });
+        this.addNavigationAction(actions, backendData.label || 'Xem chi tiết', backendData.url);
       }
     }
 
@@ -549,15 +579,15 @@ export class ChatbotService {
       const lowerMsg = intentResult.extractedKeyword?.toLowerCase() || '';
       const cleanMsg = this.normalizeString(lowerMsg);
       if (cleanMsg.includes('thanh toan') || cleanMsg.includes('checkout')) {
-        actions.push({ type: 'NAVIGATE', label: 'Thanh toán', url: '/checkout' });
+        this.addNavigationAction(actions, 'Xem lịch chiếu', buildShowtimeListUrl());
       } else if (cleanMsg.includes('tin tuc') || cleanMsg.includes('news')) {
-        actions.push({ type: 'NAVIGATE', label: 'Xem tin tức', url: '/news' });
+        this.addNavigationAction(actions, 'Xem tin tức', buildNewsUrl());
       } else if (cleanMsg.includes('khuyen mai') || cleanMsg.includes('promotions')) {
-        actions.push({ type: 'NAVIGATE', label: 'Xem khuyến mãi', url: '/promotions' });
+        this.addNavigationAction(actions, 'Xem phim đang chiếu', buildMovieListUrl('now_showing'));
       } else if (cleanMsg.includes('ve') || cleanMsg.includes('bookings') || cleanMsg.includes('lich su')) {
-        actions.push({ type: 'NAVIGATE', label: 'Vé của tôi', url: '/profile/bookings' });
+        this.addNavigationAction(actions, 'Vé của tôi', buildMyTicketsUrl());
       } else {
-        actions.push({ type: 'NAVIGATE', label: 'Trang cá nhân', url: '/profile/bookings' });
+        this.addNavigationAction(actions, 'Trang cá nhân', buildProfileUrl());
       }
     }
 
@@ -589,9 +619,24 @@ export class ChatbotService {
     }
   }
 
+  private addNavigationAction(actions: any[], label: string, url?: string | null): void {
+    if (!url || !isKnownChatbotRoute(url)) return;
+    if (actions.some((action) => action.url === url && action.label === label)) return;
+    actions.push({ type: 'NAVIGATE', label, url });
+  }
+
   // ==============================================================
   // RULE-BASED RESPONSE FORMATTERS
   // ==============================================================
+
+  private shouldUseStructuredMovieList(intent: ChatIntent): boolean {
+    return [
+      ChatIntent.NOW_SHOWING,
+      ChatIntent.TODAY_MOVIES,
+      ChatIntent.UPCOMING_MOVIES,
+      ChatIntent.MOVIE_BY_GENRE,
+    ].includes(intent);
+  }
 
   private formatRuleBasedResponse(intent: ChatIntent, data: unknown): string | null {
     try {
@@ -666,36 +711,20 @@ export class ChatbotService {
     if (movie.language) reply += `* Ngôn ngữ: ${movie.language}\n`;
     if (movie.rating) reply += `* Đánh giá: ${movie.rating}/10\n`;
     if (movie.description) reply += `* Nội dung: ${movie.description.substring(0, 120)}...\n`;
-    if (movie.trailer_url) reply += `* Trailer: ${movie.trailer_url}\n`;
-    reply += `\nXem chi tiết: /movie/${movie._id}`;
+    if (movie.trailer_url) reply += `* Trailer: có trong trang chi tiết phim\n`;
+
+    const detailUrl = buildMovieDetailUrl(getEntityId(movie));
+    const detailLink = buildMarkdownLink('Xem chi tiết phim', detailUrl);
+    if (detailLink) {
+      reply += `\n${detailLink}`;
+    } else {
+      reply += '\nHiện tại mình chưa có đường dẫn chi tiết cho phim này. Bạn có thể xem trong danh sách phim đang chiếu.';
+    }
     return reply.trim();
   }
 
   private formatMovieList(data: unknown, type: string): string | null {
-    if (!Array.isArray(data) || data.length === 0) {
-      return `Hiện tại mình chưa tìm thấy phim ${type} nào trong hệ thống.`;
-    }
-
-    const movies = data.slice(0, 5);
-    let reply = `Phim ${type}:\n`;
-    movies.forEach((movie: any, i: number) => {
-      reply += `${i + 1}. **${movie.title || 'Chưa có tên'}**`;
-      if (movie.genres && Array.isArray(movie.genres)) {
-        const genreNames = movie.genres.map((g: any) => g.name || g).filter(Boolean).join(', ');
-        if (genreNames) reply += ` — ${genreNames}`;
-      } else if (movie.genre) {
-        reply += ` — ${movie.genre}`;
-      }
-      if (movie.duration) reply += ` — ${movie.duration} phút`;
-      reply += `\n   Xem chi tiết: /movie/${movie._id}\n`;
-    });
-
-    if (data.length > 5) {
-      reply += `\n...và ${data.length - 5} phim khác.`;
-    }
-
-    reply += `\nBạn muốn xem lịch chiếu phim nào?`;
-    return reply;
+    return formatMovieListMarkdown(data, type);
   }
 
   private formatShowtimes(data: unknown): string | null {
@@ -715,7 +744,12 @@ export class ChatbotService {
       const dateStr = st.start_time
         ? new Date(st.start_time).toLocaleDateString('vi-VN')
         : '';
-      reply += `- **${movieName}** | Rạp: ${cinemaName} | Suất: ${time} (${dateStr})\n`;
+      const bookingLink = buildMarkdownLink('Đặt vé', buildBookingUrl(getEntityId(st)));
+      const movieLink = buildMarkdownLink('Xem chi tiết phim', buildMovieDetailUrl(getEntityId(st.movie || st.movie_id)));
+      reply += `- **${movieName}** | Rạp: ${cinemaName} | Suất: ${time} (${dateStr})`;
+      if (bookingLink) reply += ` | ${bookingLink}`;
+      if (!bookingLink && movieLink) reply += ` | ${movieLink}`;
+      reply += '\n';
     });
 
     if (showtimes.length > 5) {
@@ -843,9 +877,11 @@ export class ChatbotService {
       const movies = data.slice(0, 5);
       let reply = 'Để đặt vé, bạn chọn phim trước nhé:\n';
       movies.forEach((item: any, i: number) => {
-        const title = item.title || item.movie?.title || 'Phim';
-        reply += `${i + 1}. **${title}**\n`;
-      });
+      const title = item.title || item.movie?.title || 'Phim';
+      const movieId = getEntityId(item.title ? item : item.movie);
+      const scheduleLink = buildMarkdownLink(title, buildMovieScheduleUrl(movieId));
+      reply += `${i + 1}. ${scheduleLink || `**${title}**`}\n`;
+    });
       reply += '\nBạn muốn xem phim nào?';
       return reply;
     }

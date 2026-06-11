@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import SafeImage from '@/components/SafeImage';
+import { useEffect, useId, useState } from 'react';
 import { API_URL, authHeaders } from '@/lib/api';
 import { getCloudinaryImageUrl, movieImagePresets } from '@/lib/cloudinary';
 
@@ -81,11 +82,13 @@ export default function MovieImageUpload({
   onUploaded,
   onUploadingChange,
 }: MovieImageUploadProps) {
+  const inputId = useId();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
   const [warnings, setWarnings] = useState<string[]>([]);
   const [meta, setMeta] = useState('');
+  const [selectedFileName, setSelectedFileName] = useState('');
 
   useEffect(() => {
     return () => {
@@ -131,19 +134,17 @@ export default function MovieImageUpload({
     setMeta('');
 
     const objectUrl = URL.createObjectURL(file);
-    setPreviewUrl((oldPreview) => {
-      if (oldPreview?.startsWith('blob:')) URL.revokeObjectURL(oldPreview);
-      return objectUrl;
-    });
 
     if (!ALLOWED_TYPES.includes(file.type)) {
       setError('Chỉ chấp nhận file ảnh JPG, PNG hoặc WebP.');
+      URL.revokeObjectURL(objectUrl);
       event.target.value = '';
       return;
     }
 
     if (file.size > MAX_IMAGE_SIZE_BYTES) {
       setError(`File quá lớn (${formatBytes(file.size)}). Tối đa 8MB.`);
+      URL.revokeObjectURL(objectUrl);
       event.target.value = '';
       return;
     }
@@ -153,6 +154,7 @@ export default function MovieImageUpload({
       dimensions = await getImageDimensions(objectUrl);
     } catch {
       setError('Không đọc được kích thước ảnh. Vui lòng chọn file khác.');
+      URL.revokeObjectURL(objectUrl);
       event.target.value = '';
       return;
     }
@@ -167,9 +169,16 @@ export default function MovieImageUpload({
 
     if (nextErrors.length > 0) {
       setError(nextErrors.join(' '));
+      URL.revokeObjectURL(objectUrl);
       event.target.value = '';
       return;
     }
+
+    setSelectedFileName(file.name);
+    setPreviewUrl((oldPreview) => {
+      if (oldPreview?.startsWith('blob:')) URL.revokeObjectURL(oldPreview);
+      return objectUrl;
+    });
 
     const formData = new FormData();
     formData.append('file', file);
@@ -197,7 +206,10 @@ export default function MovieImageUpload({
         `${uploaded.width}x${uploaded.height} - ${formatBytes(uploaded.bytes)} - ${uploaded.format.toUpperCase()}`,
       );
       onUploaded(type, uploaded);
-      setPreviewUrl(null);
+      setPreviewUrl((oldPreview) => {
+        if (oldPreview?.startsWith('blob:')) URL.revokeObjectURL(oldPreview);
+        return null;
+      });
     } catch (uploadError) {
       setError(
         uploadError instanceof Error
@@ -211,6 +223,11 @@ export default function MovieImageUpload({
   };
 
   const displayUrl = previewUrl || value;
+  const fileStatusText = selectedFileName
+    ? `Đã chọn: ${selectedFileName}`
+    : value
+      ? 'Đang dùng ảnh hiện tại'
+      : 'Chưa chọn ảnh mới';
   const previewSrc =
     previewUrl ||
     getCloudinaryImageUrl(
@@ -236,7 +253,7 @@ export default function MovieImageUpload({
           }`}
       >
         {displayUrl ? (
-          <img
+          <SafeImage
             src={previewSrc}
             alt={`${label} preview`}
             className="w-full h-full object-cover"
@@ -254,12 +271,27 @@ export default function MovieImageUpload({
         )}
       </div>
 
+      <div className="flex min-w-0 items-center gap-3">
+        <label
+          htmlFor={inputId}
+          className={`flex-shrink-0 rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition ${
+            isUploading ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-blue-700'
+          }`}
+        >
+          Chọn ảnh
+        </label>
+        <span className="min-w-0 flex-1 truncate text-sm text-gray-700">
+          {fileStatusText}
+        </span>
+      </div>
+
       <input
+        id={inputId}
         type="file"
         accept={ALLOWED_TYPES.join(',')}
         disabled={isUploading}
         onChange={handleFileChange}
-        className="block w-full text-sm text-gray-700 file:mr-4 file:rounded file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-700 disabled:opacity-60"
+        className="sr-only"
       />
 
       <p className="text-xs text-gray-500">{CLIENT_RULES[type].helper}</p>

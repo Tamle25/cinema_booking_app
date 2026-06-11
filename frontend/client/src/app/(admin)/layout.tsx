@@ -162,11 +162,11 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen overflow-hidden bg-gray-100">
       
-      <aside className="w-64 bg-slate-800 text-white flex flex-col shadow-xl">
+      <aside className="flex h-screen w-64 shrink-0 flex-col overflow-hidden bg-slate-800 text-white shadow-xl">
         
-        <div className="p-5 border-b border-slate-700">
+        <div className="flex-shrink-0 p-5 border-b border-slate-700">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -181,7 +181,7 @@ export default function AdminLayout({
         </div>
 
         
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain p-3">
           {menuItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
             const Icon = item.icon;
@@ -189,20 +189,20 @@ export default function AdminLayout({
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${isActive
+                className={`flex items-center gap-3 rounded-lg px-4 py-2.5 transition-all ${isActive
                     ? 'bg-blue-600 text-white shadow-lg'
                     : 'text-slate-300 hover:bg-slate-700 hover:text-white'
                   }`}
               >
                 <Icon />
-                <span className="font-medium">{item.label}</span>
+                <span className="truncate font-medium">{item.label}</span>
               </Link>
             );
           })}
         </nav>
 
         
-        <div className="p-4 border-t border-slate-700">
+        <div className="flex-shrink-0 border-t border-slate-700 p-4">
           <div className="flex items-center gap-3 mb-3 px-2">
             <div className="w-10 h-10 bg-slate-600 rounded-full flex items-center justify-center">
               <span className="text-sm font-bold">{user?.full_name?.charAt(0) || 'A'}</span>
@@ -223,9 +223,9 @@ export default function AdminLayout({
       </aside>
 
       
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         
-        <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+        <header className="flex-shrink-0 bg-white shadow-sm border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-semibold text-gray-800">
@@ -242,7 +242,7 @@ export default function AdminLayout({
         </header>
 
         
-        <main className="flex-1 overflow-y-scroll p-6 bg-gray-50" style={{ scrollbarGutter: 'stable' }}>
+        <main className="min-h-0 flex-1 overflow-y-auto p-6 bg-gray-50" style={{ scrollbarGutter: 'stable' }}>
           {children}
         </main>
       </div>

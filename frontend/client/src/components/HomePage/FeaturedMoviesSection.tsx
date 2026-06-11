@@ -1,5 +1,6 @@
-"use client";
+﻿"use client";
 
+import SafeImage from '@/components/SafeImage';
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { IMovie } from "@/types";
@@ -124,7 +125,7 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
           className="absolute inset-0 transition-opacity duration-700 ease-in-out"
           style={{ opacity: index === currentIndex ? 1 : 0, zIndex: index === currentIndex ? 1 : 0 }}
         >
-          <img
+          <SafeImage
             src={getCloudinaryImageUrl(
               movie.banner_url || movie.poster_url,
               movieImagePresets.bannerHero,
@@ -163,7 +164,7 @@ const FeaturedMoviesSection = ({ movies }: FeaturedMoviesSectionProps) => {
               className="flex-shrink-0 hidden md:block group"
             >
               <div className="relative w-44 lg:w-52 rounded-2xl overflow-hidden shadow-2xl shadow-black/50 ring-1 ring-white/10 transform transition-transform duration-300 group-hover:scale-105">
-                <img
+                <SafeImage
                   src={getCloudinaryImageUrl(currentMovie.poster_url, movieImagePresets.posterDetail)}
                   alt={currentMovie.title}
                   className="w-full aspect-[2/3] object-cover"

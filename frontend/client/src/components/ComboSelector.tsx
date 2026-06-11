@@ -1,5 +1,6 @@
 'use client';
 
+import SafeImage from '@/components/SafeImage';
 import { useEffect, useState } from 'react';
 import { ICombo, ISelectedCombo } from '@/types';
 
@@ -163,7 +164,7 @@ export default function ComboSelector({ selectedCombos, onCombosChange, cinemaId
 
               <div className={`relative h-36 bg-gradient-to-br ${categoryColors[combo.category] || 'from-gray-600 to-gray-700'} flex items-center justify-center`}>
                 {combo.image_url ? (
-                  <img
+                  <SafeImage
                     src={combo.image_url.startsWith('/') ? `${API_URL}${combo.image_url}` : combo.image_url}
                     alt={combo.name}
                     className="w-full h-full object-cover"

@@ -1,21 +1,44 @@
 'use client';
 
+import SafeImage from '@/components/SafeImage';
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { getCloudinaryImageUrl, movieImagePresets } from "@/lib/cloudinary";
+import {
+  buildMovieDetailUrl,
+  buildMoviesByGenreUrl,
+  buildMoviesSearchUrl,
+  normalizeSearchText,
+} from "@/lib/searchRoutes";
 
 interface IMovie {
   _id: string;
   title: string;
   slug: string;
   poster_url: string;
-  genres: { _id: string; name: string }[];
+  genres: ISearchGenre[];
   duration: number;
   rating: number;
   release_date: string;
 }
+
+interface ISearchGenre {
+  _id: string;
+  name: string;
+  slug?: string;
+}
+
+interface SearchResults {
+  movies: IMovie[];
+  genres: ISearchGenre[];
+}
+
+const EMPTY_SEARCH_RESULTS: SearchResults = {
+  movies: [],
+  genres: [],
+};
 
 const useDebounce = (value: string, delay: number) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -37,11 +60,11 @@ const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<IMovie[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResults>(EMPTY_SEARCH_RESULTS);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [mobileSearchQuery, setMobileSearchQuery] = useState('');
-  const [mobileSearchResults, setMobileSearchResults] = useState<IMovie[]>([]);
+  const [mobileSearchResults, setMobileSearchResults] = useState<SearchResults>(EMPTY_SEARCH_RESULTS);
   const [isMobileSearching, setIsMobileSearching] = useState(false);
   const [showMobileResults, setShowMobileResults] = useState(false);
   
@@ -54,13 +77,21 @@ const Header = () => {
   
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
+  const resetSearch = () => {
+    setShowResults(false);
+    setShowMobileResults(false);
+    setSearchQuery('');
+    setMobileSearchQuery('');
+    setMobileMenuOpen(false);
+  };
+
   const performSearch = useCallback(async (query: string, isMobile = false) => {
     if (!query.trim()) {
       if (isMobile) {
-        setMobileSearchResults([]);
+        setMobileSearchResults(EMPTY_SEARCH_RESULTS);
         setShowMobileResults(false);
       } else {
-        setSearchResults([]);
+        setSearchResults(EMPTY_SEARCH_RESULTS);
         setShowResults(false);
       }
       return;
@@ -76,16 +107,35 @@ const Header = () => {
       const res = await fetch(`${API_URL}/movies`);
       if (res.ok) {
         const movies: IMovie[] = await res.json();
-        const filtered = movies.filter(movie => 
-          movie.title.toLowerCase().includes(query.toLowerCase()) ||
-          movie.genres?.some(g => g.name.toLowerCase().includes(query.toLowerCase()))
+        const normalizedQuery = normalizeSearchText(query);
+        const movieResults = movies.filter(movie =>
+          normalizeSearchText(movie.title).includes(normalizedQuery)
         );
+        const genreMap = new Map<string, ISearchGenre>();
+
+        movies.forEach((movie) => {
+          movie.genres?.forEach((genre) => {
+            const matchesName = normalizeSearchText(genre.name).includes(normalizedQuery);
+            const matchesSlug = genre.slug
+              ? normalizeSearchText(genre.slug).includes(normalizedQuery)
+              : false;
+
+            if (matchesName || matchesSlug) {
+              genreMap.set(genre._id, genre);
+            }
+          });
+        });
+
+        const nextResults = {
+          movies: movieResults.slice(0, 5),
+          genres: Array.from(genreMap.values()).slice(0, 5),
+        };
         
         if (isMobile) {
-          setMobileSearchResults(filtered.slice(0, 5));
+          setMobileSearchResults(nextResults);
           setShowMobileResults(true);
         } else {
-          setSearchResults(filtered.slice(0, 5));
+          setSearchResults(nextResults);
           setShowResults(true);
         }
       }
@@ -123,26 +173,46 @@ const Header = () => {
   }, []);
 
   const handleMovieClick = (movieId: string) => {
-    setShowResults(false);
-    setShowMobileResults(false);
-    setSearchQuery('');
-    setMobileSearchQuery('');
-    setMobileMenuOpen(false);
-    router.push(`/movie/${movieId}`);
+    const url = buildMovieDetailUrl(movieId);
+    if (!url) return;
+
+    resetSearch();
+    router.push(url);
   };
 
-  const submitSearch = (query: string) => {
-    if (query.trim()) {
-      setShowResults(false);
-      setShowMobileResults(false);
-      setMobileMenuOpen(false);
-      router.push(`/?search=${encodeURIComponent(query.trim())}`);
+  const handleGenreClick = (genre: ISearchGenre) => {
+    const url = buildMoviesByGenreUrl(genre);
+    if (!url) return;
+
+    resetSearch();
+    router.push(url);
+  };
+
+  const submitSearch = (query: string, results: SearchResults) => {
+    const movieUrl =
+      results.movies.length === 1 && results.genres.length === 0
+        ? buildMovieDetailUrl(results.movies[0]._id)
+        : null;
+    const genreUrl =
+      results.genres.length === 1 && results.movies.length === 0
+        ? buildMoviesByGenreUrl(results.genres[0])
+        : null;
+    const fallbackUrl = buildMoviesSearchUrl(query);
+    const url = movieUrl || genreUrl || fallbackUrl;
+
+    if (url) {
+      resetSearch();
+      router.push(url);
     }
   };
 
-  const handleSearchSubmit = (e: React.FormEvent, query: string) => {
+  const handleSearchSubmit = (
+    e: React.FormEvent,
+    query: string,
+    results: SearchResults,
+  ) => {
     e.preventDefault();
-    submitSearch(query);
+    submitSearch(query, results);
   };
 
   const SearchResultItem = ({ movie, onClick }: { movie: IMovie; onClick: () => void }) => (
@@ -152,7 +222,7 @@ const Header = () => {
     >
       <div className="w-12 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
         {movie.poster_url ? (
-          <img
+          <SafeImage
             src={getCloudinaryImageUrl(movie.poster_url, movieImagePresets.posterThumb)}
             alt={movie.title}
             className="w-full h-full object-cover"
@@ -181,35 +251,80 @@ const Header = () => {
     </button>
   );
 
+  const SearchGenreItem = ({ genre, onClick }: { genre: ISearchGenre; onClick: () => void }) => (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-3 p-3 hover:bg-red-50 transition-colors text-left"
+    >
+      <div className="w-12 h-12 rounded-lg bg-red-50 text-red-600 flex items-center justify-center flex-shrink-0">
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-gray-900 truncate">{genre.name}</p>
+        <p className="text-sm text-gray-500 truncate">Xem phim thuộc thể loại này</p>
+      </div>
+    </button>
+  );
+
   const SearchResultsDropdown = ({ 
     results, 
     isLoading, 
     query,
     onMovieClick,
+    onGenreClick,
     onSubmit
   }: { 
-    results: IMovie[]; 
+    results: SearchResults; 
     isLoading: boolean;
     query: string;
     onMovieClick: (id: string) => void;
+    onGenreClick: (genre: ISearchGenre) => void;
     onSubmit: () => void;
-  }) => (
+  }) => {
+    const hasMovieResults = results.movies.length > 0;
+    const hasGenreResults = results.genres.length > 0;
+    const hasResults = hasMovieResults || hasGenreResults;
+
+    return (
     <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50">
       {isLoading ? (
         <div className="p-6 text-center">
           <div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
           <p className="text-sm text-gray-500">Đang tìm kiếm...</p>
         </div>
-      ) : results.length > 0 ? (
+      ) : hasResults ? (
         <div>
           <div className="divide-y divide-gray-100">
-            {results.map(movie => (
-              <SearchResultItem 
-                key={movie._id} 
-                movie={movie} 
-                onClick={() => onMovieClick(movie._id)}
-              />
-            ))}
+            {hasMovieResults && (
+              <div>
+                <p className="px-3 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  Phim
+                </p>
+                {results.movies.map(movie => (
+                  <SearchResultItem
+                    key={movie._id}
+                    movie={movie}
+                    onClick={() => onMovieClick(movie._id)}
+                  />
+                ))}
+              </div>
+            )}
+            {hasGenreResults && (
+              <div>
+                <p className="px-3 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  Thể loại
+                </p>
+                {results.genres.map(genre => (
+                  <SearchGenreItem
+                    key={genre._id}
+                    genre={genre}
+                    onClick={() => onGenreClick(genre)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
           <button
             onClick={onSubmit}
@@ -228,7 +343,8 @@ const Header = () => {
         </div>
       )}
     </div>
-  );
+    );
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 h-16 bg-white shadow-sm z-50">
@@ -269,7 +385,7 @@ const Header = () => {
           <div className="flex items-center gap-3">
             
             <div className="hidden md:flex items-center" ref={searchRef}>
-              <form onSubmit={(e) => handleSearchSubmit(e, searchQuery)} className="relative">
+              <form onSubmit={(e) => handleSearchSubmit(e, searchQuery, searchResults)} className="relative">
                 <input
                   ref={inputRef}
                   type="text"
@@ -312,7 +428,8 @@ const Header = () => {
                     isLoading={isSearching}
                     query={searchQuery}
                     onMovieClick={handleMovieClick}
-                    onSubmit={() => submitSearch(searchQuery)}
+                    onGenreClick={handleGenreClick}
+                    onSubmit={() => submitSearch(searchQuery, searchResults)}
                   />
                 )}
               </form>
@@ -347,7 +464,7 @@ const Header = () => {
                     </div>
                     {user.avatar_url ? (
                       <div className="w-9 h-9 rounded-full overflow-hidden border border-gray-200 shadow-md">
-                        <img src={user.avatar_url.startsWith('http') ? user.avatar_url : `${API_URL}${user.avatar_url}`} alt={user.full_name} className="w-full h-full object-cover" />
+                        <SafeImage src={user.avatar_url.startsWith('http') ? user.avatar_url : `${API_URL}${user.avatar_url}`} alt={user.full_name} className="w-full h-full object-cover" />
                       </div>
                     ) : (
                       <div className="w-9 h-9 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
@@ -405,7 +522,7 @@ const Header = () => {
         <div className="lg:hidden absolute top-16 left-0 right-0 bg-white border-t border-gray-100 shadow-lg max-h-[calc(100vh-4rem)] overflow-y-auto">
           
           <div className="px-4 pt-4 pb-2" ref={mobileSearchRef}>
-            <form onSubmit={(e) => handleSearchSubmit(e, mobileSearchQuery)} className="relative">
+            <form onSubmit={(e) => handleSearchSubmit(e, mobileSearchQuery, mobileSearchResults)} className="relative">
               <input
                 type="text"
                 placeholder="Tìm phim, thể loại..."
@@ -447,15 +564,42 @@ const Header = () => {
                   <div className="p-4 text-center">
                     <div className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin mx-auto" />
                   </div>
-                ) : mobileSearchResults.length > 0 ? (
+                ) : mobileSearchResults.movies.length > 0 || mobileSearchResults.genres.length > 0 ? (
                   <div className="divide-y divide-gray-100">
-                    {mobileSearchResults.map(movie => (
-                      <SearchResultItem 
-                        key={movie._id} 
-                        movie={movie} 
-                        onClick={() => handleMovieClick(movie._id)}
-                      />
-                    ))}
+                    {mobileSearchResults.movies.length > 0 && (
+                      <div>
+                        <p className="px-3 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                          Phim
+                        </p>
+                        {mobileSearchResults.movies.map(movie => (
+                          <SearchResultItem
+                            key={movie._id}
+                            movie={movie}
+                            onClick={() => handleMovieClick(movie._id)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    {mobileSearchResults.genres.length > 0 && (
+                      <div>
+                        <p className="px-3 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                          Thể loại
+                        </p>
+                        {mobileSearchResults.genres.map(genre => (
+                          <SearchGenreItem
+                            key={genre._id}
+                            genre={genre}
+                            onClick={() => handleGenreClick(genre)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => submitSearch(mobileSearchQuery, mobileSearchResults)}
+                      className="w-full px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 border-t border-gray-100 transition-colors flex items-center justify-center gap-2"
+                    >
+                      Xem tất cả kết quả cho &quot;{mobileSearchQuery}&quot;
+                    </button>
                   </div>
                 ) : (
                   <div className="p-4 text-center text-sm text-gray-500">

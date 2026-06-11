@@ -1,5 +1,6 @@
 'use client';
 
+import SafeImage from '@/components/SafeImage';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -307,7 +308,7 @@ export default function CompareCinemaSection({ movieId }: CompareCinemaSectionPr
                     
                     <div className="w-10 h-10 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0 p-1">
                       {cinema.brandLogo ? (
-                        <img src={cinema.brandLogo} alt={cinema.brand} className="w-full h-full object-contain" />
+                        <SafeImage src={cinema.brandLogo} alt={cinema.brand} className="w-full h-full object-contain" />
                       ) : (
                         <span className="text-xs font-bold text-gray-500">{cinema.brand?.slice(0, 3)}</span>
                       )}

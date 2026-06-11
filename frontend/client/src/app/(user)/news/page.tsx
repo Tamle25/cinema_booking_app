@@ -1,5 +1,6 @@
 'use client';
 
+import SafeImage from '@/components/SafeImage';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { INews } from '@/types';
@@ -74,7 +75,7 @@ export default function NewsListPage() {
               <article key={news._id} className="group flex flex-col md:flex-row gap-6 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300">
                 <div className="w-full md:w-[35%] lg:w-[30%] aspect-[16/10] md:aspect-[4/3] bg-gray-100 rounded-xl overflow-hidden flex-shrink-0 relative">
                   {news.thumbnail ? (
-                    <img
+                    <SafeImage
                       src={news.thumbnail.startsWith('/') ? `${API_URL}${news.thumbnail}` : news.thumbnail}
                       alt={news.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"

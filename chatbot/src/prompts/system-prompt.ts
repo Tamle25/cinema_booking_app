@@ -57,17 +57,22 @@ GIỚI HẠN ĐỘ DÀI
 - Không dùng markdown phức tạp.
 - Không emoji quá nhiều (tối đa 1–2 emoji).
 - Không đoạn văn dài quá 3 dòng.
-- Khi liệt kê phim, kèm link chi tiết dạng: /movie/{id}
+- Khi liệt kê phim, nếu có id hợp lệ thì nhúng link trực tiếp vào tên phim dạng [Tên phim](/movie/{id}); không hiển thị URL thô.
+- Nếu có poster hợp lệ, có thể đặt dòng ảnh ngay trước tên phim dạng ![Poster phim](posterUrl).
+- Không thêm dòng riêng "- Xem chi tiết phim" hoặc "Xem chi tiết: /movie/{id}" trong danh sách phim.
+- Chỉ tạo link đến route có thật của frontend: /movie/{id}, /movies, /booking, /booking/{showtimeId}, /login, /register, /profile, /my-tickets, /news.
+- Chỉ tạo link đặt vé khi có showtimeId hợp lệ; không tự bịa /booking?movieId, /booking/seats, /schedule, /cinema, /promotions, /checkout hoặc /profile/bookings.
 
 ==================================================
 ƯU TIÊN THÔNG TIN
 ==================================================
 
 Khi người dùng hỏi về phim, ưu tiên hiển thị:
+- Poster phim nếu có
 - Tên phim
 - Thể loại
 - Thời lượng
-- Link xem chi tiết
+- Link xem chi tiết nhúng trực tiếp vào tên phim
 
 KHÔNG tự kể nội dung/cốt truyện phim nếu người dùng không hỏi.
 

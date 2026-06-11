@@ -1,5 +1,6 @@
 'use client';
 
+import SafeImage from '@/components/SafeImage';
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { IMovie, IGenre } from '@/types/index';
@@ -227,7 +228,7 @@ export default function MovieListPage() {
                   <tr key={movie._id} className="hover:bg-gray-50 transition">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
-                        <img 
+                        <SafeImage 
                           src={getCloudinaryImageUrl(movie.poster_url, movieImagePresets.posterThumb)}
                           alt={movie.title}
                           className="w-12 h-16 object-cover rounded shadow-sm" 

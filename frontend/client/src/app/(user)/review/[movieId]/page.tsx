@@ -1,5 +1,6 @@
-"use client";
+﻿"use client";
 
+import SafeImage from '@/components/SafeImage';
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { IMovie } from "@/types";
@@ -37,7 +38,7 @@ export default function ReviewDetailPage() {
         const res = await axios.get(`${API_URL}/movies/${movieId}`);
         setMovie(res.data);
       } catch (error) {
-        console.error("Lỗi tải phim:", error);
+        console.error("Lá»—i táº£i phim:", error);
       } finally {
         setLoading(false);
       }
@@ -65,7 +66,7 @@ export default function ReviewDetailPage() {
         setHasTicket(res.data.hasTicket);
         setCanReview(res.data.hasTicket && !res.data.hasReviewed);
       } catch (error) {
-        console.error("Lỗi kiểm tra status:", error);
+        console.error("Lá»—i kiá»ƒm tra status:", error);
       }
     };
 
@@ -76,17 +77,17 @@ export default function ReviewDetailPage() {
     e.preventDefault();
 
     if (reviewRating === 0) {
-      toastWarning("Vui lòng chọn điểm đánh giá");
+      toastWarning("Vui lÃ²ng chá»n Ä‘iá»ƒm Ä‘Ã¡nh giÃ¡");
       return;
     }
     if (reviewContent.trim().length < 10) {
-      toastWarning("Nội dung đánh giá phải có ít nhất 10 ký tự");
+      toastWarning("Ná»™i dung Ä‘Ã¡nh giÃ¡ pháº£i cÃ³ Ã­t nháº¥t 10 kÃ½ tá»±");
       return;
     }
 
     const token = localStorage.getItem("access_token");
     if (!token) {
-      toastWarning("Vui lòng đăng nhập");
+      toastWarning("Vui lÃ²ng Ä‘Äƒng nháº­p");
       return;
     }
 
@@ -102,7 +103,7 @@ export default function ReviewDetailPage() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      toastSuccess("Đánh giá thành công!");
+      toastSuccess("ÄÃ¡nh giÃ¡ thÃ nh cÃ´ng!");
       setReviewRating(0);
       setReviewContent("");
       setShowForm(false);
@@ -111,8 +112,8 @@ export default function ReviewDetailPage() {
       setRefreshKey((k) => k + 1);
     } catch (error) {
       const msg = axios.isAxiosError(error)
-        ? getResponseMessage(error.response?.data?.message, "Có lỗi xảy ra khi gửi đánh giá")
-        : getErrorMessage(error, "Có lỗi xảy ra khi gửi đánh giá");
+        ? getResponseMessage(error.response?.data?.message, "CÃ³ lá»—i xáº£y ra khi gá»­i Ä‘Ã¡nh giÃ¡")
+        : getErrorMessage(error, "CÃ³ lá»—i xáº£y ra khi gá»­i Ä‘Ã¡nh giÃ¡");
       toastError(msg);
     } finally {
       setSubmitting(false);
@@ -130,7 +131,7 @@ export default function ReviewDetailPage() {
   if (!movie) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Không tìm thấy phim</p>
+        <p className="text-gray-500">KhÃ´ng tÃ¬m tháº¥y phim</p>
       </div>
     );
   }
@@ -152,7 +153,7 @@ export default function ReviewDetailPage() {
             <div className="flex items-end gap-6">
               
               <div className="hidden md:block flex-shrink-0">
-                <img
+                <SafeImage
                   src={getCloudinaryImageUrl(movie.poster_url, movieImagePresets.posterDetail)}
                   alt={movie.title}
                   className="w-32 h-48 object-cover rounded-xl shadow-2xl border-2 border-gray-600"
@@ -194,7 +195,7 @@ export default function ReviewDetailPage() {
                     <span className="font-semibold text-white">
                       {movie.review_count || 0}
                     </span>{" "}
-                    đánh giá
+                    Ä‘Ã¡nh giÃ¡
                   </div>
                 </div>
               </div>
@@ -210,13 +211,13 @@ export default function ReviewDetailPage() {
           {!user ? (
             <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
               <p className="text-gray-600 mb-3">
-                Đăng nhập để viết đánh giá
+                ÄÄƒng nháº­p Ä‘á»ƒ viáº¿t Ä‘Ã¡nh giÃ¡
               </p>
               <Link
                 href="/login"
                 className="inline-flex items-center gap-2 px-6 py-2.5 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-colors"
               >
-                Đăng nhập
+                ÄÄƒng nháº­p
               </Link>
             </div>
           ) : hasReviewed ? (
@@ -229,7 +230,7 @@ export default function ReviewDetailPage() {
                     clipRule="evenodd"
                   />
                 </svg>
-                Bạn đã đánh giá phim này
+                Báº¡n Ä‘Ã£ Ä‘Ã¡nh giÃ¡ phim nÃ y
               </div>
             </div>
           ) : !hasTicket ? (
@@ -243,13 +244,13 @@ export default function ReviewDetailPage() {
                     d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"
                   />
                 </svg>
-                Bạn cần mua vé để đánh giá phim này
+                Báº¡n cáº§n mua vÃ© Ä‘á»ƒ Ä‘Ã¡nh giÃ¡ phim nÃ y
               </div>
               <Link
                 href={`/movie/${movie._id}`}
                 className="inline-flex items-center gap-2 mt-3 px-6 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
               >
-                Đặt vé ngay
+                Äáº·t vÃ© ngay
               </Link>
             </div>
           ) : canReview && !showForm ? (
@@ -266,7 +267,7 @@ export default function ReviewDetailPage() {
                     d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
                   />
                 </svg>
-                Viết đánh giá
+                Viáº¿t Ä‘Ã¡nh giÃ¡
               </div>
             </button>
           ) : null}
@@ -278,13 +279,13 @@ export default function ReviewDetailPage() {
               className="bg-white rounded-xl border border-gray-200 p-6 space-y-5 shadow-sm"
             >
               <h3 className="font-bold text-gray-900 text-lg">
-                Đánh giá phim
+                ÄÃ¡nh giÃ¡ phim
               </h3>
 
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Điểm đánh giá
+                  Äiá»ƒm Ä‘Ã¡nh giÃ¡
                 </label>
                 <div className="flex items-center gap-1">
                   {Array.from({ length: 10 }).map((_, i) => {
@@ -323,14 +324,14 @@ export default function ReviewDetailPage() {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nội dung đánh giá
+                  Ná»™i dung Ä‘Ã¡nh giÃ¡
                 </label>
                 <textarea
                   value={reviewContent}
                   onChange={(e) => setReviewContent(e.target.value)}
                   rows={4}
                   maxLength={1000}
-                  placeholder="Chia sẻ cảm nhận của bạn về phim... (ít nhất 10 ký tự)"
+                  placeholder="Chia sáº» cáº£m nháº­n cá»§a báº¡n vá» phim... (Ã­t nháº¥t 10 kÃ½ tá»±)"
                   className="w-full border border-gray-300 rounded-lg p-3 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none resize-none"
                 />
                 <p className="text-xs text-gray-400 mt-1 text-right">
@@ -345,7 +346,7 @@ export default function ReviewDetailPage() {
                   onClick={() => setShowForm(false)}
                   className="px-5 py-2.5 text-gray-600 font-medium rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  Hủy
+                  Há»§y
                 </button>
                 <button
                   type="submit"
@@ -355,10 +356,10 @@ export default function ReviewDetailPage() {
                   {submitting ? (
                     <span className="flex items-center gap-2">
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Đang gửi...
+                      Äang gá»­i...
                     </span>
                   ) : (
-                    "Gửi đánh giá"
+                    "Gá»­i Ä‘Ã¡nh giÃ¡"
                   )}
                 </button>
               </div>

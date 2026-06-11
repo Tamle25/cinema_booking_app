@@ -1,12 +1,43 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { IComparedCinema } from '@/types';
 
 const DEFAULT_MAP_CENTER: L.LatLngExpression = [21.0285, 105.8542];
+
+const defaultIcon = L.icon({
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+L.Marker.prototype.options.icon = defaultIcon;
+
+const mapIcons = {
+  user: L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+  }),
+  cinema: L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+  }),
+};
 
 const isValidCoords = (coords: { lat: number; lng: number } | null | undefined): coords is { lat: number; lng: number } => {
   return (
@@ -63,46 +94,6 @@ interface CinemaMapProps {
 }
 
 export default function CinemaMapInner({ cinemas, userCoords, onSelectCinema }: CinemaMapProps) {
-  const [icons, setIcons] = useState<{
-    user: L.Icon;
-    cinema: L.Icon;
-  } | null>(null);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const defaultIcon = L.icon({
-        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowSize: [41, 41],
-      });
-      L.Marker.prototype.options.icon = defaultIcon;
-
-      const userIcon = L.icon({
-        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowSize: [41, 41],
-      });
-
-      const cinemaIcon = L.icon({
-        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowSize: [41, 41],
-      });
-
-      setIcons({ user: userIcon, cinema: cinemaIcon });
-    }
-  }, []);
-
   const defaultCenter: L.LatLngExpression = isValidCoords(userCoords)
     ? [userCoords.lat, userCoords.lng]
     : DEFAULT_MAP_CENTER;
@@ -114,14 +105,6 @@ export default function CinemaMapInner({ cinemas, userCoords, onSelectCinema }: 
       !isNaN(c.latitude) &&
       !isNaN(c.longitude)
   );
-
-  if (!icons) {
-    return (
-      <div className="w-full h-full rounded-xl bg-gray-100 flex items-center justify-center text-sm text-gray-500 animate-pulse" style={{ minHeight: '400px' }}>
-        Đang khởi tạo bản đồ...
-      </div>
-    );
-  }
 
   return (
     <div className="w-full h-full rounded-xl overflow-hidden border border-gray-200 shadow-sm">
@@ -141,7 +124,7 @@ export default function CinemaMapInner({ cinemas, userCoords, onSelectCinema }: 
 
         {/* User location marker */}
         {isValidCoords(userCoords) && (
-          <Marker position={[userCoords.lat, userCoords.lng]} icon={icons.user}>
+          <Marker position={[userCoords.lat, userCoords.lng]} icon={mapIcons.user}>
             <Popup>
               <div className="text-center">
                 <p className="font-bold text-gray-800 text-sm">Vị trí của bạn</p>
@@ -155,7 +138,7 @@ export default function CinemaMapInner({ cinemas, userCoords, onSelectCinema }: 
           <Marker
             key={cinema.cinemaId}
             position={[cinema.latitude, cinema.longitude]}
-            icon={icons.cinema}
+            icon={mapIcons.cinema}
           >
             <Popup>
               <div className="min-w-[200px]">

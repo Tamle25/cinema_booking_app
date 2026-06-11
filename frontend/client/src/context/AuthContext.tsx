@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface User {
@@ -61,7 +61,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     checkLogin();
   }, []);
 
-  const login = (token: string, userData: User) => {
+  const login = useCallback((token: string, userData: User) => {
     localStorage.setItem('access_token', token);
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
@@ -71,25 +71,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } else {
       router.push('/');
     }
-  };
+  }, [router]);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('user');
     setUser(null);
     router.push('/login');
-  };
+  }, [router]);
 
-  const updateUser = (userData: Partial<User>) => {
-    if (user) {
-      const updated = { ...user, ...userData };
-      setUser(updated);
+  const updateUser = useCallback((userData: Partial<User>) => {
+    setUser((currentUser) => {
+      if (!currentUser) return currentUser;
+      const updated = { ...currentUser, ...userData };
       localStorage.setItem('user', JSON.stringify(updated));
-    }
-  };
+      return updated;
+    });
+  }, []);
+
+  const value = useMemo(
+    () => ({ user, login, logout, updateUser, loading }),
+    [user, login, logout, updateUser, loading],
+  );
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, updateUser, loading }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

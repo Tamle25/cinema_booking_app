@@ -1,5 +1,6 @@
-"use client";
+﻿"use client";
 
+import SafeImage from '@/components/SafeImage';
 import { IReview } from "@/types";
 
 const getRelativeTime = (dateStr: string) => {
@@ -10,10 +11,10 @@ const getRelativeTime = (dateStr: string) => {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return "Vừa xong";
-  if (diffMins < 60) return `${diffMins} phút trước`;
-  if (diffHours < 24) return `${diffHours} giờ trước`;
-  if (diffDays < 30) return `${diffDays} ngày trước`;
+  if (diffMins < 1) return "Vá»«a xong";
+  if (diffMins < 60) return `${diffMins} phÃºt trÆ°á»›c`;
+  if (diffHours < 24) return `${diffHours} giá» trÆ°á»›c`;
+  if (diffDays < 30) return `${diffDays} ngÃ y trÆ°á»›c`;
   return date.toLocaleDateString("vi-VN");
 };
 
@@ -26,7 +27,7 @@ interface ReviewCardProps {
 const ReviewCard = ({ review, compact = false, onLike }: ReviewCardProps) => {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-  const userName = review.user?.full_name || "Người dùng";
+  const userName = review.user?.full_name || "NgÆ°á»i dÃ¹ng";
   const userAvatar = review.user?.avatar_url || null;
   const userInitial = userName.charAt(0).toUpperCase();
 
@@ -42,7 +43,7 @@ const ReviewCard = ({ review, compact = false, onLike }: ReviewCardProps) => {
         <div className="flex-shrink-0">
           {userAvatar ? (
             <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-200">
-              <img
+              <SafeImage
                 src={
                   userAvatar.startsWith("http")
                     ? userAvatar
@@ -80,7 +81,7 @@ const ReviewCard = ({ review, compact = false, onLike }: ReviewCardProps) => {
                     clipRule="evenodd"
                   />
                 </svg>
-                Đã mua vé
+                ÄÃ£ mua vÃ©
               </span>
             )}
           </div>
@@ -104,7 +105,7 @@ const ReviewCard = ({ review, compact = false, onLike }: ReviewCardProps) => {
             <span className="text-sm font-bold text-yellow-600">
               {review.rating}/10
             </span>
-            <span className="text-xs text-gray-400">•</span>
+            <span className="text-xs text-gray-400">â€¢</span>
             <span className="text-xs text-gray-400">
               {getRelativeTime(review.createdAt)}
             </span>
@@ -138,7 +139,7 @@ const ReviewCard = ({ review, compact = false, onLike }: ReviewCardProps) => {
                 d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
               />
             </svg>
-            <span>{review.likes_count > 0 ? review.likes_count : "Thích"}</span>
+            <span>{review.likes_count > 0 ? review.likes_count : "ThÃ­ch"}</span>
           </button>
         </div>
       )}

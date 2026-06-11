@@ -1,5 +1,6 @@
-"use client";
+﻿"use client";
 
+import SafeImage from '@/components/SafeImage';
 import { useState, useEffect } from "react";
 import { ICinemaChain } from "@/types";
 import axios from "axios";
@@ -15,7 +16,7 @@ const CinemaPartnersSection = () => {
         const res = await axios.get(`${API_URL}/cinema-systems`);
         setCinemaChains(res.data);
       } catch (error) {
-        console.error("Lỗi tải danh sách rạp đối tác:", error);
+        console.error("Lá»—i táº£i danh sÃ¡ch ráº¡p Ä‘á»‘i tÃ¡c:", error);
       } finally {
         setLoading(false);
       }
@@ -68,12 +69,12 @@ const CinemaPartnersSection = () => {
             <div className="flex items-center justify-center gap-3 mb-2">
               <div className="w-8 h-px bg-gray-300" />
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
-                Hệ Thống Rạp Đối Tác
+                Há»‡ Thá»‘ng Ráº¡p Äá»‘i TÃ¡c
               </h2>
               <div className="w-8 h-px bg-gray-300" />
             </div>
             <p className="text-[#666666] text-sm">
-              Mạng lưới rạp chiếu phim hàng đầu trên toàn quốc
+              Máº¡ng lÆ°á»›i ráº¡p chiáº¿u phim hÃ ng Ä‘áº§u trÃªn toÃ n quá»‘c
             </p>
           </div>
         </div>
@@ -88,7 +89,7 @@ const CinemaPartnersSection = () => {
               
               <div className="w-16 h-16 md:w-20 md:h-20 rounded-xl overflow-hidden flex items-center justify-center bg-gray-50 group-hover:bg-red-50 transition-colors duration-300">
                 {chain.logo_url ? (
-                  <img
+                  <SafeImage
                     src={
                       chain.logo_url.startsWith("http")
                         ? chain.logo_url

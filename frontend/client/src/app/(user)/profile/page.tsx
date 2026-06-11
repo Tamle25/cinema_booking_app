@@ -1,6 +1,7 @@
-'use client';
+﻿'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import SafeImage from '@/components/SafeImage';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -61,6 +62,9 @@ export default function ProfilePage() {
   const [isLoadingBookings, setIsLoadingBookings] = useState(true);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const userId = user?._id || user?.id;
+  const userFullName = user?.full_name;
+  const userAvatarUrl = user?.avatar_url;
 
   const getRankGradient = (rank?: string) => {
     switch (rank) {
@@ -84,51 +88,18 @@ export default function ProfilePage() {
 
   const getTransactionTypeStyle = (type: string) => {
     switch (type) {
-      case 'EARN': return { bg: 'bg-green-50 text-green-700 border-green-200', text: '+', label: 'Tích điểm' };
-      case 'REFUND': return { bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', text: '+', label: 'Hoàn điểm' };
-      case 'REDEEM': return { bg: 'bg-red-50 text-red-700 border-red-200', text: '-', label: 'Đổi voucher' };
-      case 'EXPIRE': return { bg: 'bg-gray-50 text-gray-500 border-gray-200', text: '-', label: 'Hết hạn' };
-      case 'ADJUST': return { bg: 'bg-blue-50 text-blue-700 border-blue-200', text: '', label: 'Điều chỉnh' };
-      default: return { bg: 'bg-gray-50 text-gray-700 border-gray-200', text: '', label: 'Khác' };
+      case 'EARN': return { bg: 'bg-green-50 text-green-700 border-green-200', text: '+', label: 'TÃ­ch Ä‘iá»ƒm' };
+      case 'REFUND': return { bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', text: '+', label: 'HoÃ n Ä‘iá»ƒm' };
+      case 'REDEEM': return { bg: 'bg-red-50 text-red-700 border-red-200', text: '-', label: 'Äá»•i voucher' };
+      case 'EXPIRE': return { bg: 'bg-gray-50 text-gray-500 border-gray-200', text: '-', label: 'Háº¿t háº¡n' };
+      case 'ADJUST': return { bg: 'bg-blue-50 text-blue-700 border-blue-200', text: '', label: 'Äiá»u chá»‰nh' };
+      default: return { bg: 'bg-gray-50 text-gray-700 border-gray-200', text: '', label: 'KhÃ¡c' };
     }
   };
 
-  useEffect(() => {
-    if (user) {
-      setFullName(user.full_name || '');
-      setAvatarUrl(user.avatar_url || '');
-    }
-  }, [user?.full_name, user?.avatar_url]);
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      router.push('/login');
-      return;
-    }
 
-    const fetchAllBookings = async () => {
-      try {
-        const token = localStorage.getItem('access_token');
-        const res = await fetch(`${API_URL}/bookings/my-bookings`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setAllBookings(data);
-        }
-      } catch (error) {
-        console.error('Lỗi tải danh sách vé:', error);
-      } finally {
-        setIsLoadingBookings(false);
-      }
-    };
-    
-    fetchAllBookings();
-    loadMembershipData();
-  }, [user?._id, authLoading, router, API_URL]);
-
-  const loadMembershipData = async () => {
+  const loadMembershipData = useCallback(async () => {
     const token = localStorage.getItem('access_token');
     if (!token) return;
 
@@ -147,13 +118,13 @@ export default function ProfilePage() {
         });
       }
     } catch (error) {
-      console.error('Lỗi tải thông tin membership:', error);
+      console.error('Lá»—i táº£i thÃ´ng tin membership:', error);
     } finally {
       setIsLoadingMembership(false);
     }
-  };
+  }, [API_URL, updateUser]);
 
-  const loadPointsHistory = async () => {
+  const loadPointsHistory = useCallback(async () => {
     const token = localStorage.getItem('access_token');
     if (!token) return;
 
@@ -167,13 +138,13 @@ export default function ProfilePage() {
         setPointsHistory(data.transactions || data || []);
       }
     } catch (error) {
-      console.error('Lỗi tải lịch sử điểm:', error);
+      console.error('Lá»—i táº£i lá»‹ch sá»­ Ä‘iá»ƒm:', error);
     } finally {
       setIsLoadingPoints(false);
     }
-  };
+  }, [API_URL]);
 
-  const loadExchangeableVouchers = async () => {
+  const loadExchangeableVouchers = useCallback(async () => {
     const token = localStorage.getItem('access_token');
     if (!token) return;
 
@@ -187,13 +158,13 @@ export default function ProfilePage() {
         setExchangeableVouchers(data);
       }
     } catch (error) {
-      console.error('Lỗi tải danh sách voucher đổi điểm:', error);
+      console.error('Lá»—i táº£i danh sÃ¡ch voucher Ä‘á»•i Ä‘iá»ƒm:', error);
     } finally {
       setIsLoadingExchange(false);
     }
-  };
+  }, [API_URL]);
 
-  const loadMyVouchers = async () => {
+  const loadMyVouchers = useCallback(async () => {
     const token = localStorage.getItem('access_token');
     if (!token) return;
 
@@ -207,12 +178,46 @@ export default function ProfilePage() {
         setMyVouchers(data);
       }
     } catch (error) {
-      console.error('Lỗi tải danh sách voucher cá nhân:', error);
+      console.error('Lá»—i táº£i danh sÃ¡ch voucher cÃ¡ nhÃ¢n:', error);
     } finally {
       setIsLoadingVouchers(false);
     }
-  };
+  }, [API_URL]);
 
+  useEffect(() => {
+    if (userFullName || userAvatarUrl) {
+      setFullName(userFullName || '');
+      setAvatarUrl(userAvatarUrl || '');
+    }
+  }, [userFullName, userAvatarUrl]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!userId) {
+      router.push('/login');
+      return;
+    }
+
+    const fetchAllBookings = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        const res = await fetch(`${API_URL}/bookings/my-bookings`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setAllBookings(data);
+        }
+      } catch (error) {
+        console.error('Error loading bookings:', error);
+      } finally {
+        setIsLoadingBookings(false);
+      }
+    };
+
+    fetchAllBookings();
+    loadMembershipData();
+  }, [userId, authLoading, router, API_URL, loadMembershipData]);
   useEffect(() => {
     if (activeTab === 'membership') {
       loadPointsHistory();
@@ -221,12 +226,12 @@ export default function ProfilePage() {
     } else if (activeTab === 'my-vouchers') {
       loadMyVouchers();
     }
-  }, [activeTab]);
+  }, [activeTab, loadExchangeableVouchers, loadMyVouchers, loadPointsHistory]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim()) {
-      setProfileMessage({ type: 'error', text: 'Tên hiển thị không được để trống' });
+      setProfileMessage({ type: 'error', text: 'TÃªn hiá»ƒn thá»‹ khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng' });
       return;
     }
 
@@ -247,13 +252,13 @@ export default function ProfilePage() {
       if (res.ok) {
         const data = await res.json();
         updateUser(data);
-        toastSuccess('Cập nhật thông tin thành công!');
+        toastSuccess('Cáº­p nháº­t thÃ´ng tin thÃ nh cÃ´ng!');
       } else {
         const err = await res.json();
-        toastError(err.message || 'Có lỗi xảy ra');
+        toastError(err.message || 'CÃ³ lá»—i xáº£y ra');
       }
     } catch {
-      toastError('Không thể kết nối đến server');
+      toastError('KhÃ´ng thá»ƒ káº¿t ná»‘i Ä‘áº¿n server');
     } finally {
       setIsUpdatingProfile(false);
     }
@@ -264,7 +269,7 @@ export default function ProfilePage() {
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      setProfileMessage({ type: 'error', text: 'Kích thước ảnh không được vượt quá 2MB' });
+      setProfileMessage({ type: 'error', text: 'KÃ­ch thÆ°á»›c áº£nh khÃ´ng Ä‘Æ°á»£c vÆ°á»£t quÃ¡ 2MB' });
       return;
     }
 
@@ -296,13 +301,13 @@ export default function ProfilePage() {
         if (updateRes.ok) {
           const updatedUser = await updateRes.json();
           updateUser(updatedUser);
-          toastSuccess('Cập nhật ảnh đại diện thành công!');
+          toastSuccess('Cáº­p nháº­t áº£nh Ä‘áº¡i diá»‡n thÃ nh cÃ´ng!');
         }
       } else {
-        toastError('Upload ảnh thất bại');
+        toastError('Upload áº£nh tháº¥t báº¡i');
       }
     } catch {
-      toastError('Lỗi khi upload ảnh');
+      toastError('Lá»—i khi upload áº£nh');
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -312,11 +317,11 @@ export default function ProfilePage() {
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
-      setPasswordMessage({ type: 'error', text: 'Mật khẩu xác nhận không khớp' });
+      setPasswordMessage({ type: 'error', text: 'Máº­t kháº©u xÃ¡c nháº­n khÃ´ng khá»›p' });
       return;
     }
     if (newPassword.length < 6) {
-      setPasswordMessage({ type: 'error', text: 'Mật khẩu mới phải có ít nhất 6 ký tự' });
+      setPasswordMessage({ type: 'error', text: 'Máº­t kháº©u má»›i pháº£i cÃ³ Ã­t nháº¥t 6 kÃ½ tá»±' });
       return;
     }
 
@@ -335,17 +340,17 @@ export default function ProfilePage() {
       });
 
       if (res.ok) {
-        toastSuccess('Đổi mật khẩu thành công!');
+        toastSuccess('Äá»•i máº­t kháº©u thÃ nh cÃ´ng!');
         setOldPassword('');
         setNewPassword('');
         setConfirmPassword('');
         setTimeout(() => setIsPasswordModalOpen(false), 1500);
       } else {
         const err = await res.json();
-        toastError(err.message || 'Có lỗi xảy ra');
+        toastError(err.message || 'CÃ³ lá»—i xáº£y ra');
       }
     } catch {
-      toastError('Không thể kết nối đến server');
+      toastError('KhÃ´ng thá»ƒ káº¿t ná»‘i Ä‘áº¿n server');
     } finally {
       setIsUpdatingPassword(false);
     }
@@ -354,7 +359,7 @@ export default function ProfilePage() {
   const handleOpenExchangeModal = (voucher: IVoucher) => {
     const currentPoints = user?.availablePoints || 0;
     if (currentPoints < voucher.requiredPoints) {
-      toastError('Bạn không đủ điểm để đổi voucher này!');
+      toastError('Báº¡n khÃ´ng Ä‘á»§ Ä‘iá»ƒm Ä‘á»ƒ Ä‘á»•i voucher nÃ y!');
       return;
     }
     setExchangeModal({ open: true, voucher });
@@ -374,17 +379,17 @@ export default function ProfilePage() {
 
       if (res.ok) {
         const result = await res.json();
-        toastSuccess(`Đổi voucher thành công! Mã của bạn: ${result.voucher?.code || result.code || ''}`); 
+        toastSuccess(`Äá»•i voucher thÃ nh cÃ´ng! MÃ£ cá»§a báº¡n: ${result.voucher?.code || result.code || ''}`); 
         setExchangeModal({ open: false, voucher: null });
         loadMembershipData();
         loadExchangeableVouchers();
         loadPointsHistory();
       } else {
         const err = await res.json();
-        toastError(err.message || 'Đổi voucher thất bại');
+        toastError(err.message || 'Äá»•i voucher tháº¥t báº¡i');
       }
     } catch {
-      toastError('Không thể kết nối đến server');
+      toastError('KhÃ´ng thá»ƒ káº¿t ná»‘i Ä‘áº¿n server');
     } finally {
       setIsExchangingId(null);
     }
@@ -392,14 +397,14 @@ export default function ProfilePage() {
 
   const handleCopyCode = (code: string) => {
     navigator.clipboard.writeText(code);
-    toastSuccess('Đã copy mã voucher!');
+    toastSuccess('ÄÃ£ copy mÃ£ voucher!');
   };
 
   if (authLoading || !user) {
     return (
       <div className="min-h-[80vh] flex flex-col items-center justify-center">
         <div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="mt-4 text-gray-500">Đang tải thông tin...</p>
+        <p className="mt-4 text-gray-500">Äang táº£i thÃ´ng tin...</p>
       </div>
     );
   }
@@ -407,8 +412,8 @@ export default function ProfilePage() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Hồ sơ cá nhân</h1>
-        <p className="text-gray-500 mt-1">Quản lý thông tin tài khoản, tích điểm thành viên và voucher của bạn</p>
+        <h1 className="text-3xl font-bold text-gray-900">Há»“ sÆ¡ cÃ¡ nhÃ¢n</h1>
+        <p className="text-gray-500 mt-1">Quáº£n lÃ½ thÃ´ng tin tÃ i khoáº£n, tÃ­ch Ä‘iá»ƒm thÃ nh viÃªn vÃ  voucher cá»§a báº¡n</p>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
@@ -418,7 +423,7 @@ export default function ProfilePage() {
             <div className="relative mb-4 group">
               {avatarUrl ? (
                 <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg">
-                  <img src={avatarUrl.startsWith('http') ? avatarUrl : `${API_URL}${avatarUrl}`} alt="Avatar" className="w-full h-full object-cover" />
+                  <SafeImage src={avatarUrl.startsWith('http') ? avatarUrl : `${API_URL}${avatarUrl}`} alt="Avatar" className="w-full h-full object-cover" />
                 </div>
               ) : (
                 <div className="w-32 h-32 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-white text-4xl font-bold border-4 border-white shadow-lg">
@@ -451,7 +456,7 @@ export default function ProfilePage() {
             <h2 className="text-xl font-bold text-gray-900">{user.full_name}</h2>
             <p className="text-gray-500 text-sm mb-4">{user.email}</p>
             <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold capitalize">
-              Thành viên {user.role === 'admin' ? 'Quản trị' : user.membershipRank || 'Thường'}
+              ThÃ nh viÃªn {user.role === 'admin' ? 'Quáº£n trá»‹' : user.membershipRank || 'ThÆ°á»ng'}
             </span>
 
             
@@ -462,23 +467,23 @@ export default function ProfilePage() {
               <div className="relative z-10 flex flex-col justify-between h-28">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="text-[10px] uppercase tracking-widest text-white/70">Thẻ Thành Viên</p>
+                    <p className="text-[10px] uppercase tracking-widest text-white/70">Tháº» ThÃ nh ViÃªn</p>
                     <p className="text-lg font-extrabold tracking-wide mt-0.5">{user.membershipRank || 'Member'}</p>
                   </div>
                   <div className="text-xs font-bold bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-sm border border-white/10">
-                    Giảm {getRankDiscount(user.membershipRank)}%
+                    Giáº£m {getRankDiscount(user.membershipRank)}%
                   </div>
                 </div>
                 
                 <div className="flex justify-between items-end mt-auto">
                   <div>
-                    <p className="text-[10px] text-white/70 uppercase tracking-widest">Điểm khả dụng</p>
+                    <p className="text-[10px] text-white/70 uppercase tracking-widest">Äiá»ƒm kháº£ dá»¥ng</p>
                     <p className="text-xl font-black tracking-wide mt-0.5">
-                      {new Intl.NumberFormat('vi-VN').format(user.availablePoints || 0)} <span className="text-xs font-medium">điểm</span>
+                      {new Intl.NumberFormat('vi-VN').format(user.availablePoints || 0)} <span className="text-xs font-medium">Ä‘iá»ƒm</span>
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] text-white/70 uppercase tracking-widest">Mã TV</p>
+                    <p className="text-[10px] text-white/70 uppercase tracking-widest">MÃ£ TV</p>
                     <p className="font-mono text-xs font-bold bg-black/20 px-2 py-0.5 rounded border border-white/5">
                       #{user._id?.substring(user._id.length - 8).toUpperCase() || '00000000'}
                     </p>
@@ -498,7 +503,7 @@ export default function ProfilePage() {
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
-                Thông tin cá nhân
+                ThÃ´ng tin cÃ¡ nhÃ¢n
               </span>
             </button>
             <button 
@@ -509,7 +514,7 @@ export default function ProfilePage() {
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
-                Hạng & Lịch sử điểm
+                Háº¡ng & Lá»‹ch sá»­ Ä‘iá»ƒm
               </span>
             </button>
             <button 
@@ -520,7 +525,7 @@ export default function ProfilePage() {
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5a2 2 0 10-2 2h2zm0 10v4m0-4h-4m4 0h4m-5 10h6a2 2 0 002-2V9a2 2 0 00-2-2h-6A2 2 0 006 9v10a2 2 0 002 2z" />
                 </svg>
-                Đổi điểm lấy Voucher
+                Äá»•i Ä‘iá»ƒm láº¥y Voucher
               </span>
             </button>
             <button 
@@ -531,7 +536,7 @@ export default function ProfilePage() {
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
                 </svg>
-                Voucher của tôi
+                Voucher cá»§a tÃ´i
               </span>
             </button>
             <button 
@@ -542,7 +547,7 @@ export default function ProfilePage() {
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
                 </svg>
-                Vé của tôi
+                VÃ© cá»§a tÃ´i
               </span>
             </button>
           </div>
@@ -554,7 +559,7 @@ export default function ProfilePage() {
           
           {activeTab === 'personal' && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-in fade-in duration-200">
-              <h3 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4 mb-6">Thông tin cá nhân</h3>
+              <h3 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4 mb-6">ThÃ´ng tin cÃ¡ nhÃ¢n</h3>
               
               {profileMessage.text && profileMessage.type === 'error' && (
                 <div className="p-4 rounded-lg mb-6 text-sm bg-red-50 text-red-700 border border-red-100">
@@ -564,17 +569,17 @@ export default function ProfilePage() {
 
               <form onSubmit={handleUpdateProfile} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Họ và tên</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Há» vÃ  tÃªn</label>
                   <input 
                     type="text" 
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     className="w-full px-4 py-2 text-gray-900 font-medium bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:bg-white transition-all"
-                    placeholder="Nhập họ và tên"
+                    placeholder="Nháº­p há» vÃ  tÃªn"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-gray-400 font-normal">(Không thể thay đổi)</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-gray-400 font-normal">(KhÃ´ng thá»ƒ thay Ä‘á»•i)</span></label>
                   <input 
                     type="email" 
                     value={user.email}
@@ -591,7 +596,7 @@ export default function ProfilePage() {
                     <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
-                    Đổi mật khẩu
+                    Äá»•i máº­t kháº©u
                   </button>
 
                   <button 
@@ -602,7 +607,7 @@ export default function ProfilePage() {
                     {isUpdatingProfile ? (
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                     ) : null}
-                    Lưu thay đổi
+                    LÆ°u thay Ä‘á»•i
                   </button>
                 </div>
               </form>
@@ -614,7 +619,7 @@ export default function ProfilePage() {
             <div className="space-y-6 animate-in fade-in duration-200">
               
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                <h3 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4 mb-6">Thông tin Hạng Thành Viên</h3>
+                <h3 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4 mb-6">ThÃ´ng tin Háº¡ng ThÃ nh ViÃªn</h3>
                 
                 {isLoadingMembership ? (
                   <div className="flex justify-center py-6">
@@ -625,17 +630,17 @@ export default function ProfilePage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-3">
                         <div className="flex justify-between items-center text-sm">
-                          <span className="text-gray-500">Hạng hiện tại:</span>
+                          <span className="text-gray-500">Háº¡ng hiá»‡n táº¡i:</span>
                           <span className="font-bold text-red-600">{membershipInfo.membershipRank}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm">
-                          <span className="text-gray-500">Ưu đãi giảm giá vé/combo:</span>
+                          <span className="text-gray-500">Æ¯u Ä‘Ã£i giáº£m giÃ¡ vÃ©/combo:</span>
                           <span className="font-bold text-gray-900">{membershipInfo.discountPercent}%</span>
                         </div>
                         <div className="flex justify-between items-center text-sm">
-                          <span className="text-gray-500">Điểm trọn đời (lifetime):</span>
+                          <span className="text-gray-500">Äiá»ƒm trá»n Ä‘á»i (lifetime):</span>
                           <span className="font-bold text-gray-900">
-                            {new Intl.NumberFormat('vi-VN').format(membershipInfo.lifetimePoints)} điểm
+                            {new Intl.NumberFormat('vi-VN').format(membershipInfo.lifetimePoints)} Ä‘iá»ƒm
                           </span>
                         </div>
                       </div>
@@ -643,9 +648,9 @@ export default function ProfilePage() {
                       <div className="p-4 bg-gray-50 rounded-xl flex flex-col justify-center border border-gray-100">
                         {membershipInfo.nextRank ? (
                           <>
-                            <p className="text-xs text-gray-500">Hạng tiếp theo: <span className="font-bold text-gray-700">{membershipInfo.nextRank.nextRank}</span></p>
+                            <p className="text-xs text-gray-500">Háº¡ng tiáº¿p theo: <span className="font-bold text-gray-700">{membershipInfo.nextRank.nextRank}</span></p>
                             <p className="text-lg font-bold text-gray-900 mt-1">
-                              Cần tích lũy thêm {new Intl.NumberFormat('vi-VN').format(membershipInfo.nextRank.pointsNeeded)} điểm
+                              Cáº§n tÃ­ch lÅ©y thÃªm {new Intl.NumberFormat('vi-VN').format(membershipInfo.nextRank.pointsNeeded)} Ä‘iá»ƒm
                             </p>
                           </>
                         ) : (
@@ -653,7 +658,7 @@ export default function ProfilePage() {
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
                             </svg>
-                            Chúc mừng! Bạn đã đạt hạng cao nhất (Diamond)
+                            ChÃºc má»«ng! Báº¡n Ä‘Ã£ Ä‘áº¡t háº¡ng cao nháº¥t (Diamond)
                           </p>
                         )}
                       </div>
@@ -665,10 +670,10 @@ export default function ProfilePage() {
                         <div className="flex justify-between items-center text-xs font-bold text-gray-600">
                           <span className="flex items-center gap-1">
                             <span className="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
-                            {membershipInfo.membershipRank} (Hiện tại)
+                            {membershipInfo.membershipRank} (Hiá»‡n táº¡i)
                           </span>
                           <span className="flex items-center gap-1 text-red-600 font-extrabold">
-                            {membershipInfo.nextRank.nextRank} (Mục tiêu)
+                            {membershipInfo.nextRank.nextRank} (Má»¥c tiÃªu)
                             <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
                           </span>
                         </div>
@@ -704,26 +709,26 @@ export default function ProfilePage() {
                         </div>
                         
                         <div className="flex justify-between text-xs text-gray-500">
-                          <span>0 điểm</span>
+                          <span>0 Ä‘iá»ƒm</span>
                           <span className="font-semibold text-gray-700">
-                            Đã tích lũy: {new Intl.NumberFormat('vi-VN').format(membershipInfo.lifetimePoints)} / {new Intl.NumberFormat('vi-VN').format(membershipInfo.nextRank.nextRankMinPoints)} điểm
+                            ÄÃ£ tÃ­ch lÅ©y: {new Intl.NumberFormat('vi-VN').format(membershipInfo.lifetimePoints)} / {new Intl.NumberFormat('vi-VN').format(membershipInfo.nextRank.nextRankMinPoints)} Ä‘iá»ƒm
                           </span>
                         </div>
 
                         <div className="p-3 bg-red-50/60 rounded-xl border border-red-100/50 text-xs text-red-800 leading-relaxed shadow-sm">
-                          Bạn đã đi được <strong className="font-extrabold">{((membershipInfo.lifetimePoints / membershipInfo.nextRank.nextRankMinPoints) * 100).toFixed(1)}%</strong> chặng đường. Chỉ cần tích lũy thêm <strong className="font-extrabold text-red-600">{new Intl.NumberFormat('vi-VN').format(membershipInfo.nextRank.pointsNeeded)}</strong> điểm nữa để thăng hạng lên <strong className="font-extrabold">{membershipInfo.nextRank.nextRank}</strong> và nhận đặc quyền giảm giá <strong className="font-extrabold text-red-600">{getRankDiscount(membershipInfo.nextRank.nextRank)}%</strong> cho mọi đơn hàng!
+                          Báº¡n Ä‘Ã£ Ä‘i Ä‘Æ°á»£c <strong className="font-extrabold">{((membershipInfo.lifetimePoints / membershipInfo.nextRank.nextRankMinPoints) * 100).toFixed(1)}%</strong> cháº·ng Ä‘Æ°á»ng. Chá»‰ cáº§n tÃ­ch lÅ©y thÃªm <strong className="font-extrabold text-red-600">{new Intl.NumberFormat('vi-VN').format(membershipInfo.nextRank.pointsNeeded)}</strong> Ä‘iá»ƒm ná»¯a Ä‘á»ƒ thÄƒng háº¡ng lÃªn <strong className="font-extrabold">{membershipInfo.nextRank.nextRank}</strong> vÃ  nháº­n Ä‘áº·c quyá»n giáº£m giÃ¡ <strong className="font-extrabold text-red-600">{getRankDiscount(membershipInfo.nextRank.nextRank)}%</strong> cho má»i Ä‘Æ¡n hÃ ng!
                         </div>
                       </div>
                     )}
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-center py-4">Không thể tải thông tin hạng.</p>
+                  <p className="text-gray-500 text-center py-4">KhÃ´ng thá»ƒ táº£i thÃ´ng tin háº¡ng.</p>
                 )}
               </div>
 
               
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                <h3 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4 mb-6">Lịch sử điểm thưởng</h3>
+                <h3 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4 mb-6">Lá»‹ch sá»­ Ä‘iá»ƒm thÆ°á»Ÿng</h3>
                 
                 {isLoadingPoints ? (
                   <div className="space-y-4">
@@ -736,10 +741,10 @@ export default function ProfilePage() {
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="border-b border-gray-100 text-gray-400 text-xs font-semibold uppercase tracking-wider">
-                          <th className="pb-3">Mô tả</th>
-                          <th className="pb-3">Loại</th>
-                          <th className="pb-3 text-center">Số điểm</th>
-                          <th className="pb-3 text-right">Ngày giao dịch</th>
+                          <th className="pb-3">MÃ´ táº£</th>
+                          <th className="pb-3">Loáº¡i</th>
+                          <th className="pb-3 text-center">Sá»‘ Ä‘iá»ƒm</th>
+                          <th className="pb-3 text-right">NgÃ y giao dá»‹ch</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-50 text-sm">
@@ -769,7 +774,7 @@ export default function ProfilePage() {
                   </div>
                 ) : (
                   <div className="text-center py-8 text-gray-400">
-                    Bạn chưa có giao dịch điểm nào. Điểm sẽ tự động tích lũy khi bạn thanh toán thành công vé xem phim!
+                    Báº¡n chÆ°a cÃ³ giao dá»‹ch Ä‘iá»ƒm nÃ o. Äiá»ƒm sáº½ tá»± Ä‘á»™ng tÃ­ch lÅ©y khi báº¡n thanh toÃ¡n thÃ nh cÃ´ng vÃ© xem phim!
                   </div>
                 )}
               </div>
@@ -780,9 +785,9 @@ export default function ProfilePage() {
           {activeTab === 'exchange' && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-in fade-in duration-200">
               <div className="flex justify-between items-center border-b border-gray-100 pb-4 mb-6">
-                <h3 className="text-xl font-bold text-gray-900">Đổi điểm lấy quà</h3>
+                <h3 className="text-xl font-bold text-gray-900">Äá»•i Ä‘iá»ƒm láº¥y quÃ </h3>
                 <div className="text-sm">
-                  Điểm của bạn: <span className="font-extrabold text-red-600">{new Intl.NumberFormat('vi-VN').format(user.availablePoints || 0)}</span>
+                  Äiá»ƒm cá»§a báº¡n: <span className="font-extrabold text-red-600">{new Intl.NumberFormat('vi-VN').format(user.availablePoints || 0)}</span>
                 </div>
               </div>
 
@@ -804,7 +809,7 @@ export default function ProfilePage() {
 
                         <div className="pl-2">
                           <span className="text-[10px] bg-red-50 text-red-600 font-bold px-2 py-0.5 rounded-full border border-red-100">
-                            Yêu cầu {new Intl.NumberFormat('vi-VN').format(voucher.requiredPoints)} điểm
+                            YÃªu cáº§u {new Intl.NumberFormat('vi-VN').format(voucher.requiredPoints)} Ä‘iá»ƒm
                           </span>
                           <h4 className="font-extrabold text-gray-900 text-lg mt-2 group-hover:text-red-600 transition-colors">
                             {voucher.name}
@@ -813,17 +818,17 @@ export default function ProfilePage() {
                             {voucher.description}
                           </p>
                           <div className="mt-3 space-y-1 text-xs text-gray-400">
-                            <div>• Đơn tối thiểu: {new Intl.NumberFormat('vi-VN').format(voucher.minOrderAmount)}đ</div>
-                            <div>• Hiệu lực: {voucher.validDaysAfterExchange} ngày kể từ khi đổi</div>
+                            <div>â€¢ ÄÆ¡n tá»‘i thiá»ƒu: {new Intl.NumberFormat('vi-VN').format(voucher.minOrderAmount)}Ä‘</div>
+                            <div>â€¢ Hiá»‡u lá»±c: {voucher.validDaysAfterExchange} ngÃ y ká»ƒ tá»« khi Ä‘á»•i</div>
                             {voucher.usageLimit > 0 && (
-                              <div>• Đã đổi: {voucher.exchangedCount}/{voucher.usageLimit}</div>
+                              <div>â€¢ ÄÃ£ Ä‘á»•i: {voucher.exchangedCount}/{voucher.usageLimit}</div>
                             )}
                           </div>
                         </div>
 
                         <div className="mt-5 pl-2 pt-3 border-t border-gray-100 flex justify-between items-center">
                           <span className="text-sm font-black text-red-600">
-                            {voucher.discountType === 'PERCENT' ? `Giảm ${voucher.discountValue}%` : `Giảm ${new Intl.NumberFormat('vi-VN').format(voucher.discountValue)}đ`}
+                            {voucher.discountType === 'PERCENT' ? `Giáº£m ${voucher.discountValue}%` : `Giáº£m ${new Intl.NumberFormat('vi-VN').format(voucher.discountValue)}Ä‘`}
                           </span>
                           <button
                             onClick={() => handleOpenExchangeModal(voucher)}
@@ -837,9 +842,9 @@ export default function ProfilePage() {
                             {isExchangingId === voucher._id ? (
                               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                             ) : isPointsEnough ? (
-                              'Đổi ngay'
+                              'Äá»•i ngay'
                             ) : (
-                              'Chưa đủ điểm'
+                              'ChÆ°a Ä‘á»§ Ä‘iá»ƒm'
                             )}
                           </button>
                         </div>
@@ -849,7 +854,7 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-400">
-                  Hiện tại không có voucher nào cho phép đổi điểm. Vui lòng quay lại sau!
+                  Hiá»‡n táº¡i khÃ´ng cÃ³ voucher nÃ o cho phÃ©p Ä‘á»•i Ä‘iá»ƒm. Vui lÃ²ng quay láº¡i sau!
                 </div>
               )}
             </div>
@@ -858,7 +863,7 @@ export default function ProfilePage() {
           
           {activeTab === 'my-vouchers' && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-in fade-in duration-200">
-              <h3 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4 mb-6">Mã giảm giá của bạn</h3>
+              <h3 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4 mb-6">MÃ£ giáº£m giÃ¡ cá»§a báº¡n</h3>
 
               {isLoadingVouchers ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -874,15 +879,15 @@ export default function ProfilePage() {
                     const isUsed = uv.status === 'USED';
 
                     let statusBadge = (
-                      <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded text-xs font-bold border border-green-200">Chưa dùng</span>
+                      <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded text-xs font-bold border border-green-200">ChÆ°a dÃ¹ng</span>
                     );
                     if (isUsed) {
                       statusBadge = (
-                        <span className="px-2 py-0.5 bg-gray-50 text-gray-400 rounded text-xs font-bold border border-gray-200">Đã sử dụng</span>
+                        <span className="px-2 py-0.5 bg-gray-50 text-gray-400 rounded text-xs font-bold border border-gray-200">ÄÃ£ sá»­ dá»¥ng</span>
                       );
                     } else if (isExpired) {
                       statusBadge = (
-                        <span className="px-2 py-0.5 bg-red-50 text-red-400 rounded text-xs font-bold border border-red-200">Hết hạn</span>
+                        <span className="px-2 py-0.5 bg-red-50 text-red-400 rounded text-xs font-bold border border-red-200">Háº¿t háº¡n</span>
                       );
                     }
 
@@ -900,7 +905,7 @@ export default function ProfilePage() {
                         <div className="md:px-2">
                           <div className="flex justify-between items-start">
                             <span className="text-xs font-black text-red-600">
-                              {uv.voucherTemplate.discountType === 'PERCENT' ? `GIẢM ${uv.voucherTemplate.discountValue}%` : `GIẢM ${new Intl.NumberFormat('vi-VN').format(uv.voucherTemplate.discountValue)}đ`}
+                              {uv.voucherTemplate.discountType === 'PERCENT' ? `GIáº¢M ${uv.voucherTemplate.discountValue}%` : `GIáº¢M ${new Intl.NumberFormat('vi-VN').format(uv.voucherTemplate.discountValue)}Ä‘`}
                             </span>
                             {statusBadge}
                           </div>
@@ -912,7 +917,7 @@ export default function ProfilePage() {
                             {uv.voucherTemplate.description}
                           </p>
                           <p className="text-[10px] text-gray-400 mt-2">
-                            Hạn dùng: {new Date(uv.expiredAt).toLocaleDateString('vi-VN')}
+                            Háº¡n dÃ¹ng: {new Date(uv.expiredAt).toLocaleDateString('vi-VN')}
                           </p>
                         </div>
 
@@ -926,10 +931,10 @@ export default function ProfilePage() {
                               onClick={() => handleCopyCode(uv.code)}
                               className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition cursor-pointer"
                             >
-                              Copy mã
+                              Copy mÃ£
                             </button>
                           ) : (
-                            <span className="text-xs text-gray-400">Không khả dụng</span>
+                            <span className="text-xs text-gray-400">KhÃ´ng kháº£ dá»¥ng</span>
                           )}
                         </div>
                       </div>
@@ -938,7 +943,7 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-400">
-                  Bạn chưa đổi voucher nào. Hãy tích điểm và đổi voucher ở tab bên cạnh nhé!
+                  Báº¡n chÆ°a Ä‘á»•i voucher nÃ o. HÃ£y tÃ­ch Ä‘iá»ƒm vÃ  Ä‘á»•i voucher á»Ÿ tab bÃªn cáº¡nh nhÃ©!
                 </div>
               )}
             </div>
@@ -947,7 +952,7 @@ export default function ProfilePage() {
           
           {activeTab === 'tickets' && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-in fade-in duration-200">
-              <h3 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4 mb-6">Tất cả vé của bạn</h3>
+              <h3 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4 mb-6">Táº¥t cáº£ vÃ© cá»§a báº¡n</h3>
 
               {isLoadingBookings ? (
                 <div className="space-y-4">
@@ -968,7 +973,7 @@ export default function ProfilePage() {
                     <div key={booking._id} className="flex gap-4 p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
                       <div className="w-16 h-20 bg-gray-200 rounded-lg overflow-hidden shrink-0">
                         {booking.showtime?.movie?.poster_url ? (
-                          <img
+                          <SafeImage
                             src={getCloudinaryImageUrl(booking.showtime.movie.poster_url, movieImagePresets.posterThumb)}
                             alt=""
                             className="w-full h-full object-cover"
@@ -984,7 +989,7 @@ export default function ProfilePage() {
                       <div className="flex-1 min-w-0 flex flex-col justify-center">
                         <div className="flex items-start justify-between gap-2">
                           <h4 className="font-bold text-gray-900 truncate">
-                            {booking.showtime?.movie?.title || 'Phim không xác định'}
+                            {booking.showtime?.movie?.title || 'Phim khÃ´ng xÃ¡c Ä‘á»‹nh'}
                           </h4>
                           <span className={`text-xs font-semibold px-2 py-1 rounded-md shrink-0 ${
                             booking.status === 'confirmed' 
@@ -993,11 +998,11 @@ export default function ProfilePage() {
                               ? 'bg-yellow-100 text-yellow-700'
                               : 'bg-red-100 text-red-700'
                           }`}>
-                            {booking.status === 'pending' ? 'Chờ thanh toán' : booking.status === 'confirmed' ? 'Đã thanh toán' : booking.status === 'cancelled' ? 'Đã hủy' : booking.status === 'expired' ? 'Hết hạn' : booking.status}
+                            {booking.status === 'pending' ? 'Chá» thanh toÃ¡n' : booking.status === 'confirmed' ? 'ÄÃ£ thanh toÃ¡n' : booking.status === 'cancelled' ? 'ÄÃ£ há»§y' : booking.status === 'expired' ? 'Háº¿t háº¡n' : booking.status}
                           </span>
                         </div>
                         <p className="text-sm text-gray-500 truncate mt-1">
-                          {booking.showtime?.cinema?.name} • {new Date(booking.showtime?.start_time).toLocaleDateString('vi-VN')} {new Date(booking.showtime?.start_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                          {booking.showtime?.cinema?.name} â€¢ {new Date(booking.showtime?.start_time).toLocaleDateString('vi-VN')} {new Date(booking.showtime?.start_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                         </p>
                         <div className="mt-2 text-red-600 font-semibold text-sm">
                           {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(booking.total_price)}
@@ -1013,9 +1018,9 @@ export default function ProfilePage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
                     </svg>
                   </div>
-                  <p className="text-gray-500">Bạn chưa có vé nào.</p>
+                  <p className="text-gray-500">Báº¡n chÆ°a cÃ³ vÃ© nÃ o.</p>
                   <Link href="/" className="inline-block mt-3 text-red-600 font-medium hover:underline">
-                    Đặt vé ngay
+                    Äáº·t vÃ© ngay
                   </Link>
                 </div>
               )}
@@ -1042,7 +1047,7 @@ export default function ProfilePage() {
                 <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
-                Đổi mật khẩu
+                Äá»•i máº­t kháº©u
               </h3>
               
               {passwordMessage.text && passwordMessage.type === 'error' && (
@@ -1053,36 +1058,36 @@ export default function ProfilePage() {
 
               <form onSubmit={handleUpdatePassword} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Mật khẩu hiện tại</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Máº­t kháº©u hiá»‡n táº¡i</label>
                   <input 
                     type="password" 
                     required
                     value={oldPassword}
                     onChange={(e) => setOldPassword(e.target.value)}
                     className="w-full px-4 py-2.5 text-gray-900 font-medium bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:bg-white transition-all"
-                    placeholder="Nhập mật khẩu hiện tại"
+                    placeholder="Nháº­p máº­t kháº©u hiá»‡n táº¡i"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Mật khẩu mới</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Máº­t kháº©u má»›i</label>
                   <input 
                     type="password" 
                     required
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     className="w-full px-4 py-2.5 text-gray-900 font-medium bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:bg-white transition-all"
-                    placeholder="Ít nhất 6 ký tự"
+                    placeholder="Ãt nháº¥t 6 kÃ½ tá»±"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Xác nhận mật khẩu</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">XÃ¡c nháº­n máº­t kháº©u</label>
                   <input 
                     type="password" 
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className="w-full px-4 py-2.5 text-gray-900 font-medium bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:bg-white transition-all"
-                    placeholder="Nhập lại mật khẩu mới"
+                    placeholder="Nháº­p láº¡i máº­t kháº©u má»›i"
                   />
                 </div>
                 <div className="pt-4 flex justify-end gap-3">
@@ -1091,7 +1096,7 @@ export default function ProfilePage() {
                     onClick={() => setIsPasswordModalOpen(false)}
                     className="px-5 py-2.5 text-gray-700 font-semibold rounded-xl hover:bg-gray-100 transition cursor-pointer"
                   >
-                    Hủy
+                    Há»§y
                   </button>
                   <button 
                     type="submit" 
@@ -1101,7 +1106,7 @@ export default function ProfilePage() {
                     {isUpdatingPassword ? (
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                     ) : null}
-                    Xác nhận đổi
+                    XÃ¡c nháº­n Ä‘á»•i
                   </button>
                 </div>
               </form>
@@ -1131,39 +1136,39 @@ export default function ProfilePage() {
                 </svg>
               </div>
 
-              <h3 className="text-xl font-bold text-gray-900 text-center mb-1">Xác nhận đổi điểm</h3>
-              <p className="text-sm text-gray-500 text-center mb-6">Bạn có chắc chắn muốn đổi điểm lấy voucher này không?</p>
+              <h3 className="text-xl font-bold text-gray-900 text-center mb-1">XÃ¡c nháº­n Ä‘á»•i Ä‘iá»ƒm</h3>
+              <p className="text-sm text-gray-500 text-center mb-6">Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n Ä‘á»•i Ä‘iá»ƒm láº¥y voucher nÃ y khÃ´ng?</p>
 
               
               <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-xl p-4 mb-6 space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500">Tên voucher</span>
+                  <span className="text-sm text-gray-500">TÃªn voucher</span>
                   <span className="text-sm font-bold text-gray-900 text-right max-w-[60%] truncate">{exchangeModal.voucher.name}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500">Giá trị</span>
+                  <span className="text-sm text-gray-500">GiÃ¡ trá»‹</span>
                   <span className="text-sm font-bold text-red-600">
                     {exchangeModal.voucher.discountType === 'PERCENT' 
-                      ? `Giảm ${exchangeModal.voucher.discountValue}%` 
-                      : `Giảm ${new Intl.NumberFormat('vi-VN').format(exchangeModal.voucher.discountValue)}đ`}
+                      ? `Giáº£m ${exchangeModal.voucher.discountValue}%` 
+                      : `Giáº£m ${new Intl.NumberFormat('vi-VN').format(exchangeModal.voucher.discountValue)}Ä‘`}
                   </span>
                 </div>
                 <div className="border-t border-dashed border-gray-200 pt-3 flex justify-between items-center">
-                  <span className="text-sm text-gray-500">Điểm cần dùng</span>
+                  <span className="text-sm text-gray-500">Äiá»ƒm cáº§n dÃ¹ng</span>
                   <span className="text-sm font-extrabold text-orange-600">
-                    {new Intl.NumberFormat('vi-VN').format(exchangeModal.voucher.requiredPoints)} điểm
+                    {new Intl.NumberFormat('vi-VN').format(exchangeModal.voucher.requiredPoints)} Ä‘iá»ƒm
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500">Điểm hiện có</span>
+                  <span className="text-sm text-gray-500">Äiá»ƒm hiá»‡n cÃ³</span>
                   <span className="text-sm font-extrabold text-green-600">
-                    {new Intl.NumberFormat('vi-VN').format(user?.availablePoints || 0)} điểm
+                    {new Intl.NumberFormat('vi-VN').format(user?.availablePoints || 0)} Ä‘iá»ƒm
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500">Điểm còn lại sau đổi</span>
+                  <span className="text-sm text-gray-500">Äiá»ƒm cÃ²n láº¡i sau Ä‘á»•i</span>
                   <span className="text-sm font-bold text-gray-700">
-                    {new Intl.NumberFormat('vi-VN').format((user?.availablePoints || 0) - exchangeModal.voucher.requiredPoints)} điểm
+                    {new Intl.NumberFormat('vi-VN').format((user?.availablePoints || 0) - exchangeModal.voucher.requiredPoints)} Ä‘iá»ƒm
                   </span>
                 </div>
               </div>
@@ -1174,7 +1179,7 @@ export default function ProfilePage() {
                   onClick={() => setExchangeModal({ open: false, voucher: null })}
                   className="flex-1 px-4 py-2.5 text-gray-700 font-semibold rounded-xl hover:bg-gray-100 border border-gray-200 transition cursor-pointer"
                 >
-                  Hủy
+                  Há»§y
                 </button>
                 <button 
                   onClick={handleConfirmExchange}
@@ -1188,7 +1193,7 @@ export default function ProfilePage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   )}
-                  Xác nhận đổi
+                  XÃ¡c nháº­n Ä‘á»•i
                 </button>
               </div>
             </div>

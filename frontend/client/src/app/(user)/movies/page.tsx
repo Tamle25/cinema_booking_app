@@ -1,11 +1,15 @@
 'use client';
 
+import SafeImage from '@/components/SafeImage';
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import MovieCard from '@/components/MovieCard';
 import { getCloudinaryImageUrl, movieImagePresets } from '@/lib/cloudinary';
+import { normalizeSearchText } from '@/lib/searchRoutes';
 import { IGenre } from '@/types';
+
+type MovieStatusTab = 'all' | 'now_showing' | 'coming_soon';
 
 interface Movie {
     _id: string;
@@ -14,23 +18,55 @@ interface Movie {
     duration: number;
     release_date: string;
     rating: number;
-    genres: IGenre[];
+    genres?: IGenre[];
+}
+
+interface MovieTab {
+    key: MovieStatusTab;
+    label: string;
+    count: number;
+    color: 'red' | 'green' | 'yellow';
 }
 
 const ITEMS_PER_PAGE = 12;
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
+}
+
+function isGenre(value: unknown): value is IGenre {
+    return isRecord(value) && typeof value._id === 'string' && typeof value.name === 'string';
+}
+
+function isMovie(value: unknown): value is Movie {
+    return (
+        isRecord(value) &&
+        typeof value._id === 'string' &&
+        typeof value.title === 'string' &&
+        typeof value.poster_url === 'string' &&
+        typeof value.duration === 'number' &&
+        typeof value.release_date === 'string' &&
+        typeof value.rating === 'number'
+    );
+}
+
+function parseStatusParam(status: string): MovieStatusTab {
+    return status === 'now_showing' || status === 'coming_soon' ? status : 'all';
+}
+
 function MoviesListContent() {
     const searchParams = useSearchParams();
     const statusParam = searchParams.get('status') || 'all'; // 'all' | 'now_showing' | 'coming_soon'
+    const genreParam = searchParams.get('genre') || 'all';
+    const keywordParam = searchParams.get('search') || '';
+    const parsedStatus = parseStatusParam(statusParam);
 
     const [movies, setMovies] = useState<Movie[]>([]);
     const [genres, setGenres] = useState<IGenre[]>([]);
     const [selectedGenreId, setSelectedGenreId] = useState<string>('all');
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
-    const [activeTab, setActiveTab] = useState<'all' | 'now_showing' | 'coming_soon'>(
-        statusParam as 'all' | 'now_showing' | 'coming_soon'
-    );
+    const [activeTab, setActiveTab] = useState<MovieStatusTab>(parsedStatus);
 
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -39,14 +75,35 @@ function MoviesListContent() {
         const fetchGenres = async () => {
             try {
                 const res = await fetch(`${API_URL}/genres/active`);
-                const data = await res.json();
-                setGenres(data);
+                const data: unknown = await res.json();
+                setGenres(Array.isArray(data) ? data.filter(isGenre) : []);
             } catch (error) {
                 console.error('Lỗi tải thể loại:', error);
             }
         };
         fetchGenres();
     }, [API_URL]);
+
+    useEffect(() => {
+        if (!genreParam || genreParam === 'all') {
+            setSelectedGenreId('all');
+            setCurrentPage(1);
+            return;
+        }
+
+        if (genres.length === 0) return;
+
+        const normalizedGenreParam = normalizeSearchText(genreParam);
+        const matchedGenre = genres.find((genre) => (
+            genre._id === genreParam ||
+            genre.slug === genreParam ||
+            normalizeSearchText(genre.name) === normalizedGenreParam ||
+            normalizeSearchText(genre.slug) === normalizedGenreParam
+        ));
+
+        setSelectedGenreId(matchedGenre?._id || 'all');
+        setCurrentPage(1);
+    }, [genreParam, genres]);
 
     // Fetch movies (with genre filter)
     useEffect(() => {
@@ -57,8 +114,8 @@ function MoviesListContent() {
                     ? `${API_URL}/movies?genre=${selectedGenreId}`
                     : `${API_URL}/movies`;
                 const res = await fetch(url);
-                const data = await res.json();
-                setMovies(data);
+                const data: unknown = await res.json();
+                setMovies(Array.isArray(data) ? data.filter(isMovie) : []);
             } catch (error) {
                 console.error('Lỗi tải phim:', error);
             } finally {
@@ -70,27 +127,33 @@ function MoviesListContent() {
 
     // Update activeTab when URL changes
     useEffect(() => {
-        if (statusParam === 'now_showing' || statusParam === 'coming_soon') {
-            setActiveTab(statusParam);
-        } else {
-            setActiveTab('all');
-        }
+        setActiveTab(parseStatusParam(statusParam));
         setCurrentPage(1); // Reset page when tab changes
     }, [statusParam]);
 
-    // Filter movies based on status
+    // Filter movies based on status and search query
     const filteredMovies = movies.filter((movie) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const releaseDate = new Date(movie.release_date);
         releaseDate.setHours(0, 0, 0, 0);
 
-        if (activeTab === 'now_showing') {
-            return releaseDate <= today;
-        } else if (activeTab === 'coming_soon') {
-            return releaseDate > today;
+        if (activeTab === 'now_showing' && releaseDate > today) {
+            return false;
+        } else if (activeTab === 'coming_soon' && releaseDate <= today) {
+            return false;
         }
-        return true; // 'all'
+
+        const normalizedKeyword = normalizeSearchText(keywordParam);
+        if (!normalizedKeyword) return true;
+
+        return (
+            normalizeSearchText(movie.title).includes(normalizedKeyword) ||
+            movie.genres?.some((genre) =>
+                normalizeSearchText(genre.name).includes(normalizedKeyword) ||
+                normalizeSearchText(genre.slug).includes(normalizedKeyword)
+            )
+        );
     });
 
     // Pagination
@@ -104,13 +167,13 @@ function MoviesListContent() {
     const comingSoonCount = movies.filter((m) => new Date(m.release_date) > new Date()).length;
 
     // Tab config
-    const tabs = [
+    const tabs: MovieTab[] = [
         { key: 'all', label: 'Tất cả', count: allCount, color: 'red' },
         { key: 'now_showing', label: 'Đang chiếu', count: nowShowingCount, color: 'green' },
         { key: 'coming_soon', label: 'Sắp chiếu', count: comingSoonCount, color: 'yellow' },
     ];
 
-    const handleTabChange = (tab: 'all' | 'now_showing' | 'coming_soon') => {
+    const handleTabChange = (tab: MovieStatusTab) => {
         setActiveTab(tab);
         setCurrentPage(1);
         // Update URL without page reload
@@ -126,6 +189,13 @@ function MoviesListContent() {
     const handleGenreChange = (genreId: string) => {
         setSelectedGenreId(genreId);
         setCurrentPage(1);
+        const url = new URL(window.location.href);
+        if (genreId === 'all') {
+            url.searchParams.delete('genre');
+        } else {
+            url.searchParams.set('genre', genreId);
+        }
+        window.history.pushState({}, '', url.toString());
     };
 
     const formatReleaseDate = (dateString: string) => {
@@ -153,7 +223,7 @@ function MoviesListContent() {
                     {tabs.map((tab) => (
                         <button
                             key={tab.key}
-                            onClick={() => handleTabChange(tab.key as any)}
+                            onClick={() => handleTabChange(tab.key)}
                             className={`px-5 py-2.5 rounded-full font-semibold transition-all cursor-pointer ${activeTab === tab.key
                                     ? tab.color === 'red'
                                         ? 'bg-red-600 text-white shadow-lg shadow-red-200'
@@ -229,7 +299,7 @@ function MoviesListContent() {
                                             // Coming Soon Card
                                             <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300">
                                                 <div className="relative aspect-[2/3] overflow-hidden">
-                                                    <img
+                                                    <SafeImage
                                                         src={getCloudinaryImageUrl(movie.poster_url, movieImagePresets.posterCard)}
                                                         alt={movie.title}
                                                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"

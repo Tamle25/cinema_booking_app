@@ -1,5 +1,6 @@
 'use client';
 
+import SafeImage from '@/components/SafeImage';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Pagination from '@/components/Pagination';
@@ -274,7 +275,7 @@ export default function AdminShowtimesPage() {
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-3">
                                             {showtime.movie?.poster_url && (
-                                                <img
+                                                <SafeImage
                                                     src={getCloudinaryImageUrl(showtime.movie.poster_url, movieImagePresets.posterThumb)}
                                                     alt={showtime.movie.title}
                                                     className="w-10 h-14 object-cover rounded"

@@ -1,5 +1,6 @@
-"use client";
+﻿"use client";
 
+import SafeImage from '@/components/SafeImage';
 import { useState, useEffect, useCallback } from "react";
 import { IFeaturedReview } from "@/types";
 import ReviewCard from "@/components/ReviewCard";
@@ -42,7 +43,7 @@ export default function ReviewsPage() {
         }
         setHasMore(res.data.meta.hasNextPage);
       } catch (error) {
-        console.error("Lỗi tải reviews:", error);
+        console.error("Lá»—i táº£i reviews:", error);
       } finally {
         setLoading(false);
         setLoadingMore(false);
@@ -63,9 +64,9 @@ export default function ReviewsPage() {
   };
 
   const sortOptions = [
-    { value: "hot", label: "Đang hot" },
+    { value: "hot", label: "Äang hot" },
     { value: "highest_rating", label: "Rating cao" },
-    { value: "newest", label: "Mới cập nhật" },
+    { value: "newest", label: "Má»›i cáº­p nháº­t" },
   ];
 
   return (
@@ -77,8 +78,8 @@ export default function ReviewsPage() {
             Review Phim
           </h1>
           <p className="text-gray-300 mt-3 max-w-2xl">
-            Đánh giá chân thực từ những khán giả đã xem phim tại rạp. Mua vé và
-            chia sẻ cảm nhận của bạn!
+            ÄÃ¡nh giÃ¡ chÃ¢n thá»±c tá»« nhá»¯ng khÃ¡n giáº£ Ä‘Ã£ xem phim táº¡i ráº¡p. Mua vÃ© vÃ 
+            chia sáº» cáº£m nháº­n cá»§a báº¡n!
           </p>
         </div>
       </div>
@@ -136,10 +137,10 @@ export default function ReviewsPage() {
               />
             </svg>
             <h3 className="text-xl font-bold text-gray-600 mb-2">
-              Chưa có review nào
+              ChÆ°a cÃ³ review nÃ o
             </h3>
             <p className="text-gray-400">
-              Hãy là người đầu tiên đánh giá phim tại CineMax!
+              HÃ£y lÃ  ngÆ°á»i Ä‘áº§u tiÃªn Ä‘Ã¡nh giÃ¡ phim táº¡i CineMax!
             </p>
           </div>
         ) : (
@@ -151,7 +152,7 @@ export default function ReviewsPage() {
               >
                 
                 <div className="relative h-48 overflow-hidden">
-                  <img
+                  <SafeImage
                     src={getCloudinaryImageUrl(
                       item.movie.banner_url || item.movie.poster_url,
                       movieImagePresets.bannerCard,
@@ -199,7 +200,7 @@ export default function ReviewsPage() {
                         {item.rating_avg || 0}
                       </span>
                       <span className="text-gray-300 text-xs">
-                        {formatCount(item.review_count)} đánh giá
+                        {formatCount(item.review_count)} Ä‘Ã¡nh giÃ¡
                       </span>
                     </div>
                   </div>
@@ -221,7 +222,7 @@ export default function ReviewsPage() {
                     href={`/review/${item.movie._id}`}
                     className="mt-3 flex items-center justify-center gap-1.5 w-full py-2.5 bg-red-50 text-red-600 font-medium text-sm rounded-lg hover:bg-red-100 transition-colors"
                   >
-                    Xem tất cả đánh giá
+                    Xem táº¥t cáº£ Ä‘Ã¡nh giÃ¡
                     <svg
                       className="w-4 h-4"
                       fill="none"
@@ -253,10 +254,10 @@ export default function ReviewsPage() {
               {loadingMore ? (
                 <span className="flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
-                  Đang tải...
+                  Äang táº£i...
                 </span>
               ) : (
-                "Xem thêm"
+                "Xem thÃªm"
               )}
             </button>
           </div>

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import SafeImage from '@/components/SafeImage';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ICinemaSystem, ICinema } from '@/types';
 import Pagination from '@/components/Pagination';
 import { authHeaders } from '@/lib/api';
@@ -33,7 +34,7 @@ export default function CinemasPage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
   // Fetch data
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [cinemasRes, systemsRes] = await Promise.all([
         fetch(`${API_URL}/cinemas`),
@@ -48,11 +49,11 @@ export default function CinemasPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_URL]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   // Get unique cities
   const uniqueCities = [...new Set(cinemas.map(c => c.city).filter(Boolean))];
@@ -312,7 +313,7 @@ export default function CinemasPage() {
                             style={{ backgroundColor: system.color_code || '#3B82F6' }}
                           >
                             {system.logo_url ? (
-                              <img src={system.logo_url} alt="" className="w-6 h-6 object-contain" />
+                              <SafeImage src={system.logo_url} alt="" className="w-6 h-6 object-contain" />
                             ) : (
                               system.name.substring(0, 2).toUpperCase()
                             )}

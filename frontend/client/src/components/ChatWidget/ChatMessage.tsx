@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useMemo } from 'react';
+import { Fragment, memo, useMemo } from 'react';
 
 interface Message {
   id: string;
@@ -18,6 +18,15 @@ interface ChatMessageProps {
   onActionClick?: (url: string) => void;
 }
 
+interface MovieCardBlock {
+  posterUrl?: string;
+  title: string;
+  titleUrl?: string;
+  genreText: string;
+  durationText: string;
+  nextIndex: number;
+}
+
 function formatTime(date: Date): string {
   return new Date(date).toLocaleTimeString('vi-VN', {
     hour: '2-digit',
@@ -25,85 +34,306 @@ function formatTime(date: Date): string {
   });
 }
 
-function renderMarkdown(text: string): string {
+function isKnownInternalLink(url: string): boolean {
+  if (!url.startsWith('/') || url.startsWith('//')) return false;
+
+  return (
+    url === '/' ||
+    url === '/movies' ||
+    /^\/movies\?status=(now_showing|coming_soon)$/.test(url) ||
+    /^\/movie\/[a-zA-Z0-9_-]+$/.test(url) ||
+    url === '/booking' ||
+    /^\/booking\/[a-zA-Z0-9_-]+$/.test(url) ||
+    url === '/login' ||
+    /^\/login\?redirect=%2F[a-zA-Z0-9_%.-]+$/.test(url) ||
+    url === '/register' ||
+    url === '/profile' ||
+    url === '/my-tickets' ||
+    url === '/news' ||
+    /^\/news\/[a-zA-Z0-9_-]+$/.test(url)
+  );
+}
+
+function labelForUrl(url: string): string {
+  if (url.startsWith('/movie/')) return 'Xem chi tiết phim';
+  if (url.startsWith('/booking/')) return 'Đặt vé';
+  if (url.startsWith('/movies')) return 'Xem danh sách phim';
+  if (url === '/booking') return 'Xem lịch chiếu';
+  if (url.startsWith('/login')) return 'Đăng nhập';
+  if (url === '/register') return 'Đăng ký';
+  if (url === '/profile') return 'Trang cá nhân';
+  if (url === '/my-tickets') return 'Vé của tôi';
+  if (url.startsWith('/news')) return 'Xem tin tức';
+  return 'Mở trang';
+}
+
+function isSafeImageUrl(url: string): boolean {
+  return /^https?:\/\//i.test(url) || url.startsWith('/');
+}
+
+function unescapeMarkdownText(text: string): string {
+  return text.replace(/\\([\\[\]()!*_`])/g, '$1');
+}
+
+function parsePosterLine(line: string): string | null {
+  const match = line.match(/^!\[[^\]]*]\(([^)]+)\)$/);
+  if (!match || !isSafeImageUrl(match[1])) return null;
+  return match[1];
+}
+
+function parseMovieTitleLine(line: string): { title: string; url?: string } | null {
+  const withoutIndex = line.replace(/^\*\*\d+\.\*\*\s*/, '').trim();
+  const linkMatch = withoutIndex.match(/^\[([^\]]+)]\(([^)]+)\)$/);
+
+  if (linkMatch) {
+    return {
+      title: unescapeMarkdownText(linkMatch[1]),
+      url: isKnownInternalLink(linkMatch[2]) ? linkMatch[2] : undefined,
+    };
+  }
+
+  const boldMatch = withoutIndex.match(/^\*\*(.+)\*\*$/);
+  const title = unescapeMarkdownText((boldMatch?.[1] || withoutIndex).trim());
+  return title ? { title } : null;
+}
+
+function parseMovieCardBlock(lines: string[], startIndex: number): MovieCardBlock | null {
+  let index = startIndex;
+  let posterUrl: string | undefined;
+  const firstLine = lines[index]?.trim() || '';
+  const parsedPoster = parsePosterLine(firstLine);
+
+  if (parsedPoster) {
+    posterUrl = parsedPoster;
+    index++;
+  }
+
+  const titleLine = lines[index]?.trim() || '';
+  const parsedTitle = parseMovieTitleLine(titleLine);
+  if (!parsedTitle) return null;
+  index++;
+
+  while (lines[index]?.trim() === '') {
+    index++;
+  }
+
+  const genreLine = lines[index]?.trim() || '';
+  const durationLine = lines[index + 1]?.trim() || '';
+
+  if (!genreLine.startsWith('Thể loại:') || !durationLine.startsWith('Thời lượng:')) {
+    return null;
+  }
+
+  return {
+    posterUrl,
+    title: parsedTitle.title,
+    titleUrl: parsedTitle.url,
+    genreText: genreLine,
+    durationText: durationLine,
+    nextIndex: index + 2,
+  };
+}
+
+function renderMarkdown(
+  text: string,
+  onActionClick?: (url: string) => void,
+): React.ReactNode[] {
   const lines = text.split('\n');
-  const result: string[] = [];
-  let inList = false;
-  let listType: 'ul' | 'ol' | null = null;
+  const result: React.ReactNode[] = [];
+  let index = 0;
 
-  for (const line of lines) {
+  while (index < lines.length) {
+    const line = lines[index];
     const trimmedLine = line.trim();
+    const movieCard = parseMovieCardBlock(lines, index);
 
-    if (/^[-*]\s+/.test(trimmedLine)) {
-      if (!inList || listType !== 'ul') {
-        if (inList) result.push(`</${listType}>`);
-        result.push('<ul>');
-        inList = true;
-        listType = 'ul';
-      }
-      const content = trimmedLine.replace(/^[-*]\s+/, '');
-      result.push(`<li>${formatInline(content)}</li>`);
+    if (movieCard) {
+      result.push(renderMovieCard(movieCard, onActionClick, `movie-${index}`));
+      index = movieCard.nextIndex;
       continue;
-    }
-
-    if (/^\d+\.\s+/.test(trimmedLine)) {
-      if (!inList || listType !== 'ol') {
-        if (inList) result.push(`</${listType}>`);
-        result.push('<ol>');
-        inList = true;
-        listType = 'ol';
-      }
-      const content = trimmedLine.replace(/^\d+\.\s+/, '');
-      result.push(`<li>${formatInline(content)}</li>`);
-      continue;
-    }
-
-    if (inList) {
-      result.push(`</${listType}>`);
-      inList = false;
-      listType = null;
     }
 
     if (trimmedLine === '') {
-      result.push('<br/>');
+      result.push(<br key={`br-${index}`} />);
+      index++;
       continue;
     }
 
-    result.push(`<p>${formatInline(trimmedLine)}</p>`);
+    const unordered = /^[-*]\s+/.test(trimmedLine);
+    const ordered = /^\d+\.\s+/.test(trimmedLine);
+
+    if (unordered || ordered) {
+      const items: string[] = [];
+      const listStart = index;
+      const pattern = unordered ? /^[-*]\s+/ : /^\d+\.\s+/;
+
+      while (index < lines.length && pattern.test(lines[index].trim())) {
+        items.push(lines[index].trim().replace(pattern, ''));
+        index++;
+      }
+
+      const children = items.map((item, itemIndex) => (
+        <li key={`${listStart}-${itemIndex}`}>{renderInline(item, onActionClick, `${listStart}-${itemIndex}`)}</li>
+      ));
+
+      result.push(
+        unordered ? (
+          <ul key={`ul-${listStart}`}>{children}</ul>
+        ) : (
+          <ol key={`ol-${listStart}`}>{children}</ol>
+        ),
+      );
+      continue;
+    }
+
+    result.push(
+      <p key={`p-${index}`}>{renderInline(trimmedLine, onActionClick, `p-${index}`)}</p>,
+    );
+    index++;
   }
 
-  if (inList) {
-    result.push(`</${listType}>`);
-  }
-
-  return result.join('');
+  return result;
 }
 
-function formatInline(text: string): string {
-  let safe = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+function renderMovieCard(
+  movie: MovieCardBlock,
+  onActionClick: ((url: string) => void) | undefined,
+  key: string,
+): React.ReactNode {
+  const titleUrl = movie.titleUrl;
 
-  // Bold
-  safe = safe.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-
-  // Markdown links [text](url)
-  safe = safe.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="chat-msg__link" data-internal-link="$2">$1</a>');
-
-  // Auto-link internal paths like /movie/xxx, /movies/xxx
-  safe = safe.replace(
-    /(?:^|\s)(\/(?:movie|movies|booking|showtimes|promotions|profile|news|checkout)[^\s<)]*)/g,
-    (match, path) => {
-      const trimmedPath = path.trim();
-      return match.replace(path, `<a href="${trimmedPath}" class="chat-msg__link" data-internal-link="${trimmedPath}">${trimmedPath}</a>`);
-    }
+  return (
+    <div key={key} className="chat-msg__movie-card">
+      {movie.posterUrl && (
+        <span
+          role="img"
+          aria-label={`Poster phim ${movie.title}`}
+          className="chat-msg__movie-poster"
+          style={{ backgroundImage: `url("${movie.posterUrl.replace(/"/g, '%22')}")` }}
+        />
+      )}
+      <div className="chat-msg__movie-info">
+        {titleUrl ? (
+          <a
+            href={titleUrl}
+            className="chat-msg__movie-title chat-msg__link"
+            onClick={(event) => {
+              event.preventDefault();
+              onActionClick?.(titleUrl);
+            }}
+          >
+            {movie.title}
+          </a>
+        ) : (
+          <span className="chat-msg__movie-title">{movie.title}</span>
+        )}
+        <p className="chat-msg__movie-meta">{movie.genreText}</p>
+        <p className="chat-msg__movie-meta">{movie.durationText}</p>
+      </div>
+    </div>
   );
+}
 
-  // Inline code
-  safe = safe.replace(/`([^`]+)`/g, '<code>$1</code>');
+function renderInline(
+  text: string,
+  onActionClick: ((url: string) => void) | undefined,
+  keyPrefix: string,
+): React.ReactNode[] {
+  const nodes: React.ReactNode[] = [];
+  const tokenPattern = /(!\[([^\]]*)\]\(([^)]+)\))|(\[([^\]]+)\]\(([^)]+)\))|(\*\*(.+?)\*\*)|(`([^`]+)`)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
 
-  return safe;
+  while ((match = tokenPattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(...renderPlainText(text.slice(lastIndex, match.index), onActionClick, `${keyPrefix}-${nodes.length}`));
+    }
+
+    if (match[2] !== undefined && match[3]) {
+      nodes.push(renderImage(match[2] || 'Poster phim', match[3], `${keyPrefix}-image-${match.index}`));
+    } else if (match[5] && match[6]) {
+      const label = match[5];
+      const url = match[6];
+      nodes.push(renderLink(label, url, onActionClick, `${keyPrefix}-link-${match.index}`));
+    } else if (match[8]) {
+      nodes.push(<strong key={`${keyPrefix}-strong-${match.index}`}>{renderInline(match[8], onActionClick, `${keyPrefix}-strong-${match.index}`)}</strong>);
+    } else if (match[10]) {
+      nodes.push(<code key={`${keyPrefix}-code-${match.index}`}>{match[10]}</code>);
+    }
+
+    lastIndex = tokenPattern.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(...renderPlainText(text.slice(lastIndex), onActionClick, `${keyPrefix}-${nodes.length}`));
+  }
+
+  return nodes;
+}
+
+function renderImage(alt: string, url: string, key: string): React.ReactNode {
+  if (!isSafeImageUrl(url)) return null;
+
+  return (
+    <span
+      key={key}
+      role="img"
+      aria-label={alt}
+      className="chat-msg__poster"
+      style={{ backgroundImage: `url("${url.replace(/"/g, '%22')}")` }}
+    />
+  );
+}
+
+function renderPlainText(
+  text: string,
+  onActionClick: ((url: string) => void) | undefined,
+  keyPrefix: string,
+): React.ReactNode[] {
+  const nodes: React.ReactNode[] = [];
+  const urlPattern = /((?:\/movie\/[a-zA-Z0-9_-]+)|(?:\/booking\/[a-zA-Z0-9_-]+)|(?:\/movies(?:\?status=(?:now_showing|coming_soon))?)|(?:\/booking)|(?:\/login(?:\?redirect=%2F[a-zA-Z0-9_%.-]+)?)|(?:\/register)|(?:\/profile)|(?:\/my-tickets)|(?:\/news(?:\/[a-zA-Z0-9_-]+)?))(?![)\w/?-])/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = urlPattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(<Fragment key={`${keyPrefix}-text-${lastIndex}`}>{text.slice(lastIndex, match.index)}</Fragment>);
+    }
+    const url = match[1];
+    nodes.push(renderLink(labelForUrl(url), url, onActionClick, `${keyPrefix}-auto-${match.index}`));
+    lastIndex = urlPattern.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(<Fragment key={`${keyPrefix}-text-end`}>{text.slice(lastIndex)}</Fragment>);
+  }
+
+  return nodes;
+}
+
+function renderLink(
+  label: string,
+  url: string,
+  onActionClick: ((url: string) => void) | undefined,
+  key: string,
+): React.ReactNode {
+  if (!isKnownInternalLink(url)) {
+    return <Fragment key={key}>{label}</Fragment>;
+  }
+
+  return (
+    <a
+      key={key}
+      href={url}
+      className="chat-msg__link"
+      onClick={(event) => {
+        event.preventDefault();
+        onActionClick?.(url);
+      }}
+    >
+      {label}
+    </a>
+  );
 }
 
 function isFallbackMessage(message: Message): boolean {
@@ -119,43 +349,30 @@ const ChatMessage = memo(function ChatMessage({ message, onActionClick }: ChatMe
 
   const renderedContent = useMemo(() => {
     if (isUser) return null;
-    return renderMarkdown(message.content);
-  }, [isUser, message.content]);
-
-  const handleContentClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLElement;
-    if (target.tagName === 'A' && target.dataset.internalLink) {
-      e.preventDefault();
-      if (onActionClick) {
-        onActionClick(target.dataset.internalLink);
-      }
-    }
-  };
+    return renderMarkdown(message.content, onActionClick);
+  }, [isUser, message.content, onActionClick]);
 
   return (
     <div
       className={`chat-msg chat-msg--${isUser ? 'user' : 'bot'}${message.isError ? ' chat-msg--error' : ''}${isFallback ? ' chat-msg--fallback' : ''}`}
     >
       <div className="chat-msg__bubble"
-        {...(isUser
-          ? { children: message.content }
-          : {
-              dangerouslySetInnerHTML: { __html: renderedContent || '' },
-              onClick: handleContentClick,
-            }
-        )}
-      />
+      >
+        {isUser ? message.content : renderedContent}
+      </div>
       {!isUser && message.actions && message.actions.length > 0 && (
         <div className="chat-msg__actions">
-          {message.actions.map((act, index) => (
-            <button
-              key={index}
-              className="chat-msg__cta-btn"
-              onClick={() => onActionClick && onActionClick(act.url)}
-            >
-              {act.label}
-            </button>
-          ))}
+          {message.actions
+            .filter((act) => isKnownInternalLink(act.url))
+            .map((act, index) => (
+              <button
+                key={`${act.url}-${index}`}
+                className="chat-msg__cta-btn"
+                onClick={() => onActionClick && onActionClick(act.url)}
+              >
+                {act.label}
+              </button>
+            ))}
         </div>
       )}
       <span className="chat-msg__time">

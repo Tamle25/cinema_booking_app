@@ -18,12 +18,12 @@ export class ChatbotController {
     @Body() dto: ChatbotMessageDto,
     @Headers('authorization') authHeader?: string,
   ): Promise<ChatbotResponse> {
-    this.logger.log(`📨 POST /api/chatbot/message | msg="${dto.message?.substring(0, 50)}..." | auth=${!!authHeader}`);
+    this.logger.log(`POST /api/chatbot/message | msg="${dto.message?.substring(0, 50)}..." | auth=${!!authHeader}`);
 
     const result = await this.chatbotService.processMessage(dto, authHeader);
 
     this.logger.log(
-      `📤 Response: success=${result.success} | source=${result.source} | ` +
+      `Response: success=${result.success} | source=${result.source} | ` +
       `${result.model ? 'model=' + result.model + ' | ' : ''}` +
       `${result.errorCode ? 'errorCode=' + result.errorCode + ' | ' : ''}` +
       `reply=${result.reply?.substring(0, 60)}...`,

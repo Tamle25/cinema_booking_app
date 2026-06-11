@@ -1,5 +1,6 @@
 'use client';
 
+import SafeImage from '@/components/SafeImage';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -75,7 +76,7 @@ export default function NewsDetailPage() {
           {news.thumbnail ? (
             <div className="px-6 md:px-8 pb-6">
               <div className="aspect-[16/9] overflow-hidden rounded-2xl bg-gray-100">
-                <img
+                <SafeImage
                   src={news.thumbnail.startsWith('/') ? `${API_URL}${news.thumbnail}` : news.thumbnail}
                   alt={news.title}
                   className="w-full h-full object-cover"

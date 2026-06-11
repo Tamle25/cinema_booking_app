@@ -1,5 +1,6 @@
 'use client';
 
+import SafeImage from '@/components/SafeImage';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { IMovie, IShowtime, ICinemaSystem, ICinema, IReview } from '@/types';
@@ -373,7 +374,7 @@ export default function MovieDetailPage() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8 items-end min-h-[380px] md:min-h-[420px]">
               
               <div className="hidden md:block col-span-1">
-                <img
+                <SafeImage
                   src={getCloudinaryImageUrl(movie.poster_url, movieImagePresets.posterDetail)}
                   alt={movie.title}
                   className="w-full aspect-[2/3] rounded-lg shadow-2xl border-2 border-gray-600 object-cover"
@@ -497,7 +498,7 @@ export default function MovieDetailPage() {
                     }`}
                 >
                   {system.logo_url ? (
-                    <img src={system.logo_url} alt={system.name} className="w-12 h-12 object-contain" />
+                    <SafeImage src={system.logo_url} alt={system.name} className="w-12 h-12 object-contain" />
                   ) : (
                     <span className="text-xs font-bold text-center px-1">{system.name}</span>
                   )}
@@ -543,7 +544,7 @@ export default function MovieDetailPage() {
                       
                       <div className="flex-shrink-0 w-12 h-12 rounded bg-white border border-gray-200 flex items-center justify-center overflow-hidden">
                         {systemInfo?.logo_url ? (
-                          <img src={systemInfo.logo_url} alt={systemInfo.name} className="w-10 h-10 object-contain" />
+                          <SafeImage src={systemInfo.logo_url} alt={systemInfo.name} className="w-10 h-10 object-contain" />
                         ) : (
                           <span className="text-xs font-bold text-gray-600">{systemInfo?.name?.slice(0, 3) || 'N/A'}</span>
                         )}
@@ -598,7 +599,7 @@ export default function MovieDetailPage() {
           <div className="flex flex-col gap-4">
             {relatedMovies.map((m) => (
               <Link key={m._id} href={`/movie/${m._id}`} className="group flex gap-4 items-start hover:bg-gray-50 p-2 rounded-lg transition border border-transparent hover:border-gray-200">
-                <img
+                <SafeImage
                   src={getCloudinaryImageUrl(m.poster_url, movieImagePresets.posterThumb)}
                   alt={m.title}
                   className="w-20 h-28 object-cover rounded shadow-md group-hover:scale-105 transition"

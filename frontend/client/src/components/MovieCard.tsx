@@ -1,5 +1,6 @@
-"use client";
+﻿"use client";
 
+import SafeImage from '@/components/SafeImage';
 import Link from "next/link";
 import { getCloudinaryImageUrl, movieImagePresets } from "@/lib/cloudinary";
 
@@ -19,7 +20,7 @@ const MovieCard = ({ movie }: MovieProps) => {
     <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 group">
       
       <div className="relative aspect-[2/3] overflow-hidden">
-        <img
+        <SafeImage
           src={getCloudinaryImageUrl(movie.poster_url, movieImagePresets.posterCard)}
           alt={movie.title}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"

@@ -1,5 +1,6 @@
 'use client';
 
+import SafeImage from '@/components/SafeImage';
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import Link from 'next/link';
@@ -248,7 +249,7 @@ export default function ShowtimesSection() {
                >
                   <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm border mb-1 overflow-hidden bg-white p-1 transition-all ${selectedSystemId === system._id ? 'border-red-500 ring-2 ring-red-100' : 'border-gray-200 group-hover:border-gray-300'}`}>
                     {system.logo_url ? (
-                      <img src={system.logo_url} alt={system.name} className="w-full h-full object-contain" />
+                      <SafeImage src={system.logo_url} alt={system.name} className="w-full h-full object-contain" />
                     ) : (
                       <span className="font-bold text-gray-400 text-xs text-center">{system.name.slice(0, 3)}</span>
                     )}
@@ -314,7 +315,7 @@ export default function ShowtimesSection() {
                         <div className="flex items-center gap-3 w-full">
                            {cinema.cinema_system?.logo_url ? (
                              <div className="w-8 h-8 rounded shrink-0 overflow-hidden bg-white shadow-sm border border-gray-100 p-0.5">
-                               <img 
+                               <SafeImage 
                                  src={cinema.cinema_system.logo_url} 
                                  alt={cinema.cinema_system.name}
                                  className="w-full h-full object-contain"
@@ -433,7 +434,7 @@ export default function ShowtimesSection() {
                            <div key={group.movie._id} className="flex flex-col sm:flex-row gap-4 lg:gap-6 border-b border-gray-100 pb-6 lg:pb-8 last:border-0">
                               
                               <Link href={`/movie/${group.movie._id}`} className="w-24 sm:w-32 shrink-0 group/img relative rounded-xl overflow-hidden shadow-sm self-start">
-                                <img 
+                                <SafeImage 
                                   src={getCloudinaryImageUrl(group.movie.poster_url, movieImagePresets.posterCard)}
                                   alt={group.movie.title} 
                                   className="w-full object-cover aspect-[2/3] transition-transform duration-500 group-hover/img:scale-110" 

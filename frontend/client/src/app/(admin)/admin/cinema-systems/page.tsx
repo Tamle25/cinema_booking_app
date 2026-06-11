@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import SafeImage from '@/components/SafeImage';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ICinemaSystem } from '@/types';
 import Pagination from '@/components/Pagination';
 import { authHeaders } from '@/lib/api';
@@ -56,7 +57,7 @@ export default function CinemaSystemsPage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
   // Fetch cinema systems
-  const fetchSystems = async () => {
+  const fetchSystems = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/cinema-systems`);
       const data = await res.json();
@@ -66,11 +67,11 @@ export default function CinemaSystemsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_URL]);
 
   useEffect(() => {
     fetchSystems();
-  }, []);
+  }, [fetchSystems]);
 
   // Generate slug from name
   const generateSlug = (name: string) => {
@@ -279,7 +280,7 @@ export default function CinemaSystemsPage() {
                         style={{ backgroundColor: system.color_code || '#3B82F6' }}
                       >
                         {system.logo_url ? (
-                          <img src={system.logo_url} alt={system.name} className="w-10 h-10 object-contain" />
+                          <SafeImage src={system.logo_url} alt={system.name} className="w-10 h-10 object-contain" />
                         ) : (
                           system.name.substring(0, 2).toUpperCase()
                         )}
@@ -420,7 +421,7 @@ export default function CinemaSystemsPage() {
                       style={{ backgroundColor: getHexFromColor(formData.color_code) }}
                     >
                       {formData.logo_url ? (
-                        <img src={formData.logo_url} alt="" className="w-10 h-10 object-contain" />
+                        <SafeImage src={formData.logo_url} alt="" className="w-10 h-10 object-contain" />
                       ) : (
                         formData.name.substring(0, 2).toUpperCase()
                       )}

@@ -11,7 +11,7 @@ export const FAQ_DATA: FAQItem[] = [
     keywords: ['hoàn vé', 'hoan ve', 'trả vé', 'tra ve', 'hủy vé', 'huy ve', 'hoàn tiền', 'hoan tien'],
     question: 'Chính sách hoàn vé và hủy vé như thế nào?',
     answer: 'CineMax hỗ trợ hoàn/hủy vé trước giờ chiếu ít nhất 60 phút đối với vé đã thanh toán online. Số tiền hoàn sẽ được cộng vào Ví thành viên hoặc chuyển về tài khoản ngân hàng của bạn trong vòng 3-5 ngày làm việc. Vui lòng truy cập Lịch sử đặt vé trong trang cá nhân để thực hiện hoàn vé.',
-    url: '/profile/bookings',
+    url: '/my-tickets',
     label: 'Vé của tôi'
   },
   {
@@ -25,8 +25,8 @@ export const FAQ_DATA: FAQItem[] = [
     keywords: ['thanh toán', 'thanh toan', 'momo', 'vnpay', 'thẻ', 'atm', 'credit card'],
     question: 'Các phương thức thanh toán được hỗ trợ là gì?',
     answer: 'CineMax hỗ trợ nhiều phương thức thanh toán trực tuyến linh hoạt bao gồm: Ví điện tử MoMo, Cổng VNPAY, Thẻ ATM nội địa và Thẻ tín dụng quốc tế (Visa/Mastercard/JCB). Mọi giao dịch đều được bảo mật tuyệt đối.',
-    url: '/checkout',
-    label: 'Thanh toán'
+    url: '/booking',
+    label: 'Xem lịch chiếu'
   },
   {
     keywords: ['hướng dẫn đặt', 'huong dan dat', 'cách đặt vé', 'cach dat ve', 'đặt vé thế nào', 'dat ve the nao'],
@@ -37,7 +37,7 @@ export const FAQ_DATA: FAQItem[] = [
     keywords: ['thành viên', 'thanh vien', 'tích điểm', 'tich diem', 'hạng thành viên', 'membership', 'loyalty', 'điểm tích lũy'],
     question: 'Chương trình thành viên CineMax Loyalty là gì?',
     answer: 'Khi đăng ký tài khoản thành viên, bạn sẽ được tích lũy 5% giá trị mỗi đơn đặt vé thành điểm thưởng. Điểm thưởng này có thể sử dụng để đổi các Voucher giảm giá 10K, 20K, 50K hoặc các combo bắp nước miễn phí tại rạp.',
-    url: '/profile/bookings',
+    url: '/profile',
     label: 'Trang cá nhân'
   },
   {
