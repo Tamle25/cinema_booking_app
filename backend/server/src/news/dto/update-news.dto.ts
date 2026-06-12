@@ -27,4 +27,8 @@ export class UpdateNewsDto {
   @IsOptional()
   @IsBoolean()
   isPublished?: boolean;
+
+  @IsOptional()
+  @IsString()
+  category?: string;
 }

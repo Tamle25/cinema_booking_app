@@ -161,6 +161,33 @@ export class NewsService {
     return normalized;
   }
 
+  async toggleLike(id: string, userId: string): Promise<{ liked: boolean; likesCount: number }> {
+    const news = await this.newsModel.findById(id).exec();
+    if (!news) {
+      throw new NotFoundException('Không tìm thấy tin tức');
+    }
+
+    if (!news.likedUsers) {
+      news.likedUsers = [];
+    }
+
+    const index = news.likedUsers.indexOf(userId);
+    let liked = false;
+
+    if (index > -1) {
+      news.likedUsers.splice(index, 1);
+      liked = false;
+    } else {
+      news.likedUsers.push(userId);
+      liked = true;
+    }
+
+    news.likesCount = news.likedUsers.length;
+    await news.save();
+
+    return { liked, likesCount: news.likesCount };
+  }
+
   private handleDuplicateSlug(error: any) {
     if (error?.code === 11000 && error?.keyPattern?.slug) {
       throw new BadRequestException('Slug đã tồn tại');

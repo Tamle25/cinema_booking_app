@@ -26,6 +26,15 @@ export class News {
 
   @Prop({ default: false })
   isPublished: boolean;
+
+  @Prop({ type: String, enum: ['promotion', 'cinema'], default: 'cinema' })
+  category: string;
+
+  @Prop({ type: [String], default: [] })
+  likedUsers: string[];
+
+  @Prop({ type: Number, default: 0 })
+  likesCount: number;
 }
 
 export const NewsSchema = SchemaFactory.createForClass(News);

@@ -34,11 +34,11 @@ const ReviewCard = ({ review, compact = false, onLike }: ReviewCardProps) => {
   return (
     <div
       className={`${
-        compact ? "py-3" : "bg-white rounded-xl border border-gray-100 p-5"
+        compact ? "py-3" : "bg-white rounded-2xl border border-gray-100 p-6 md:p-7 shadow-sm"
       } ${!compact && "hover:shadow-md transition-shadow duration-200"}`}
     >
       
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-3.5">
         
         <div className="flex-shrink-0">
           {userAvatar ? (
@@ -63,23 +63,23 @@ const ReviewCard = ({ review, compact = false, onLike }: ReviewCardProps) => {
         
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-gray-900 text-sm">
+            <span className="font-semibold text-gray-900 text-sm md:text-base">
               {userName}
             </span>
 
             {/* Cấp độ thành viên */}
             {review.user?.membershipRank ? (
-              <span className="inline-flex items-center bg-red-50 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-200">
+              <span className="inline-flex items-center bg-red-50 text-red-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-red-200">
                 {review.user.membershipRank}
               </span>
             ) : (
-              <span className="inline-flex items-center bg-gray-50 text-gray-600 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-gray-200">
+              <span className="inline-flex items-center bg-gray-50 text-gray-600 text-[10px] font-semibold px-2.5 py-0.5 rounded-full border border-gray-200">
                 Thành viên
               </span>
             )}
 
             {review.is_verified && (
-              <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-green-200">
+              <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 text-[10px] font-semibold px-2.5 py-0.5 rounded-full border border-green-200">
                 <svg
                   className="w-3 h-3"
                   fill="currentColor"
@@ -124,9 +124,9 @@ const ReviewCard = ({ review, compact = false, onLike }: ReviewCardProps) => {
       </div>
 
       
-      <div className={`mt-3 ${compact ? "ml-13" : ""}`}>
+      <div className={`mt-4 ml-13`}>
         <p
-          className={`text-gray-700 text-sm leading-relaxed ${
+          className={`text-gray-700 text-sm md:text-base leading-relaxed ${
             compact ? "line-clamp-2" : ""
           }`}
         >
@@ -139,9 +139,20 @@ const ReviewCard = ({ review, compact = false, onLike }: ReviewCardProps) => {
         <div className="mt-4 flex items-center gap-4 ml-13">
           <button
             onClick={() => onLike?.(review._id)}
-            className="flex items-center gap-1.5 text-gray-400 hover:text-red-500 transition-colors text-sm"
+            className={`flex items-center gap-1.5 transition-all text-sm font-medium ${
+              review.is_liked
+                ? "text-red-500 hover:text-red-600 scale-105"
+                : "text-gray-400 hover:text-red-500"
+            }`}
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg
+              className={`w-5 h-5 transition-all ${
+                review.is_liked ? "fill-red-500 stroke-red-500" : ""
+              }`}
+              fill={review.is_liked ? "currentColor" : "none"}
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -149,7 +160,7 @@ const ReviewCard = ({ review, compact = false, onLike }: ReviewCardProps) => {
                 d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
               />
             </svg>
-            <span>{review.likes_count > 0 ? review.likes_count : "Thích"}</span>
+            <span>{review.likes_count > 0 ? `${review.likes_count} Thích` : "Thích"}</span>
           </button>
         </div>
       )}

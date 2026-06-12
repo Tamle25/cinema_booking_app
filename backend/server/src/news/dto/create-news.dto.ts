@@ -33,4 +33,8 @@ export class CreateNewsDto {
   @IsOptional()
   @IsBoolean()
   isPublished?: boolean;
+
+  @IsOptional()
+  @IsString()
+  category?: string;
 }

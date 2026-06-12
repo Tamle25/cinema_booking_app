@@ -9,7 +9,10 @@ import {
   Put,
   UploadedFile,
   UseInterceptors,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
@@ -103,5 +106,12 @@ export class NewsController {
   @AdminOnly()
   remove(@Param('id', ParseObjectIdPipe) id: string) {
     return this.newsService.remove(id);
+  }
+
+  @Post(':id/like')
+  @UseGuards(AuthGuard('jwt'))
+  toggleLike(@Param('id', ParseObjectIdPipe) id: string, @Request() req: any) {
+    const userId = req.user._id || req.user.id;
+    return this.newsService.toggleLike(id, userId);
   }
 }

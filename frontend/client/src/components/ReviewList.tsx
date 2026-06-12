@@ -27,8 +27,15 @@ const ReviewList = ({ movieId }: ReviewListProps) => {
         if (reset) setLoading(true);
         else setLoadingMore(true);
 
+        const headers: Record<string, string> = {};
+        const token = localStorage.getItem("access_token");
+        if (token) {
+          headers.Authorization = `Bearer ${token}`;
+        }
+
         const res = await axios.get(
-          `${API_URL}/reviews/${movieId}?page=${pageNum}&limit=10&sort=${sort}`
+          `${API_URL}/reviews/${movieId}?page=${pageNum}&limit=10&sort=${sort}`,
+          { headers }
         );
 
         const { data, meta } = res.data;

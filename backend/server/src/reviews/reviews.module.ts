@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { JwtModule } from '@nestjs/jwt';
 import { ReviewsController } from './reviews.controller';
 import { ReviewsService } from './reviews.service';
 import { Review, ReviewSchema } from './schemas/review.schema';
@@ -19,6 +20,7 @@ import { User, UserSchema } from '../users/user.schema';
       { name: Showtime.name, schema: ShowtimeSchema },
       { name: User.name, schema: UserSchema },
     ]),
+    JwtModule,
   ],
   controllers: [ReviewsController],
   providers: [ReviewsService],

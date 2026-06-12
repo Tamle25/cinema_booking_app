@@ -13,6 +13,7 @@ import { Booking } from '../bookings/schemas/booking.schema';
 import { Showtime } from '../showtimes/schemas/showtime.schema';
 import { User } from '../users/user.schema';
 import { CreateReviewDto } from './dto/create-review.dto';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class ReviewsService {
@@ -24,6 +25,7 @@ export class ReviewsService {
     @InjectModel(Booking.name) private bookingModel: Model<Booking>,
     @InjectModel(Showtime.name) private showtimeModel: Model<Showtime>,
     @InjectModel(User.name) private userModel: Model<User>,
+    private jwtService: JwtService,
   ) {}
 
   async createReview(userId: string, dto: CreateReviewDto): Promise<Review> {
@@ -71,6 +73,7 @@ export class ReviewsService {
     page: number = 1,
     limit: number = 10,
     sort: string = 'newest',
+    token?: string,
   ) {
     const skip = (page - 1) * limit;
 
@@ -90,10 +93,38 @@ export class ReviewsService {
       this.reviewModel.countDocuments({ movie: movieId }),
     ]);
 
+    let userId: string | null = null;
+    if (token) {
+      try {
+        const decoded = this.jwtService.verify(token);
+        userId = decoded.sub || decoded.id || decoded._id;
+      } catch (error) {
+        // Token expired or invalid, ignore
+      }
+    }
+
+    let likedReviewIds: string[] = [];
+    if (userId) {
+      const reviewIds = reviews.map((r) => r._id.toString());
+      const likes = await this.reviewLikeModel.find({
+        user: userId,
+        review: { $in: reviewIds },
+      });
+      likedReviewIds = likes.map((l) => (l.review as any).toString());
+    }
+
+    const data = reviews.map((r) => {
+      const isLiked = likedReviewIds.includes(r._id.toString());
+      return {
+        ...r.toObject(),
+        is_liked: isLiked,
+      };
+    });
+
     const totalPages = Math.ceil(totalItems / limit);
 
     return {
-      data: reviews,
+      data,
       meta: {
         currentPage: page,
         itemsPerPage: limit,

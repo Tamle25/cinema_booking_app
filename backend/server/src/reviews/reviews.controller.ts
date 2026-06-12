@@ -56,12 +56,20 @@ export class ReviewsController {
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
     @Query('sort') sort: string = 'newest',
+    @Request() req: any,
   ) {
+    const authHeader = req.headers.authorization;
+    let token: string | undefined = undefined;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    }
+
     return this.reviewsService.getMovieReviews(
       movieId,
       Number(page) || 1,
       Number(limit) || 10,
       sort,
+      token,
     );
   }
 

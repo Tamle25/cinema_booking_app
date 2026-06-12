@@ -147,6 +147,9 @@ export interface INews {
   content: string;
   thumbnail: string;
   isPublished: boolean;
+  category?: 'promotion' | 'cinema';
+  likedUsers?: string[];
+  likesCount?: number;
   createdAt: string;
   updatedAt: string;
 }
