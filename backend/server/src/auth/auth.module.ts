@@ -7,15 +7,17 @@ import { AuthService } from './auth.service';
 import { User, UserSchema } from '../users/user.schema';
 import { UsersModule } from '../users/users.module';
 import { JwtStrategy } from './jwt.strategy';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
     UsersModule,
+    MailModule,
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
 
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         global: true,
         secret: configService.get<string>('JWT_SECRET'),
         signOptions: { expiresIn: '30m' },

@@ -21,16 +21,22 @@ import { UploadsModule } from './uploads/uploads.module';
 import { LoyaltyModule } from './loyalty/loyalty.module';
 import { VouchersModule } from './vouchers/vouchers.module';
 
+const envFilePaths = [
+  join(process.cwd(), '.env'),
+  join(process.cwd(), 'backend', 'server', '.env'),
+  join(__dirname, '..', '.env'),
+];
+
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: [join(process.cwd(), '.env'), join(__dirname, '..', '.env')],
+      envFilePath: envFilePaths,
     }),
 
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         uri: configService.get<string>('MONGO_URI'),
       }),
       inject: [ConfigService],

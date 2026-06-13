@@ -94,8 +94,10 @@ export class ShowtimesService {
     if (query?.cinema_id) {
       filter.cinema = query.cinema_id;
     } else if (query?.cinema_system_id) {
-      const cinemasInSystem = await this.cinemasService.findBySystem(query.cinema_system_id);
-      const cinemaIds = cinemasInSystem.map(c => (c as any)._id);
+      const cinemasInSystem = await this.cinemasService.findBySystem(
+        query.cinema_system_id,
+      );
+      const cinemaIds = cinemasInSystem.map((c) => (c as any)._id);
       filter.cinema = { $in: cinemaIds };
     }
     if (query?.movie_id) {
@@ -147,8 +149,10 @@ export class ShowtimesService {
     if (query?.cinema_id) {
       filter.cinema = query.cinema_id;
     } else if (query?.cinema_system_id) {
-      const cinemasInSystem = await this.cinemasService.findBySystem(query.cinema_system_id);
-      const cinemaIds = cinemasInSystem.map(c => (c as any)._id);
+      const cinemasInSystem = await this.cinemasService.findBySystem(
+        query.cinema_system_id,
+      );
+      const cinemaIds = cinemasInSystem.map((c) => (c as any)._id);
       filter.cinema = { $in: cinemaIds };
     }
     if (query?.movie_id) {

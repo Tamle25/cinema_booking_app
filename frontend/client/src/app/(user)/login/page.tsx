@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { getErrorMessage, getResponseMessage } from '@/utils/errorMessage';
+import { toastSuccess, toastError } from '@/utils/toast';
 
 interface LoginResponse {
   access_token: string;
@@ -21,6 +22,9 @@ export default function LoginPage() {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showResend, setShowResend] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -30,6 +34,7 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setShowResend(false);
 
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
@@ -60,9 +65,45 @@ export default function LoginPage() {
       }
       
     } catch (err) {
-      setError(getErrorMessage(err, 'Không thể đăng nhập'));
+      const errMsg = getErrorMessage(err, 'Không thể đăng nhập');
+      setError(errMsg);
+      if (errMsg.toLowerCase().includes('chưa được xác thực') || errMsg.toLowerCase().includes('xác thực tài khoản')) {
+        setShowResend(true);
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendEmail = async () => {
+    if (!formData.email || resendCooldown > 0) return;
+    setResendLoading(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/resend-verification-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email }),
+      });
+      const data = await res.json() as { message?: string };
+      if (!res.ok) {
+        throw new Error(getResponseMessage(data.message, 'Gửi lại email xác thực thất bại'));
+      }
+      toastSuccess(data.message || 'Đã gửi lại email xác thực. Vui lòng kiểm tra hộp thư của bạn.');
+      
+      setResendCooldown(60);
+      const interval = setInterval(() => {
+        setResendCooldown((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch (err) {
+      toastError(getErrorMessage(err, 'Không thể gửi lại email xác thực'));
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -74,7 +115,25 @@ export default function LoginPage() {
           <p className="mt-2 text-sm text-gray-500">Chào mừng bạn quay trở lại!</p>
         </div>
 
-        {error && <div className="p-3 text-sm text-center text-red-600 bg-red-50 rounded-lg">{error}</div>}
+        {error && (
+          <div className="p-3.5 text-sm text-center text-red-600 bg-red-50 rounded-lg border border-red-100 space-y-2">
+            <div>{error}</div>
+            {showResend && (
+              <button
+                type="button"
+                onClick={handleResendEmail}
+                disabled={resendLoading || resendCooldown > 0}
+                className="text-xs font-bold text-blue-600 hover:underline focus:outline-none block mx-auto disabled:opacity-50"
+              >
+                {resendLoading
+                  ? 'Đang gửi lại...'
+                  : resendCooldown > 0
+                  ? `Gửi lại sau (${resendCooldown}s)`
+                  : 'Gửi lại email xác thực ngay'}
+              </button>
+            )}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
@@ -97,7 +156,7 @@ export default function LoginPage() {
           <div>
             <div className="flex justify-between items-center mb-2">
                <label className="text-sm font-medium text-gray-900">Mật khẩu</label>
-               <a href="#" className="text-xs text-red-600 hover:underline">Quên mật khẩu?</a>
+               <Link href="/forgot-password" className="text-xs text-red-600 hover:underline">Quên mật khẩu?</Link>
             </div>
             <input
               type="password"

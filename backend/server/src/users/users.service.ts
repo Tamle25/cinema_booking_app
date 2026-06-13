@@ -68,4 +68,83 @@ export class UsersService {
       )
       .exec();
   }
+
+  async findByVerificationToken(
+    hashedToken: string,
+  ): Promise<UserDocument | null> {
+    return this.userModel
+      .findOne({
+        emailVerificationToken: hashedToken,
+      })
+      .exec();
+  }
+
+  async findByResetToken(hashedToken: string): Promise<UserDocument | null> {
+    return this.userModel
+      .findOne({
+        resetPasswordToken: hashedToken,
+      })
+      .exec();
+  }
+
+  async updateVerificationToken(
+    id: string,
+    tokenData: {
+      emailVerificationToken?: string | null;
+      emailVerificationExpires?: Date | null;
+      emailVerificationLastSent?: Date;
+    },
+  ): Promise<UserDocument | null> {
+    return this.userModel
+      .findByIdAndUpdate(id, { $set: tokenData }, { new: true })
+      .exec();
+  }
+
+  async updateResetToken(
+    id: string,
+    tokenData: {
+      resetPasswordToken?: string | null;
+      resetPasswordExpires?: Date | null;
+      resetPasswordLastSent?: Date;
+    },
+  ): Promise<UserDocument | null> {
+    return this.userModel
+      .findByIdAndUpdate(id, { $set: tokenData }, { new: true })
+      .exec();
+  }
+
+  async verifyEmail(id: string): Promise<UserDocument | null> {
+    return this.userModel
+      .findByIdAndUpdate(
+        id,
+        {
+          $set: { isEmailVerified: true },
+          $unset: {
+            emailVerificationToken: 1,
+            emailVerificationExpires: 1,
+          },
+        },
+        { new: true },
+      )
+      .exec();
+  }
+
+  async clearResetToken(id: string): Promise<UserDocument | null> {
+    return this.userModel
+      .findByIdAndUpdate(
+        id,
+        {
+          $unset: {
+            resetPasswordToken: 1,
+            resetPasswordExpires: 1,
+          },
+        },
+        { new: true },
+      )
+      .exec();
+  }
+
+  async deleteById(id: string): Promise<UserDocument | null> {
+    return this.userModel.findByIdAndDelete(id).exec();
+  }
 }

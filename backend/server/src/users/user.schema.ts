@@ -34,6 +34,27 @@ export class User {
     enum: ['Member', 'Silver', 'Gold', 'Platinum', 'Diamond'],
   })
   membershipRank: string;
+
+  @Prop({ default: false })
+  isEmailVerified: boolean;
+
+  @Prop()
+  emailVerificationToken: string;
+
+  @Prop()
+  emailVerificationExpires: Date;
+
+  @Prop()
+  emailVerificationLastSent: Date;
+
+  @Prop()
+  resetPasswordToken: string;
+
+  @Prop()
+  resetPasswordExpires: Date;
+
+  @Prop()
+  resetPasswordLastSent: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
@@ -41,6 +62,7 @@ export const UserSchema = SchemaFactory.createForClass(User);
 UserSchema.set('toJSON', {
   flattenObjectIds: true,
   versionKey: false,
+
   transform: (doc, ret: any) => {
     delete ret.password;
     return ret;
