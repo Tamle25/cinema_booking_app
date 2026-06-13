@@ -87,6 +87,7 @@ export interface ICombo {
   description: string;
   price: number;
   image_url: string;
+  image_public_id?: string;
   category: 'combo' | 'drink' | 'snack';
   is_active: boolean;
   is_popular: boolean;
@@ -146,6 +147,7 @@ export interface INews {
   shortDescription: string;
   content: string;
   thumbnail: string;
+  thumbnail_public_id?: string;
   isPublished: boolean;
   category?: 'promotion' | 'cinema';
   likedUsers?: string[];

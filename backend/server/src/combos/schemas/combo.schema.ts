@@ -20,6 +20,9 @@ export class Combo {
   @Prop({ default: '' })
   image_url: string;
 
+  @Prop({ default: '' })
+  image_public_id: string;
+
   @Prop({ default: 'combo', enum: ['combo', 'drink', 'snack'] })
   category: string;
 

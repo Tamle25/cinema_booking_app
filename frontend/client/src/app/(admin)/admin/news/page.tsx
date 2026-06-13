@@ -21,6 +21,7 @@ const emptyForm = {
   shortDescription: '',
   content: '',
   thumbnail: '',
+  thumbnail_public_id: '',
   isPublished: true,
 };
 
@@ -39,6 +40,7 @@ export default function AdminNewsPage() {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<INews | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedThumbnailName, setSelectedThumbnailName] = useState('');
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -87,7 +89,12 @@ export default function AdminNewsPage() {
 
       const data = await res.json();
       if (data.thumbnail) {
-        setFormData((prev) => ({ ...prev, thumbnail: data.thumbnail }));
+        setFormData((prev) => ({
+          ...prev,
+          thumbnail: data.thumbnail,
+          thumbnail_public_id: data.thumbnail_public_id || data.public_id || '',
+        }));
+        setSelectedThumbnailName(file.name);
       } else {
         toastError('Upload ảnh thất bại');
       }
@@ -108,6 +115,7 @@ export default function AdminNewsPage() {
         shortDescription: news.shortDescription,
         content: news.content,
         thumbnail: news.thumbnail || '',
+        thumbnail_public_id: news.thumbnail_public_id || '',
         isPublished: news.isPublished,
       });
     } else {
@@ -115,6 +123,7 @@ export default function AdminNewsPage() {
       setFormData(emptyForm);
     }
     setShowModal(true);
+    setSelectedThumbnailName('');
   };
 
   const closeModal = () => {
@@ -484,7 +493,9 @@ export default function AdminNewsPage() {
                   </div>
                   <label className="flex-1 cursor-pointer">
                     <div className={`h-full min-h-32 border-2 border-dashed border-gray-300 rounded-lg p-4 flex items-center justify-center text-center hover:border-blue-400 transition ${uploading ? 'opacity-50' : ''}`}>
-                      {uploading ? 'Đang upload...' : 'Chọn ảnh thumbnail'}
+                      {uploading
+                        ? 'Dang upload...'
+                        : selectedThumbnailName || (formData.thumbnail ? 'Da chon anh thumbnail' : 'Chon anh thumbnail')}
                     </div>
                     <input
                       type="file"

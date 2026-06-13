@@ -25,6 +25,10 @@ export class UpdateNewsDto {
   thumbnail?: string;
 
   @IsOptional()
+  @IsString()
+  thumbnail_public_id?: string;
+
+  @IsOptional()
   @IsBoolean()
   isPublished?: boolean;
 

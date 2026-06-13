@@ -8,16 +8,20 @@ import {
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadApiResponse } from 'cloudinary';
-import { memoryStorage } from 'multer';
 import { AdminOnly } from '../common/decorators/admin.decorator';
+import {
+  hasValidImageSignature,
+  ImageUploadInterceptor,
+} from '../common/upload/image-upload.interceptor';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 type MovieImageType = 'poster' | 'banner';
+type UploadFailure = Error & {
+  http_code?: number;
+};
 
 const MAX_IMAGE_SIZE_BYTES = 8 * 1024 * 1024;
-const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 const POSTER_EXPECTED_RATIO = 2 / 3; // ~0.6667
 const POSTER_RATIO_TOLERANCE = 0.135; // ~20% sai số (cho phép tỉ lệ từ ~0.531 đến ~0.801)
@@ -62,25 +66,7 @@ export class UploadsController {
 
   @Post('movie-image')
   @AdminOnly()
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: memoryStorage(),
-      limits: { fileSize: MAX_IMAGE_SIZE_BYTES },
-      fileFilter: (_req, file, callback) => {
-        if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
-          callback(
-            new BadRequestException(
-              `Dinh dang file khong hop le: ${file.mimetype}. Chi chap nhan: image/jpeg, image/png, image/webp`,
-            ),
-            false,
-          );
-          return;
-        }
-
-        callback(null, true);
-      },
-    }),
-  )
+  @UseInterceptors(ImageUploadInterceptor('file', MAX_IMAGE_SIZE_BYTES))
   async uploadMovieImage(
     @UploadedFile() file: Express.Multer.File | undefined,
     @Body('type') type: MovieImageType,
@@ -100,11 +86,11 @@ export class UploadsController {
 
     if (type !== 'poster' && type !== 'banner') {
       throw new BadRequestException(
-        `type khong hop le: "${type}". Chi chap nhan "poster" hoac "banner".`,
+        `type khong hop le: "${String(type)}". Chi chap nhan "poster" hoac "banner".`,
       );
     }
 
-    if (!this.hasValidImageSignature(file)) {
+    if (!hasValidImageSignature(file)) {
       this.logger.warn(
         `File ${file.originalname} co mimetype ${file.mimetype} nhung magic bytes khong khop.`,
       );
@@ -119,11 +105,12 @@ export class UploadsController {
         file,
         MOVIE_IMAGE_RULES[type].folder,
       );
-    } catch (error) {
+    } catch (error: unknown) {
+      const uploadError = error as UploadFailure;
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      const httpCode = error?.http_code;
-      const errorName = error?.name;
+      const httpCode = uploadError.http_code;
+      const errorName = uploadError.name;
 
       this.logger.error('=== UPLOAD MOVIE IMAGE FAILED ===');
       this.logger.error(`error.message: ${errorMessage}`);
@@ -161,33 +148,6 @@ export class UploadsController {
       bytes: uploaded.bytes,
       warnings: validation.warnings,
     };
-  }
-
-  private hasValidImageSignature(file: Express.Multer.File): boolean {
-    const buffer = file.buffer;
-    if (!buffer || buffer.length < 12) return false;
-
-    if (file.mimetype === 'image/jpeg') {
-      return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
-    }
-
-    if (file.mimetype === 'image/png') {
-      return (
-        buffer[0] === 0x89 &&
-        buffer[1] === 0x50 &&
-        buffer[2] === 0x4e &&
-        buffer[3] === 0x47
-      );
-    }
-
-    if (file.mimetype === 'image/webp') {
-      return (
-        buffer.toString('ascii', 0, 4) === 'RIFF' &&
-        buffer.toString('ascii', 8, 12) === 'WEBP'
-      );
-    }
-
-    return false;
   }
 
   private validateUploadedImage(

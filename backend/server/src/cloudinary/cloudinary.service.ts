@@ -9,6 +9,9 @@ import { UploadApiResponse, v2 as cloudinary } from 'cloudinary';
 import { CLOUDINARY } from './cloudinary.constants';
 
 type CloudinaryInstance = typeof cloudinary;
+type CloudinaryUploadError = Error & {
+  http_code?: number;
+};
 
 @Injectable()
 export class CloudinaryService {
@@ -81,7 +84,7 @@ export class CloudinaryService {
           unique_filename: true,
           use_filename: false,
         },
-        (error, result) => {
+        (error: CloudinaryUploadError | undefined, result) => {
           if (error || !result) {
             this.logger.error('=== CLOUDINARY UPLOAD ERROR ===');
             this.logger.error(
@@ -89,10 +92,8 @@ export class CloudinaryService {
             );
             if (error) {
               this.logger.error(`error.message: ${error.message}`);
-              this.logger.error(`error.name: ${(error as any).name || 'N/A'}`);
-              this.logger.error(
-                `error.http_code: ${(error as any).http_code || 'N/A'}`,
-              );
+              this.logger.error(`error.name: ${error.name || 'N/A'}`);
+              this.logger.error(`error.http_code: ${error.http_code || 'N/A'}`);
               this.logger.error(`Full error: ${JSON.stringify(error)}`);
             } else {
               this.logger.error(
@@ -101,7 +102,7 @@ export class CloudinaryService {
             }
             this.logger.error('=== END CLOUDINARY UPLOAD ERROR ===');
 
-            reject(error ?? new Error('Cloudinary upload failed: no result'));
+            reject(error || new Error('Cloudinary upload failed: no result'));
             return;
           }
 
@@ -138,5 +139,48 @@ export class CloudinaryService {
         }`,
       );
     }
+  }
+
+  extractPublicIdFromUrl(url?: string | null): string | undefined {
+    if (!url || !/^https?:\/\/res\.cloudinary\.com\//.test(url)) {
+      return undefined;
+    }
+
+    try {
+      const parsedUrl = new URL(url);
+      const uploadMarker = '/image/upload/';
+      const markerIndex = parsedUrl.pathname.indexOf(uploadMarker);
+      if (markerIndex === -1) return undefined;
+
+      const afterUpload = parsedUrl.pathname.slice(
+        markerIndex + uploadMarker.length,
+      );
+      const withoutVersion = afterUpload.replace(/^v\d+\//, '');
+      const withoutExtension = withoutVersion.replace(/\.[^/.]+$/, '');
+
+      return decodeURIComponent(withoutExtension);
+    } catch {
+      return undefined;
+    }
+  }
+
+  extractPublicIdsFromHtml(html?: string | null): string[] {
+    if (!html) return [];
+
+    const publicIds = new Set<string>();
+    const cloudinaryUrlPattern =
+      /https?:\/\/res\.cloudinary\.com\/[^"'<>\s)]+/g;
+    const matches = html.match(cloudinaryUrlPattern) ?? [];
+
+    for (const match of matches) {
+      const publicId = this.extractPublicIdFromUrl(match);
+      if (publicId) publicIds.add(publicId);
+    }
+
+    return Array.from(publicIds);
+  }
+
+  async destroyImageByUrl(url?: string | null): Promise<void> {
+    await this.destroyImage(this.extractPublicIdFromUrl(url));
   }
 }

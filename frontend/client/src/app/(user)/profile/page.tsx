@@ -295,7 +295,10 @@ export default function ProfilePage() {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`
           },
-          body: JSON.stringify({ avatar_url: data.avatar_url }),
+          body: JSON.stringify({
+            avatar_url: data.avatar_url,
+            avatar_public_id: data.avatar_public_id || data.public_id || '',
+          }),
         });
 
         if (updateRes.ok) {

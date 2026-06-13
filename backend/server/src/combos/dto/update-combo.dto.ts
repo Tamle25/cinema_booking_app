@@ -29,6 +29,10 @@ export class UpdateComboDto {
 
   @IsOptional()
   @IsString()
+  image_public_id?: string;
+
+  @IsOptional()
+  @IsString()
   @IsIn(['combo', 'drink', 'snack'])
   category?: string;
 

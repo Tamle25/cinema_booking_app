@@ -4,9 +4,11 @@ import { CombosController } from './combos.controller';
 import { CombosService } from './combos.service';
 import { Combo, ComboSchema } from './schemas/combo.schema';
 import { Cinema, CinemaSchema } from '../cinemas/schemas/cinema.schema';
+import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 
 @Module({
   imports: [
+    CloudinaryModule,
     MongooseModule.forFeature([
       { name: Combo.name, schema: ComboSchema },
       { name: Cinema.name, schema: CinemaSchema },

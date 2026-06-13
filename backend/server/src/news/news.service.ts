@@ -5,14 +5,21 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { CreateNewsDto } from './dto/create-news.dto';
 import { UpdateNewsDto } from './dto/update-news.dto';
 import { News } from './schemas/news.schema';
+
+type MongoDuplicateKeyError = {
+  code?: number;
+  keyPattern?: Record<string, unknown>;
+};
 
 @Injectable()
 export class NewsService {
   constructor(
     @InjectModel(News.name) private readonly newsModel: Model<News>,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   async findPublished(): Promise<News[]> {
@@ -32,7 +39,7 @@ export class NewsService {
       .exec();
 
     if (!news) {
-      throw new NotFoundException('Không tìm thấy tin tức');
+      throw new NotFoundException('Khong tim thay tin tuc');
     }
 
     return news;
@@ -41,7 +48,7 @@ export class NewsService {
   async findOneAdmin(id: string): Promise<News> {
     const news = await this.newsModel.findById(id).exec();
     if (!news) {
-      throw new NotFoundException('Không tìm thấy tin tức');
+      throw new NotFoundException('Khong tim thay tin tuc');
     }
     return news;
   }
@@ -82,9 +89,10 @@ export class NewsService {
         .exec();
 
       if (!updated) {
-        throw new NotFoundException('Không tìm thấy tin tức');
+        throw new NotFoundException('Khong tim thay tin tuc');
       }
 
+      await this.deleteReplacedNewsImages(existingNews, updateNewsDto);
       return updated;
     } catch (error: any) {
       this.handleDuplicateSlug(error);
@@ -98,7 +106,7 @@ export class NewsService {
       .exec();
 
     if (!updated) {
-      throw new NotFoundException('Không tìm thấy tin tức');
+      throw new NotFoundException('Khong tim thay tin tuc');
     }
 
     return updated;
@@ -107,9 +115,67 @@ export class NewsService {
   async remove(id: string): Promise<{ message: string }> {
     const deleted = await this.newsModel.findByIdAndDelete(id).exec();
     if (!deleted) {
-      throw new NotFoundException('Không tìm thấy tin tức');
+      throw new NotFoundException('Khong tim thay tin tuc');
     }
-    return { message: 'Xóa tin tức thành công' };
+
+    await this.deleteNewsImages(deleted);
+    return { message: 'Xoa tin tuc thanh cong' };
+  }
+
+  private async deleteReplacedNewsImages(
+    existingNews: News,
+    updateNewsDto: UpdateNewsDto,
+  ) {
+    const tasks: Promise<void>[] = [];
+
+    if (
+      updateNewsDto.thumbnail !== undefined &&
+      existingNews.thumbnail &&
+      existingNews.thumbnail !== updateNewsDto.thumbnail
+    ) {
+      tasks.push(
+        this.cloudinaryService.destroyImage(
+          existingNews.thumbnail_public_id ||
+            this.cloudinaryService.extractPublicIdFromUrl(
+              existingNews.thumbnail,
+            ),
+        ),
+      );
+    }
+
+    if (updateNewsDto.content !== undefined) {
+      const previousIds = new Set(
+        this.cloudinaryService.extractPublicIdsFromHtml(existingNews.content),
+      );
+      const nextIds = new Set(
+        this.cloudinaryService.extractPublicIdsFromHtml(updateNewsDto.content),
+      );
+
+      for (const publicId of previousIds) {
+        if (!nextIds.has(publicId)) {
+          tasks.push(this.cloudinaryService.destroyImage(publicId));
+        }
+      }
+    }
+
+    await Promise.all(tasks);
+  }
+
+  private async deleteNewsImages(news: News) {
+    const publicIds = new Set(
+      this.cloudinaryService.extractPublicIdsFromHtml(news.content),
+    );
+    const thumbnailPublicId =
+      news.thumbnail_public_id ||
+      this.cloudinaryService.extractPublicIdFromUrl(news.thumbnail);
+
+    if (thumbnailPublicId) publicIds.add(thumbnailPublicId);
+
+    await Promise.all(
+      Array.from(publicIds).map((publicId) =>
+        this.cloudinaryService.destroyImage(publicId),
+      ),
+    );
   }
 
   private async buildUniqueSlug(
@@ -155,16 +221,19 @@ export class NewsService {
       .replace(/-+/g, '-');
 
     if (!normalized) {
-      throw new BadRequestException('Slug không hợp lệ');
+      throw new BadRequestException('Slug khong hop le');
     }
 
     return normalized;
   }
 
-  async toggleLike(id: string, userId: string): Promise<{ liked: boolean; likesCount: number }> {
+  async toggleLike(
+    id: string,
+    userId: string,
+  ): Promise<{ liked: boolean; likesCount: number }> {
     const news = await this.newsModel.findById(id).exec();
     if (!news) {
-      throw new NotFoundException('Không tìm thấy tin tức');
+      throw new NotFoundException('Khong tim thay tin tuc');
     }
 
     if (!news.likedUsers) {
@@ -188,9 +257,10 @@ export class NewsService {
     return { liked, likesCount: news.likesCount };
   }
 
-  private handleDuplicateSlug(error: any) {
-    if (error?.code === 11000 && error?.keyPattern?.slug) {
-      throw new BadRequestException('Slug đã tồn tại');
+  private handleDuplicateSlug(error: unknown) {
+    const mongoError = error as MongoDuplicateKeyError;
+    if (mongoError.code === 11000 && mongoError.keyPattern?.slug) {
+      throw new BadRequestException('Slug da ton tai');
     }
   }
 }

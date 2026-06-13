@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -10,27 +11,25 @@ import {
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
+import { AdminOnly } from '../common/decorators/admin.decorator';
+import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
+import {
+  hasValidImageSignature,
+  ImageUploadInterceptor,
+} from '../common/upload/image-upload.interceptor';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { CombosService } from './combos.service';
 import { CreateComboDto } from './dto/create-combo.dto';
 import { UpdateComboDto } from './dto/update-combo.dto';
-import { AdminOnly } from '../common/decorators/admin.decorator';
-import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
 
-const comboStorage = diskStorage({
-  destination: join(process.cwd(), 'uploads', 'combos'),
-  filename: (req, file, callback) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = extname(file.originalname);
-    callback(null, `combo-${uniqueSuffix}${ext}`);
-  },
-});
+const MAX_COMBO_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 
 @Controller('combos')
 export class CombosController {
-  constructor(private readonly combosService: CombosService) {}
+  constructor(
+    private readonly combosService: CombosService,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
   @Get()
   findActive(
@@ -59,26 +58,27 @@ export class CombosController {
 
   @Post('upload')
   @AdminOnly()
-  @UseInterceptors(
-    FileInterceptor('image', {
-      storage: comboStorage,
-      fileFilter: (req, file, callback) => {
-        if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
-          return callback(new Error('Chỉ chấp nhận file ảnh!'), false);
-        }
-        callback(null, true);
-      },
-      limits: {
-        fileSize: 5 * 1024 * 1024,
-      },
-    }),
-  )
-  uploadImage(@UploadedFile() file: any) {
+  @UseInterceptors(ImageUploadInterceptor('image', MAX_COMBO_IMAGE_SIZE_BYTES))
+  async uploadImage(@UploadedFile() file: Express.Multer.File | undefined) {
     if (!file) {
-      return { error: 'Không có file nào được upload' };
+      throw new BadRequestException('Khong co file duoc upload');
     }
-    const imageUrl = `/uploads/combos/${file.filename}`;
-    return { image_url: imageUrl };
+
+    if (!hasValidImageSignature(file)) {
+      throw new BadRequestException('File khong dung dinh dang anh hop le');
+    }
+
+    const uploaded = await this.cloudinaryService.uploadImage(
+      file,
+      'cinemax/combos',
+    );
+
+    return {
+      image_url: uploaded.secure_url,
+      image_public_id: uploaded.public_id,
+      secure_url: uploaded.secure_url,
+      public_id: uploaded.public_id,
+    };
   }
 
   @Put(':id')

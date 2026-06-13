@@ -24,6 +24,9 @@ export class News {
   @Prop({ default: '' })
   thumbnail: string;
 
+  @Prop({ default: '' })
+  thumbnail_public_id: string;
+
   @Prop({ default: false })
   isPublished: boolean;
 

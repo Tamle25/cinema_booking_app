@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,32 +8,37 @@ import {
   Patch,
   Post,
   Put,
-  UploadedFile,
-  UseInterceptors,
-  UseGuards,
   Request,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
 import { AdminOnly } from '../common/decorators/admin.decorator';
 import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
+import {
+  hasValidImageSignature,
+  ImageUploadInterceptor,
+} from '../common/upload/image-upload.interceptor';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { CreateNewsDto } from './dto/create-news.dto';
 import { UpdateNewsDto } from './dto/update-news.dto';
 import { NewsService } from './news.service';
 
-const newsStorage = diskStorage({
-  destination: join(process.cwd(), 'uploads', 'news'),
-  filename: (req, file, callback) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    callback(null, `news-${uniqueSuffix}${extname(file.originalname)}`);
-  },
-});
+const MAX_NEWS_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+type AuthenticatedRequest = {
+  user: {
+    _id?: string;
+    id?: string;
+  };
+};
 
 @Controller('news')
 export class NewsController {
-  constructor(private readonly newsService: NewsService) {}
+  constructor(
+    private readonly newsService: NewsService,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
   @Get()
   findPublished() {
@@ -64,24 +70,27 @@ export class NewsController {
 
   @Post('upload')
   @AdminOnly()
-  @UseInterceptors(
-    FileInterceptor('image', {
-      storage: newsStorage,
-      fileFilter: (req, file, callback) => {
-        if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
-          return callback(new Error('Chỉ chấp nhận file ảnh'), false);
-        }
-        callback(null, true);
-      },
-      limits: { fileSize: 5 * 1024 * 1024 },
-    }),
-  )
-  uploadImage(@UploadedFile() file: any) {
+  @UseInterceptors(ImageUploadInterceptor('image', MAX_NEWS_IMAGE_SIZE_BYTES))
+  async uploadImage(@UploadedFile() file: Express.Multer.File | undefined) {
     if (!file) {
-      return { error: 'Không có file được upload' };
+      throw new BadRequestException('Khong co file duoc upload');
     }
 
-    return { thumbnail: `/uploads/news/${file.filename}` };
+    if (!hasValidImageSignature(file)) {
+      throw new BadRequestException('File khong dung dinh dang anh hop le');
+    }
+
+    const uploaded = await this.cloudinaryService.uploadImage(
+      file,
+      'cinemax/news',
+    );
+
+    return {
+      thumbnail: uploaded.secure_url,
+      thumbnail_public_id: uploaded.public_id,
+      secure_url: uploaded.secure_url,
+      public_id: uploaded.public_id,
+    };
   }
 
   @Put(':id')
@@ -110,8 +119,14 @@ export class NewsController {
 
   @Post(':id/like')
   @UseGuards(AuthGuard('jwt'))
-  toggleLike(@Param('id', ParseObjectIdPipe) id: string, @Request() req: any) {
+  toggleLike(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     const userId = req.user._id || req.user.id;
+    if (!userId) {
+      throw new BadRequestException('Khong tim thay user id trong token');
+    }
     return this.newsService.toggleLike(id, userId);
   }
 }

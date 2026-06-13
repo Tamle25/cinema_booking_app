@@ -4,21 +4,25 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Combo } from './schemas/combo.schema';
+import { FilterQuery, Model, UpdateQuery } from 'mongoose';
 import { Cinema } from '../cinemas/schemas/cinema.schema';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { CreateComboDto } from './dto/create-combo.dto';
 import { UpdateComboDto } from './dto/update-combo.dto';
+import { Combo } from './schemas/combo.schema';
 
 @Injectable()
 export class CombosService {
   constructor(
     @InjectModel(Combo.name) private comboModel: Model<Combo>,
     @InjectModel(Cinema.name) private cinemaModel: Model<Cinema>,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   async create(createComboDto: CreateComboDto): Promise<Combo> {
-    const data: any = { ...createComboDto };
+    const data: Record<string, unknown> = {
+      ...createComboDto,
+    };
     if (createComboDto.cinema_system_id) {
       data.cinema_system = createComboDto.cinema_system_id;
     }
@@ -30,11 +34,11 @@ export class CombosService {
     cinemaSystemId?: string,
     cinemaId?: string,
   ): Promise<Combo[]> {
-    const query: any = { is_active: true };
+    const query: FilterQuery<Combo> = { is_active: true };
 
     if (cinemaId) {
       const cinema = await this.cinemaModel.findById(cinemaId).exec();
-      if (!cinema) throw new NotFoundException('Không tìm thấy rạp này');
+      if (!cinema) throw new NotFoundException('Khong tim thay rap nay');
       query.cinema_system = cinema.cinema_system;
     } else if (cinemaSystemId) {
       query.cinema_system = cinemaSystemId;
@@ -48,7 +52,7 @@ export class CombosService {
   }
 
   async findAll(cinemaSystemId?: string): Promise<Combo[]> {
-    const query: any = {};
+    const query: FilterQuery<Combo> = {};
     if (cinemaSystemId) {
       query.cinema_system = cinemaSystemId;
     }
@@ -62,31 +66,58 @@ export class CombosService {
   async findOne(id: string): Promise<Combo> {
     const combo = await this.comboModel.findById(id).exec();
     if (!combo) {
-      throw new NotFoundException('Không tìm thấy combo');
+      throw new NotFoundException('Khong tim thay combo');
     }
     return combo;
   }
 
   async update(id: string, updateComboDto: UpdateComboDto): Promise<Combo> {
-    const data: any = { ...updateComboDto };
+    const existing = await this.findOne(id);
+    const data: UpdateQuery<Combo> & Record<string, unknown> = {
+      ...updateComboDto,
+    };
     if (updateComboDto.cinema_system_id) {
       data.cinema_system = updateComboDto.cinema_system_id;
     }
+
     const updated = await this.comboModel
       .findByIdAndUpdate(id, data, { new: true })
       .exec();
     if (!updated) {
-      throw new NotFoundException('Không tìm thấy combo');
+      throw new NotFoundException('Khong tim thay combo');
     }
+
+    await this.deleteReplacedComboImage(existing, updateComboDto);
     return updated;
   }
 
   async remove(id: string): Promise<{ message: string }> {
     const result = await this.comboModel.findByIdAndDelete(id).exec();
     if (!result) {
-      throw new NotFoundException('Không tìm thấy combo');
+      throw new NotFoundException('Khong tim thay combo');
     }
-    return { message: 'Xóa combo thành công' };
+    await this.deleteComboImage(result);
+    return { message: 'Xoa combo thanh cong' };
+  }
+
+  private async deleteReplacedComboImage(
+    existing: Combo,
+    updateComboDto: UpdateComboDto,
+  ) {
+    if (
+      updateComboDto.image_url !== undefined &&
+      existing.image_url &&
+      existing.image_url !== updateComboDto.image_url
+    ) {
+      await this.deleteComboImage(existing);
+    }
+  }
+
+  private async deleteComboImage(combo: Combo) {
+    await this.cloudinaryService.destroyImage(
+      combo.image_public_id ||
+        this.cloudinaryService.extractPublicIdFromUrl(combo.image_url),
+    );
   }
 
   async validateCombos(
@@ -105,7 +136,11 @@ export class CombosService {
     let cinemaSystemId: string | undefined;
     if (cinemaId) {
       const cinema = await this.cinemaModel.findById(cinemaId).exec();
-      if (cinema) cinemaSystemId = cinema.cinema_system.toString();
+      if (cinema) {
+        cinemaSystemId = this.getCinemaSystemId(
+          cinema.cinema_system as unknown,
+        );
+      }
     }
 
     for (const item of combos) {
@@ -116,19 +151,20 @@ export class CombosService {
       const combo = await this.comboModel.findById(item.combo_id).exec();
       if (!combo) {
         throw new NotFoundException(
-          `Combo với ID ${item.combo_id} không tồn tại`,
+          `Combo voi ID ${item.combo_id} khong ton tai`,
         );
       }
       if (!combo.is_active) {
-        throw new NotFoundException(`Combo "${combo.name}" hiện không còn bán`);
+        throw new NotFoundException(`Combo "${combo.name}" hien khong con ban`);
       }
 
       if (
         cinemaSystemId &&
-        combo.cinema_system?.toString() !== cinemaSystemId
+        this.getCinemaSystemId(combo.cinema_system as unknown) !==
+          cinemaSystemId
       ) {
         throw new NotFoundException(
-          `Combo "${combo.name}" không thuộc về hệ thống rạp này`,
+          `Combo "${combo.name}" khong thuoc he thong rap nay`,
         );
       }
 
@@ -141,5 +177,38 @@ export class CombosService {
     }
 
     return validatedCombos;
+  }
+
+  private getCinemaSystemId(cinemaSystem: unknown): string | undefined {
+    if (typeof cinemaSystem === 'string') return cinemaSystem;
+
+    if (this.isObjectIdLike(cinemaSystem)) {
+      return cinemaSystem.toHexString();
+    }
+
+    if (
+      cinemaSystem &&
+      typeof cinemaSystem === 'object' &&
+      '_id' in cinemaSystem
+    ) {
+      const id = (cinemaSystem as { _id?: unknown })._id;
+      if (typeof id === 'string') return id;
+      if (this.isObjectIdLike(id)) {
+        return id.toHexString();
+      }
+    }
+
+    return undefined;
+  }
+
+  private isObjectIdLike(
+    value: unknown,
+  ): value is { toHexString: () => string } {
+    return (
+      value !== null &&
+      typeof value === 'object' &&
+      'toHexString' in value &&
+      typeof (value as { toHexString?: unknown }).toHexString === 'function'
+    );
   }
 }

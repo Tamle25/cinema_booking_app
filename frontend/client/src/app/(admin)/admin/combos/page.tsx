@@ -25,12 +25,14 @@ export default function AdminCombosPage() {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ICombo | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedImageName, setSelectedImageName] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     price: 0,
     image_url: '',
+    image_public_id: '',
     category: 'combo',
     cinema_system_id: '',
     is_active: true,
@@ -97,7 +99,12 @@ export default function AdminCombosPage() {
 
       const data = await res.json();
       if (data.image_url) {
-        setFormData(prev => ({ ...prev, image_url: data.image_url }));
+        setFormData(prev => ({
+          ...prev,
+          image_url: data.image_url,
+          image_public_id: data.image_public_id || data.public_id || '',
+        }));
+        setSelectedImageName(file.name);
       } else {
         toastError('Lỗi upload ảnh');
       }
@@ -117,6 +124,7 @@ export default function AdminCombosPage() {
         description: combo.description,
         price: combo.price,
         image_url: combo.image_url || '',
+        image_public_id: combo.image_public_id || '',
         category: combo.category,
         cinema_system_id: (typeof combo.cinema_system === 'object' && combo.cinema_system !== null) ? combo.cinema_system._id : (combo.cinema_system || ''),
         is_active: combo.is_active,
@@ -129,6 +137,7 @@ export default function AdminCombosPage() {
         description: '',
         price: 0,
         image_url: '',
+        image_public_id: '',
         category: 'combo',
         cinema_system_id: '',
         is_active: true,
@@ -136,6 +145,7 @@ export default function AdminCombosPage() {
       });
     }
     setShowModal(true);
+    setSelectedImageName('');
   };
 
   const closeModal = () => {
@@ -632,7 +642,9 @@ export default function AdminCombosPage() {
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 mx-auto text-gray-400 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
-                          <span className="text-sm text-gray-500">Click để upload ảnh</span>
+                          <span className="text-sm text-gray-500">
+                            {selectedImageName || (formData.image_url ? 'Da chon anh' : 'Click de upload anh')}
+                          </span>
                         </>
                       )}
                     </div>
