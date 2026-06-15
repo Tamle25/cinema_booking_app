@@ -137,9 +137,7 @@ export class CombosService {
     if (cinemaId) {
       const cinema = await this.cinemaModel.findById(cinemaId).exec();
       if (cinema) {
-        cinemaSystemId = this.getCinemaSystemId(
-          cinema.cinema_system as unknown,
-        );
+        cinemaSystemId = this.getCinemaSystemId(cinema.cinema_system);
       }
     }
 
@@ -160,8 +158,7 @@ export class CombosService {
 
       if (
         cinemaSystemId &&
-        this.getCinemaSystemId(combo.cinema_system as unknown) !==
-          cinemaSystemId
+        this.getCinemaSystemId(combo.cinema_system) !== cinemaSystemId
       ) {
         throw new NotFoundException(
           `Combo "${combo.name}" khong thuoc he thong rap nay`,

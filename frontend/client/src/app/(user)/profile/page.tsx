@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { toastSuccess, toastError } from '@/utils/toast';
 import { getCloudinaryImageUrl, movieImagePresets } from '@/lib/cloudinary';
 import type { IPointTransaction, IMembershipInfo, IVoucher, IUserVoucher } from '@/types';
+import Pagination from '@/components/Pagination';
 
 interface IBooking {
   _id: string;
@@ -61,6 +62,28 @@ export default function ProfilePage() {
   const [allBookings, setAllBookings] = useState<IBooking[]>([]);
   const [isLoadingBookings, setIsLoadingBookings] = useState(true);
 
+  // States phân trang & lọc cho các tab
+  const [pointsPage, setPointsPage] = useState(1);
+  const [pointsTotalPages, setPointsTotalPages] = useState(1);
+  const [pointsTotal, setPointsTotal] = useState(0);
+  const pointsLimit = 5;
+
+  const [exchangePage, setExchangePage] = useState(1);
+  const [exchangeTotalPages, setExchangeTotalPages] = useState(1);
+  const [exchangeTotal, setExchangeTotal] = useState(0);
+  const exchangeLimit = 4;
+
+  const [myVouchersPage, setMyVouchersPage] = useState(1);
+  const [myVouchersTotalPages, setMyVouchersTotalPages] = useState(1);
+  const [myVouchersTotal, setMyVouchersTotal] = useState(0);
+  const myVouchersLimit = 4;
+
+  const [bookingsPage, setBookingsPage] = useState(1);
+  const [bookingsTotalPages, setBookingsTotalPages] = useState(1);
+  const [bookingsTotal, setBookingsTotal] = useState(0);
+  const [bookingStatus, setBookingStatus] = useState<string>('');
+  const bookingsLimit = 5;
+
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
   const userId = user?._id || user?.id;
   const userFullName = user?.full_name;
@@ -97,8 +120,6 @@ export default function ProfilePage() {
     }
   };
 
-
-
   const loadMembershipData = useCallback(async () => {
     const token = localStorage.getItem('access_token');
     if (!token) return;
@@ -130,19 +151,26 @@ export default function ProfilePage() {
 
     setIsLoadingPoints(true);
     try {
-      const res = await fetch(`${API_URL}/loyalty/points-history?limit=50`, {
+      const res = await fetch(`${API_URL}/loyalty/points-history?page=${pointsPage}&limit=${pointsLimit}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
         const data = await res.json();
         setPointsHistory(data.transactions || data || []);
+        if (data.pagination) {
+          setPointsTotalPages(data.pagination.totalPages || 1);
+          setPointsTotal(data.pagination.total || 0);
+        } else {
+          setPointsTotalPages(Math.ceil((data.length || 0) / pointsLimit) || 1);
+          setPointsTotal(data.length || 0);
+        }
       }
     } catch (error) {
       console.error('Lỗi tải lịch sử điểm:', error);
     } finally {
       setIsLoadingPoints(false);
     }
-  }, [API_URL]);
+  }, [API_URL, pointsPage]);
 
   const loadExchangeableVouchers = useCallback(async () => {
     const token = localStorage.getItem('access_token');
@@ -150,19 +178,27 @@ export default function ProfilePage() {
 
     setIsLoadingExchange(true);
     try {
-      const res = await fetch(`${API_URL}/vouchers/exchangeable`, {
+      const res = await fetch(`${API_URL}/vouchers/exchangeable?page=${exchangePage}&limit=${exchangeLimit}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
         const data = await res.json();
-        setExchangeableVouchers(data);
+        if (data.vouchers) {
+          setExchangeableVouchers(data.vouchers);
+          setExchangeTotalPages(data.pagination?.totalPages || 1);
+          setExchangeTotal(data.pagination?.total || 0);
+        } else {
+          setExchangeableVouchers(data);
+          setExchangeTotalPages(1);
+          setExchangeTotal(data.length || 0);
+        }
       }
     } catch (error) {
       console.error('Lỗi tải danh sách voucher đổi điểm:', error);
     } finally {
       setIsLoadingExchange(false);
     }
-  }, [API_URL]);
+  }, [API_URL, exchangePage]);
 
   const loadMyVouchers = useCallback(async () => {
     const token = localStorage.getItem('access_token');
@@ -170,19 +206,60 @@ export default function ProfilePage() {
 
     setIsLoadingVouchers(true);
     try {
-      const res = await fetch(`${API_URL}/vouchers/my-vouchers`, {
+      const res = await fetch(`${API_URL}/vouchers/my-vouchers?page=${myVouchersPage}&limit=${myVouchersLimit}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
         const data = await res.json();
-        setMyVouchers(data);
+        if (data.vouchers) {
+          setMyVouchers(data.vouchers);
+          setMyVouchersTotalPages(data.pagination?.totalPages || 1);
+          setMyVouchersTotal(data.pagination?.total || 0);
+        } else {
+          setMyVouchers(data);
+          setMyVouchersTotalPages(1);
+          setMyVouchersTotal(data.length || 0);
+        }
       }
     } catch (error) {
       console.error('Lỗi tải danh sách voucher cá nhân:', error);
     } finally {
       setIsLoadingVouchers(false);
     }
-  }, [API_URL]);
+  }, [API_URL, myVouchersPage]);
+
+  const loadBookings = useCallback(async () => {
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+
+    setIsLoadingBookings(true);
+    try {
+      const statusQuery = bookingStatus ? `&status=${bookingStatus}` : '';
+      const res = await fetch(`${API_URL}/bookings/my-bookings?page=${bookingsPage}&limit=${bookingsLimit}${statusQuery}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.bookings) {
+          setAllBookings(data.bookings);
+          setBookingsTotalPages(data.pagination?.totalPages || 1);
+          setBookingsTotal(data.pagination?.total || 0);
+        } else {
+          let filtered = data;
+          if (bookingStatus) {
+            filtered = data.filter((b: IBooking) => b.status === bookingStatus);
+          }
+          setAllBookings(filtered);
+          setBookingsTotalPages(1);
+          setBookingsTotal(filtered.length || 0);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading bookings:', error);
+    } finally {
+      setIsLoadingBookings(false);
+    }
+  }, [API_URL, bookingsPage, bookingStatus]);
 
   useEffect(() => {
     if (userFullName || userAvatarUrl) {
@@ -197,27 +274,9 @@ export default function ProfilePage() {
       router.push('/login');
       return;
     }
-
-    const fetchAllBookings = async () => {
-      try {
-        const token = localStorage.getItem('access_token');
-        const res = await fetch(`${API_URL}/bookings/my-bookings`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setAllBookings(data);
-        }
-      } catch (error) {
-        console.error('Error loading bookings:', error);
-      } finally {
-        setIsLoadingBookings(false);
-      }
-    };
-
-    fetchAllBookings();
     loadMembershipData();
-  }, [userId, authLoading, router, API_URL, loadMembershipData]);
+  }, [userId, authLoading, router, loadMembershipData]);
+
   useEffect(() => {
     if (activeTab === 'membership') {
       loadPointsHistory();
@@ -225,8 +284,10 @@ export default function ProfilePage() {
       loadExchangeableVouchers();
     } else if (activeTab === 'my-vouchers') {
       loadMyVouchers();
+    } else if (activeTab === 'tickets') {
+      loadBookings();
     }
-  }, [activeTab, loadExchangeableVouchers, loadMyVouchers, loadPointsHistory]);
+  }, [activeTab, loadExchangeableVouchers, loadMyVouchers, loadPointsHistory, loadBookings]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -729,7 +790,6 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                 <h3 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4 mb-6">Lịch sử điểm thưởng</h3>
                 
@@ -774,6 +834,14 @@ export default function ProfilePage() {
                         })}
                       </tbody>
                     </table>
+                    <Pagination
+                      currentPage={pointsPage}
+                      totalPages={pointsTotalPages}
+                      onPageChange={setPointsPage}
+                      totalItems={pointsTotal}
+                      itemsPerPage={pointsLimit}
+                      theme="red"
+                    />
                   </div>
                 ) : (
                   <div className="text-center py-8 text-gray-400">
@@ -801,59 +869,69 @@ export default function ProfilePage() {
                   ))}
                 </div>
               ) : exchangeableVouchers.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {exchangeableVouchers.map((voucher) => {
-                    const isPointsEnough = (user.availablePoints || 0) >= voucher.requiredPoints;
-                    
-                    return (
-                      <div key={voucher._id} className="border border-gray-100 hover:border-red-100 hover:shadow-md transition duration-200 rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden bg-gradient-to-br from-white to-gray-50 group">
-                        
-                        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-red-500"></div>
+                <div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {exchangeableVouchers.map((voucher) => {
+                      const isPointsEnough = (user.availablePoints || 0) >= voucher.requiredPoints;
+                      
+                      return (
+                        <div key={voucher._id} className="border border-gray-100 hover:border-red-100 hover:shadow-md transition duration-200 rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden bg-gradient-to-br from-white to-gray-50 group">
+                          
+                          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-red-500"></div>
 
-                        <div className="pl-2">
-                          <span className="text-[10px] bg-red-50 text-red-600 font-bold px-2 py-0.5 rounded-full border border-red-100">
-                            Yêu cầu {new Intl.NumberFormat('vi-VN').format(voucher.requiredPoints)} điểm
-                          </span>
-                          <h4 className="font-extrabold text-gray-900 text-lg mt-2 group-hover:text-red-600 transition-colors">
-                            {voucher.name}
-                          </h4>
-                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                            {voucher.description}
-                          </p>
-                          <div className="mt-3 space-y-1 text-xs text-gray-400">
-                            <div>• Đơn tối thiểu: {new Intl.NumberFormat('vi-VN').format(voucher.minOrderAmount)}đ</div>
-                            <div>• Hiệu lực: {voucher.validDaysAfterExchange} ngày kể từ khi đổi</div>
-                            {voucher.usageLimit > 0 && (
-                              <div>• Đã đổi: {voucher.exchangedCount}/{voucher.usageLimit}</div>
-                            )}
+                          <div className="pl-2">
+                            <span className="text-[10px] bg-red-50 text-red-600 font-bold px-2 py-0.5 rounded-full border border-red-100">
+                              Yêu cầu {new Intl.NumberFormat('vi-VN').format(voucher.requiredPoints)} điểm
+                            </span>
+                            <h4 className="font-extrabold text-gray-900 text-lg mt-2 group-hover:text-red-600 transition-colors">
+                              {voucher.name}
+                            </h4>
+                            <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                              {voucher.description}
+                            </p>
+                            <div className="mt-3 space-y-1 text-xs text-gray-400">
+                              <div>• Đơn tối thiểu: {new Intl.NumberFormat('vi-VN').format(voucher.minOrderAmount)}đ</div>
+                              <div>• Hiệu lực: {voucher.validDaysAfterExchange} ngày kể từ khi đổi</div>
+                              {voucher.usageLimit > 0 && (
+                                <div>• Đã đổi: {voucher.exchangedCount}/{voucher.usageLimit}</div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="mt-5 pl-2 pt-3 border-t border-gray-100 flex justify-between items-center">
+                            <span className="text-sm font-black text-red-600">
+                              {voucher.discountType === 'PERCENT' ? `Giảm ${voucher.discountValue}%` : `Giảm ${new Intl.NumberFormat('vi-VN').format(voucher.discountValue)}đ`}
+                            </span>
+                            <button
+                              onClick={() => handleOpenExchangeModal(voucher)}
+                              disabled={!isPointsEnough || isExchangingId === voucher._id}
+                              className={`px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm ${
+                                isPointsEnough
+                                  ? 'bg-red-600 text-white hover:bg-red-700 cursor-pointer'
+                                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              }`}
+                            >
+                              {isExchangingId === voucher._id ? (
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                              ) : isPointsEnough ? (
+                                'Đổi ngay'
+                              ) : (
+                                'Chưa đủ điểm'
+                              )}
+                            </button>
                           </div>
                         </div>
-
-                        <div className="mt-5 pl-2 pt-3 border-t border-gray-100 flex justify-between items-center">
-                          <span className="text-sm font-black text-red-600">
-                            {voucher.discountType === 'PERCENT' ? `Giảm ${voucher.discountValue}%` : `Giảm ${new Intl.NumberFormat('vi-VN').format(voucher.discountValue)}đ`}
-                          </span>
-                          <button
-                            onClick={() => handleOpenExchangeModal(voucher)}
-                            disabled={!isPointsEnough || isExchangingId === voucher._id}
-                            className={`px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm ${
-                              isPointsEnough
-                                ? 'bg-red-600 text-white hover:bg-red-700 cursor-pointer'
-                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            }`}
-                          >
-                            {isExchangingId === voucher._id ? (
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            ) : isPointsEnough ? (
-                              'Đổi ngay'
-                            ) : (
-                              'Chưa đủ điểm'
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
+                  <Pagination
+                    currentPage={exchangePage}
+                    totalPages={exchangeTotalPages}
+                    onPageChange={setExchangePage}
+                    totalItems={exchangeTotal}
+                    itemsPerPage={exchangeLimit}
+                    theme="red"
+                  />
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-400">
@@ -875,74 +953,84 @@ export default function ProfilePage() {
                   ))}
                 </div>
               ) : myVouchers.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {myVouchers.map((uv) => {
-                    const isUnused = uv.status === 'UNUSED';
-                    const isExpired = uv.status === 'EXPIRED' || new Date(uv.expiredAt) < new Date();
-                    const isUsed = uv.status === 'USED';
+                <div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {myVouchers.map((uv) => {
+                      const isUnused = uv.status === 'UNUSED';
+                      const isExpired = uv.status === 'EXPIRED' || new Date(uv.expiredAt) < new Date();
+                      const isUsed = uv.status === 'USED';
 
-                    let statusBadge = (
-                      <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded text-xs font-bold border border-green-200">Chưa dùng</span>
-                    );
-                    if (isUsed) {
-                      statusBadge = (
-                        <span className="px-2 py-0.5 bg-gray-50 text-gray-400 rounded text-xs font-bold border border-gray-200">Đã sử dụng</span>
+                      let statusBadge = (
+                        <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded text-xs font-bold border border-green-200">Chưa dùng</span>
                       );
-                    } else if (isExpired) {
-                      statusBadge = (
-                        <span className="px-2 py-0.5 bg-red-50 text-red-400 rounded text-xs font-bold border border-red-200">Hết hạn</span>
-                      );
-                    }
+                      if (isUsed) {
+                        statusBadge = (
+                          <span className="px-2 py-0.5 bg-gray-50 text-gray-400 rounded text-xs font-bold border border-gray-200">Đã sử dụng</span>
+                        );
+                      } else if (isExpired) {
+                        statusBadge = (
+                          <span className="px-2 py-0.5 bg-red-50 text-red-400 rounded text-xs font-bold border border-red-200">Hết hạn</span>
+                        );
+                      }
 
-                    return (
-                      <div 
-                        key={uv._id} 
-                        className={`border rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between bg-white ${
-                          isUnused ? 'border-gray-200 shadow-sm hover:shadow-md' : 'border-gray-100 opacity-60'
-                        }`}
-                      >
-                        
-                        <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white border-r border-gray-200 rounded-full z-10 hidden md:block"></div>
-                        <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white border-l border-gray-200 rounded-full z-10 hidden md:block"></div>
+                      return (
+                        <div 
+                          key={uv._id} 
+                          className={`border rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between bg-white ${
+                            isUnused ? 'border-gray-200 shadow-sm hover:shadow-md' : 'border-gray-100 opacity-60'
+                          }`}
+                        >
+                          
+                          <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white border-r border-gray-200 rounded-full z-10 hidden md:block"></div>
+                          <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white border-l border-gray-200 rounded-full z-10 hidden md:block"></div>
 
-                        <div className="md:px-2">
-                          <div className="flex justify-between items-start">
-                            <span className="text-xs font-black text-red-600">
-                              {uv.voucherTemplate.discountType === 'PERCENT' ? `GIẢM ${uv.voucherTemplate.discountValue}%` : `GIẢM ${new Intl.NumberFormat('vi-VN').format(uv.voucherTemplate.discountValue)}đ`}
-                            </span>
-                            {statusBadge}
+                          <div className="md:px-2">
+                            <div className="flex justify-between items-start">
+                              <span className="text-xs font-black text-red-600">
+                                {uv.voucherTemplate.discountType === 'PERCENT' ? `GIẢM ${uv.voucherTemplate.discountValue}%` : `GIẢM ${new Intl.NumberFormat('vi-VN').format(uv.voucherTemplate.discountValue)}đ`}
+                              </span>
+                              {statusBadge}
+                            </div>
+
+                            <h4 className="font-extrabold text-gray-900 mt-2 text-md leading-snug">
+                              {uv.voucherTemplate.name}
+                            </h4>
+                            <p className="text-xs text-gray-500 mt-1 line-clamp-1">
+                              {uv.voucherTemplate.description}
+                            </p>
+                            <p className="text-[10px] text-gray-400 mt-2">
+                              Hạn dùng: {new Date(uv.expiredAt).toLocaleDateString('vi-VN')}
+                            </p>
                           </div>
 
-                          <h4 className="font-extrabold text-gray-900 mt-2 text-md leading-snug">
-                            {uv.voucherTemplate.name}
-                          </h4>
-                          <p className="text-xs text-gray-500 mt-1 line-clamp-1">
-                            {uv.voucherTemplate.description}
-                          </p>
-                          <p className="text-[10px] text-gray-400 mt-2">
-                            Hạn dùng: {new Date(uv.expiredAt).toLocaleDateString('vi-VN')}
-                          </p>
+                          <div className="mt-4 pt-3 border-t border-dashed border-gray-100 flex justify-between items-center md:px-2">
+                            <span className="font-mono text-sm font-extrabold text-gray-900 bg-gray-50 px-2 py-1 rounded border border-gray-200">
+                              {uv.code}
+                            </span>
+                            
+                            {isUnused && !isExpired ? (
+                              <button
+                                onClick={() => handleCopyCode(uv.code)}
+                                className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition cursor-pointer"
+                              >
+                                Copy mã
+                              </button>
+                            ) : (
+                              <span className="text-xs text-gray-400">Không khả dụng</span>
+                            )}
+                          </div>
                         </div>
-
-                        <div className="mt-4 pt-3 border-t border-dashed border-gray-100 flex justify-between items-center md:px-2">
-                          <span className="font-mono text-sm font-extrabold text-gray-900 bg-gray-50 px-2 py-1 rounded border border-gray-200">
-                            {uv.code}
-                          </span>
-                          
-                          {isUnused && !isExpired ? (
-                            <button
-                              onClick={() => handleCopyCode(uv.code)}
-                              className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition cursor-pointer"
-                            >
-                              Copy mã
-                            </button>
-                          ) : (
-                            <span className="text-xs text-gray-400">Không khả dụng</span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
+                  <Pagination
+                    currentPage={myVouchersPage}
+                    totalPages={myVouchersTotalPages}
+                    onPageChange={setMyVouchersPage}
+                    totalItems={myVouchersTotal}
+                    itemsPerPage={myVouchersLimit}
+                    theme="red"
+                  />
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-400">
@@ -955,7 +1043,34 @@ export default function ProfilePage() {
           
           {activeTab === 'tickets' && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-in fade-in duration-200">
-              <h3 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4 mb-6">Tất cả vé của bạn</h3>
+              <div className="flex justify-between items-center border-b border-gray-100 pb-4 mb-6 flex-wrap gap-4">
+                <h3 className="text-xl font-bold text-gray-900">Tất cả vé của bạn</h3>
+                
+                {/* Bộ lọc trạng thái vé */}
+                <div className="flex gap-2 text-xs font-semibold overflow-x-auto py-1">
+                  {[
+                    { value: '', label: 'Tất cả' },
+                    { value: 'confirmed', label: 'Đã thanh toán' },
+                    { value: 'pending', label: 'Chờ thanh toán' },
+                    { value: 'cancelled', label: 'Đã hủy' }
+                  ].map((filter) => (
+                    <button
+                      key={filter.value}
+                      onClick={() => {
+                        setBookingStatus(filter.value);
+                        setBookingsPage(1); // Reset page về 1 khi đổi bộ lọc
+                      }}
+                      className={`px-3 py-1.5 rounded-full border transition cursor-pointer shrink-0 ${
+                        bookingStatus === filter.value
+                          ? 'bg-red-50 text-red-600 border-red-200 font-bold'
+                          : 'bg-white text-gray-600 border-gray-200 hover:text-red-600 hover:border-red-200'
+                      }`}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {isLoadingBookings ? (
                 <div className="space-y-4">
@@ -971,48 +1086,58 @@ export default function ProfilePage() {
                   ))}
                 </div>
               ) : allBookings.length > 0 ? (
-                <div className="space-y-4">
-                  {allBookings.map((booking) => (
-                    <div key={booking._id} className="flex gap-4 p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
-                      <div className="w-16 h-20 bg-gray-200 rounded-lg overflow-hidden shrink-0">
-                        {booking.showtime?.movie?.poster_url ? (
-                          <SafeImage
-                            src={getCloudinaryImageUrl(booking.showtime.movie.poster_url, movieImagePresets.posterThumb)}
-                            alt=""
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-red-100 flex items-center justify-center text-red-300">
-                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
-                            </svg>
+                <div>
+                  <div className="space-y-4">
+                    {allBookings.map((booking) => (
+                      <div key={booking._id} className="flex gap-4 p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
+                        <div className="w-16 h-20 bg-gray-200 rounded-lg overflow-hidden shrink-0">
+                          {booking.showtime?.movie?.poster_url ? (
+                            <SafeImage
+                              src={getCloudinaryImageUrl(booking.showtime.movie.poster_url, movieImagePresets.posterThumb)}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-red-100 flex items-center justify-center text-red-300">
+                              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0 flex flex-col justify-center">
+                          <div className="flex items-start justify-between gap-2">
+                            <h4 className="font-bold text-gray-900 truncate">
+                              {booking.showtime?.movie?.title || 'Phim không xác định'}
+                            </h4>
+                            <span className={`text-xs font-semibold px-2 py-1 rounded-md shrink-0 ${
+                              booking.status === 'confirmed' 
+                                ? 'bg-green-100 text-green-700' 
+                                : booking.status === 'pending'
+                                ? 'bg-yellow-100 text-yellow-700'
+                                : 'bg-red-100 text-red-700'
+                            }`}>
+                              {booking.status === 'pending' ? 'Chờ thanh toán' : booking.status === 'confirmed' ? 'Đã thanh toán' : booking.status === 'cancelled' ? 'Đã hủy' : booking.status === 'expired' ? 'Hết hạn' : booking.status}
+                            </span>
                           </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0 flex flex-col justify-center">
-                        <div className="flex items-start justify-between gap-2">
-                          <h4 className="font-bold text-gray-900 truncate">
-                            {booking.showtime?.movie?.title || 'Phim không xác định'}
-                          </h4>
-                          <span className={`text-xs font-semibold px-2 py-1 rounded-md shrink-0 ${
-                            booking.status === 'confirmed' 
-                              ? 'bg-green-100 text-green-700' 
-                              : booking.status === 'pending'
-                              ? 'bg-yellow-100 text-yellow-700'
-                              : 'bg-red-100 text-red-700'
-                          }`}>
-                            {booking.status === 'pending' ? 'Chờ thanh toán' : booking.status === 'confirmed' ? 'Đã thanh toán' : booking.status === 'cancelled' ? 'Đã hủy' : booking.status === 'expired' ? 'Hết hạn' : booking.status}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-500 truncate mt-1">
-                          {booking.showtime?.cinema?.name} • {new Date(booking.showtime?.start_time).toLocaleDateString('vi-VN')} {new Date(booking.showtime?.start_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                        <div className="mt-2 text-red-600 font-semibold text-sm">
-                          {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(booking.total_price)}
+                          <p className="text-sm text-gray-500 truncate mt-1">
+                            {booking.showtime?.cinema?.name} • {new Date(booking.showtime?.start_time).toLocaleDateString('vi-VN')} {new Date(booking.showtime?.start_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                          <div className="mt-2 text-red-600 font-semibold text-sm">
+                            {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(booking.total_price)}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                  <Pagination
+                    currentPage={bookingsPage}
+                    totalPages={bookingsTotalPages}
+                    onPageChange={setBookingsPage}
+                    totalItems={bookingsTotal}
+                    itemsPerPage={bookingsLimit}
+                    theme="red"
+                  />
                 </div>
               ) : (
                 <div className="text-center py-8">
@@ -1021,7 +1146,7 @@ export default function ProfilePage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
                     </svg>
                   </div>
-                  <p className="text-gray-500">Bạn chưa có vé nào.</p>
+                  <p className="text-gray-500">Bạn chưa có vé nào ở trạng thái này.</p>
                   <Link href="/" className="inline-block mt-3 text-red-600 font-medium hover:underline">
                     Đặt vé ngay
                   </Link>

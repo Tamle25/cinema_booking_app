@@ -24,7 +24,10 @@ export class AuthService {
 
   private generateToken(): { plainToken: string; hashedToken: string } {
     const plainToken = crypto.randomBytes(32).toString('hex');
-    const hashedToken = crypto.createHash('sha256').update(plainToken).digest('hex');
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(plainToken)
+      .digest('hex');
     return { plainToken, hashedToken };
   }
 
@@ -35,7 +38,7 @@ export class AuthService {
   ): Promise<Record<string, unknown>> {
     const salt = await bcrypt.genSalt();
     const hashPassword = await bcrypt.hash(pass, salt);
-    
+
     const { plainToken, hashedToken } = this.generateToken();
 
     try {
@@ -52,7 +55,11 @@ export class AuthService {
 
       // Gửi email xác thực tài khoản
       try {
-        await this.mailService.sendEmailVerification(email, plainToken, full_name);
+        await this.mailService.sendEmailVerification(
+          email,
+          plainToken,
+          full_name,
+        );
       } catch (mailError) {
         console.error('Lỗi khi gửi email xác thực đăng ký:', mailError);
         // Rollback: Xóa tài khoản vừa tạo trong database
@@ -62,7 +69,10 @@ export class AuthService {
         );
       }
 
-      const userObject = userDoc.toObject() as unknown as Record<string, unknown>;
+      const userObject = userDoc.toObject() as unknown as Record<
+        string,
+        unknown
+      >;
       delete userObject.password;
       return userObject;
     } catch (error: any) {
@@ -85,7 +95,9 @@ export class AuthService {
 
     // Kiểm tra tài khoản đã xác thực email chưa
     if (!user.isEmailVerified) {
-      throw new ForbiddenException('Email chưa được xác thực. Vui lòng xác thực tài khoản trước khi đăng nhập.');
+      throw new ForbiddenException(
+        'Email chưa được xác thực. Vui lòng xác thực tài khoản trước khi đăng nhập.',
+      );
     }
 
     const payload = {
@@ -101,19 +113,29 @@ export class AuthService {
   }
 
   async verifyEmail(plainToken: string): Promise<{ message: string }> {
-    const hashedToken = crypto.createHash('sha256').update(plainToken).digest('hex');
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(plainToken)
+      .digest('hex');
     const user = await this.usersService.findByVerificationToken(hashedToken);
-    
+
     if (!user) {
-      throw new BadRequestException('Mã xác thực không hợp lệ hoặc đã được sử dụng.');
+      throw new BadRequestException(
+        'Mã xác thực không hợp lệ hoặc đã được sử dụng.',
+      );
     }
-    
-    if (user.emailVerificationExpires && user.emailVerificationExpires.getTime() < Date.now()) {
-      throw new BadRequestException('Mã xác thực đã hết hạn. Vui lòng yêu cầu gửi lại email xác thực.');
+
+    if (
+      user.emailVerificationExpires &&
+      user.emailVerificationExpires.getTime() < Date.now()
+    ) {
+      throw new BadRequestException(
+        'Mã xác thực đã hết hạn. Vui lòng yêu cầu gửi lại email xác thực.',
+      );
     }
-    
+
     await this.usersService.verifyEmail(user._id.toString());
-    
+
     return {
       message: 'Xác thực tài khoản thành công! Bây giờ bạn có thể đăng nhập.',
     };
@@ -121,10 +143,11 @@ export class AuthService {
 
   async resendVerificationEmail(email: string): Promise<{ message: string }> {
     const user = await this.usersService.findOne(email);
-    
+
     // Response an toàn tránh lộ thông tin người dùng
     const safeResponse = {
-      message: 'Nếu email tồn tại và chưa được kích hoạt, chúng tôi đã gửi lại email xác thực. Vui lòng kiểm tra hộp thư.',
+      message:
+        'Nếu email tồn tại và chưa được kích hoạt, chúng tôi đã gửi lại email xác thực. Vui lòng kiểm tra hộp thư.',
     };
 
     if (!user) {
@@ -132,7 +155,9 @@ export class AuthService {
     }
 
     if (user.isEmailVerified) {
-      throw new BadRequestException('Tài khoản này đã được xác thực trước đó. Vui lòng đăng nhập.');
+      throw new BadRequestException(
+        'Tài khoản này đã được xác thực trước đó. Vui lòng đăng nhập.',
+      );
     }
 
     // Đọc cooldown từ config
@@ -143,11 +168,14 @@ export class AuthService {
 
     // Kiểm tra Cooldown chống spam
     if (user.emailVerificationLastSent) {
-      const timePassed = Date.now() - new Date(user.emailVerificationLastSent).getTime();
+      const timePassed =
+        Date.now() - new Date(user.emailVerificationLastSent).getTime();
       const cooldownMs = cooldownSeconds * 1000;
       if (timePassed < cooldownMs) {
         const secondsLeft = Math.ceil((cooldownMs - timePassed) / 1000);
-        throw new BadRequestException(`Vui lòng đợi ${secondsLeft} giây trước khi yêu cầu gửi lại email.`);
+        throw new BadRequestException(
+          `Vui lòng đợi ${secondsLeft} giây trước khi yêu cầu gửi lại email.`,
+        );
       }
     }
 
@@ -160,10 +188,16 @@ export class AuthService {
     });
 
     try {
-      await this.mailService.sendEmailVerification(user.email, plainToken, user.full_name);
+      await this.mailService.sendEmailVerification(
+        user.email,
+        plainToken,
+        user.full_name,
+      );
     } catch (error) {
       console.error('Lỗi khi gửi lại mail xác thực:', error);
-      throw new BadRequestException('Gửi email thất bại. Vui lòng thử lại sau.');
+      throw new BadRequestException(
+        'Gửi email thất bại. Vui lòng thử lại sau.',
+      );
     }
 
     return safeResponse;
@@ -172,7 +206,8 @@ export class AuthService {
   async forgotPassword(email: string): Promise<{ message: string }> {
     const user = await this.usersService.findOne(email);
     const successResponse = {
-      message: 'Nếu email tồn tại trong hệ thống, chúng tôi đã gửi hướng dẫn đặt lại mật khẩu.',
+      message:
+        'Nếu email tồn tại trong hệ thống, chúng tôi đã gửi hướng dẫn đặt lại mật khẩu.',
     };
 
     if (!user) {
@@ -187,11 +222,14 @@ export class AuthService {
 
     // Cooldown chống spam
     if (user.resetPasswordLastSent) {
-      const timePassed = Date.now() - new Date(user.resetPasswordLastSent).getTime();
+      const timePassed =
+        Date.now() - new Date(user.resetPasswordLastSent).getTime();
       const cooldownMs = cooldownSeconds * 1000;
       if (timePassed < cooldownMs) {
         const secondsLeft = Math.ceil((cooldownMs - timePassed) / 1000);
-        throw new BadRequestException(`Vui lòng đợi ${secondsLeft} giây trước khi yêu cầu đặt lại mật khẩu.`);
+        throw new BadRequestException(
+          `Vui lòng đợi ${secondsLeft} giây trước khi yêu cầu đặt lại mật khẩu.`,
+        );
       }
     }
 
@@ -204,10 +242,16 @@ export class AuthService {
     });
 
     try {
-      await this.mailService.sendResetPassword(user.email, plainToken, user.full_name);
+      await this.mailService.sendResetPassword(
+        user.email,
+        plainToken,
+        user.full_name,
+      );
     } catch (error) {
       console.error('Lỗi khi gửi mail reset password:', error);
-      throw new BadRequestException('Gửi email đặt lại mật khẩu thất bại. Vui lòng thử lại sau.');
+      throw new BadRequestException(
+        'Gửi email đặt lại mật khẩu thất bại. Vui lòng thử lại sau.',
+      );
     }
 
     return successResponse;
@@ -217,15 +261,23 @@ export class AuthService {
     plainToken: string,
     pass: string,
   ): Promise<{ message: string }> {
-    const hashedToken = crypto.createHash('sha256').update(plainToken).digest('hex');
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(plainToken)
+      .digest('hex');
     const user = await this.usersService.findByResetToken(hashedToken);
 
     if (!user) {
       throw new BadRequestException('Liên kết đặt lại mật khẩu không hợp lệ.');
     }
 
-    if (user.resetPasswordExpires && user.resetPasswordExpires.getTime() < Date.now()) {
-      throw new BadRequestException('Liên kết đặt lại mật khẩu đã hết hạn. Vui lòng yêu cầu lại.');
+    if (
+      user.resetPasswordExpires &&
+      user.resetPasswordExpires.getTime() < Date.now()
+    ) {
+      throw new BadRequestException(
+        'Liên kết đặt lại mật khẩu đã hết hạn. Vui lòng yêu cầu lại.',
+      );
     }
 
     const salt = await bcrypt.genSalt();
@@ -235,7 +287,8 @@ export class AuthService {
     await this.usersService.clearResetToken(user._id.toString());
 
     return {
-      message: 'Đặt lại mật khẩu thành công! Bây giờ bạn có thể đăng nhập bằng mật khẩu mới.',
+      message:
+        'Đặt lại mật khẩu thành công! Bây giờ bạn có thể đăng nhập bằng mật khẩu mới.',
     };
   }
 }

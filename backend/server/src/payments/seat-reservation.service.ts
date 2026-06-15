@@ -24,7 +24,9 @@ export class SeatReservationService {
    */
   async lockSeats(showtimeId: string, seats: string[]): Promise<Showtime> {
     const ts = () => new Date().toISOString();
-    this.logger.log(`[SeatReservationService ${ts()}] [LOCK_SEATS_START] Attempting atomic lock for showtimeId=${showtimeId}, seats=${seats.join(',')}`);
+    this.logger.log(
+      `[SeatReservationService ${ts()}] [LOCK_SEATS_START] Attempting atomic lock for showtimeId=${showtimeId}, seats=${seats.join(',')}`,
+    );
     const showtime = await this.showtimeModel.findOneAndUpdate(
       { _id: showtimeId, booked_seats: { $nin: seats } },
       { $addToSet: { booked_seats: { $each: seats } } },
@@ -32,16 +34,22 @@ export class SeatReservationService {
     );
 
     if (showtime) {
-      this.logger.log(`[SeatReservationService ${ts()}] [LOCK_SEATS_SUCCESS] Atomic lock succeeded for showtimeId=${showtimeId}, seats=${seats.join(',')}`);
+      this.logger.log(
+        `[SeatReservationService ${ts()}] [LOCK_SEATS_SUCCESS] Atomic lock succeeded for showtimeId=${showtimeId}, seats=${seats.join(',')}`,
+      );
       return showtime;
     }
 
     const exists = await this.showtimeModel.exists({ _id: showtimeId });
     if (!exists) {
-      this.logger.warn(`[SeatReservationService ${ts()}] [LOCK_SEATS_FAILED_NOT_FOUND] Showtime not found: showtimeId=${showtimeId}`);
+      this.logger.warn(
+        `[SeatReservationService ${ts()}] [LOCK_SEATS_FAILED_NOT_FOUND] Showtime not found: showtimeId=${showtimeId}`,
+      );
       throw new Error('SHOWTIME_NOT_FOUND');
     }
-    this.logger.warn(`[SeatReservationService ${ts()}] [LOCK_SEATS_FAILED_TAKEN] Seats already taken for showtimeId=${showtimeId}, seats=${seats.join(',')}`);
+    this.logger.warn(
+      `[SeatReservationService ${ts()}] [LOCK_SEATS_FAILED_TAKEN] Seats already taken for showtimeId=${showtimeId}, seats=${seats.join(',')}`,
+    );
     throw new Error('SEATS_ALREADY_TAKEN');
   }
 
@@ -50,7 +58,9 @@ export class SeatReservationService {
    */
   async lockSeatsPending(showtimeId: string, seats: string[]): Promise<void> {
     const ts = () => new Date().toISOString();
-    this.logger.log(`[SeatReservationService ${ts()}] [LOCK_SEATS_PENDING] Notifying SeatLockService and SeatGateway for showtimeId=${showtimeId}, seats=${seats.join(',')}`);
+    this.logger.log(
+      `[SeatReservationService ${ts()}] [LOCK_SEATS_PENDING] Notifying SeatLockService and SeatGateway for showtimeId=${showtimeId}, seats=${seats.join(',')}`,
+    );
 
     this.seatLockService.lockSeatsPending(showtimeId, seats);
 
@@ -59,9 +69,13 @@ export class SeatReservationService {
         showtimeId,
         seats,
       });
-      this.logger.log(`[SeatReservationService ${ts()}] [LOCK_SEATS_PENDING_EMIT_SUCCESS] Emitted seat_locked via Socket.IO`);
+      this.logger.log(
+        `[SeatReservationService ${ts()}] [LOCK_SEATS_PENDING_EMIT_SUCCESS] Emitted seat_locked via Socket.IO`,
+      );
     } else {
-      this.logger.warn(`[SeatReservationService ${ts()}] [LOCK_SEATS_PENDING_EMIT_SKIP] Socket.IO server is not initialized yet`);
+      this.logger.warn(
+        `[SeatReservationService ${ts()}] [LOCK_SEATS_PENDING_EMIT_SKIP] Socket.IO server is not initialized yet`,
+      );
     }
   }
 
@@ -70,18 +84,24 @@ export class SeatReservationService {
    */
   async markSeatsBooked(showtimeId: string, seats: string[]): Promise<void> {
     const ts = () => new Date().toISOString();
-    this.logger.log(`[SeatReservationService ${ts()}] [MARK_SEATS_BOOKED_NOTIFY] Notifying SeatLockService and SeatGateway for showtimeId=${showtimeId}, seats=${seats.join(',')}`);
+    this.logger.log(
+      `[SeatReservationService ${ts()}] [MARK_SEATS_BOOKED_NOTIFY] Notifying SeatLockService and SeatGateway for showtimeId=${showtimeId}, seats=${seats.join(',')}`,
+    );
 
     this.seatLockService.markSeatsAsBooked(showtimeId, seats);
-    
+
     if (this.seatGateway.server) {
       this.seatGateway.server.to(`showtime_${showtimeId}`).emit('seat_booked', {
         showtimeId,
         seats,
       });
-      this.logger.log(`[SeatReservationService ${ts()}] [MARK_SEATS_BOOKED_EMIT_SUCCESS] Emitted seat_booked via Socket.IO for showtimeId=${showtimeId}`);
+      this.logger.log(
+        `[SeatReservationService ${ts()}] [MARK_SEATS_BOOKED_EMIT_SUCCESS] Emitted seat_booked via Socket.IO for showtimeId=${showtimeId}`,
+      );
     } else {
-      this.logger.warn(`[SeatReservationService ${ts()}] [MARK_SEATS_BOOKED_EMIT_SKIP] Socket.IO server is not initialized yet`);
+      this.logger.warn(
+        `[SeatReservationService ${ts()}] [MARK_SEATS_BOOKED_EMIT_SKIP] Socket.IO server is not initialized yet`,
+      );
     }
   }
 
@@ -94,24 +114,34 @@ export class SeatReservationService {
   }): Promise<void> {
     const ts = () => new Date().toISOString();
     const showtimeId = this.extractShowtimeId(booking.showtime);
-    this.logger.log(`[SeatReservationService ${ts()}] [RELEASE_SEATS_START] Releasing seats in DB for showtimeId=${showtimeId}, seats=${booking.seats.join(',')}`);
+    this.logger.log(
+      `[SeatReservationService ${ts()}] [RELEASE_SEATS_START] Releasing seats in DB for showtimeId=${showtimeId}, seats=${booking.seats.join(',')}`,
+    );
 
     await this.showtimeModel.findByIdAndUpdate(showtimeId, {
       $pull: { booked_seats: { $in: booking.seats } },
     });
 
-    this.logger.log(`[SeatReservationService ${ts()}] [RELEASE_SEATS_NOTIFY] Notifying SeatLockService and SeatGateway for showtimeId=${showtimeId}, seats=${booking.seats.join(',')}`);
+    this.logger.log(
+      `[SeatReservationService ${ts()}] [RELEASE_SEATS_NOTIFY] Notifying SeatLockService and SeatGateway for showtimeId=${showtimeId}, seats=${booking.seats.join(',')}`,
+    );
 
     this.seatLockService.releaseSeats(showtimeId, booking.seats);
-    
+
     if (this.seatGateway.server) {
-      this.seatGateway.server.to(`showtime_${showtimeId}`).emit('seat_released', {
-        showtimeId,
-        seats: booking.seats,
-      });
-      this.logger.log(`[SeatReservationService ${ts()}] [RELEASE_SEATS_EMIT_SUCCESS] Emitted seat_released via Socket.IO for showtimeId=${showtimeId}`);
+      this.seatGateway.server
+        .to(`showtime_${showtimeId}`)
+        .emit('seat_released', {
+          showtimeId,
+          seats: booking.seats,
+        });
+      this.logger.log(
+        `[SeatReservationService ${ts()}] [RELEASE_SEATS_EMIT_SUCCESS] Emitted seat_released via Socket.IO for showtimeId=${showtimeId}`,
+      );
     } else {
-      this.logger.warn(`[SeatReservationService ${ts()}] [RELEASE_SEATS_EMIT_SKIP] Socket.IO server is not initialized yet`);
+      this.logger.warn(
+        `[SeatReservationService ${ts()}] [RELEASE_SEATS_EMIT_SKIP] Socket.IO server is not initialized yet`,
+      );
     }
   }
 

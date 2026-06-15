@@ -73,52 +73,85 @@ export class MomoSettlementService {
     source: 'ipn' | 'return',
   ): Promise<SettlementResult> {
     const ts = () => new Date().toISOString();
-    this.logger.log(`[MomoSettlementService ${ts()}] [SETTLE_START] Source: ${source}, Params: ${JSON.stringify(params)}`);
+    this.logger.log(
+      `[MomoSettlementService ${ts()}] [SETTLE_START] Source: ${source}, Params: ${JSON.stringify(params)}`,
+    );
 
     const missing = this.momoService.validateCallbackShape(params);
     if (missing.length > 0) {
       this.logger.warn(
         `[MomoSettlementService ${ts()}] [SETTLE_INVALID_SHAPE] MoMo ${source} thiếu trường bắt buộc: ${missing.join(', ')}`,
       );
-      return { status: 'invalid_shape', message: 'Dữ liệu callback không hợp lệ' };
+      return {
+        status: 'invalid_shape',
+        message: 'Dữ liệu callback không hợp lệ',
+      };
     }
 
     const { orderId, requestId, resultCode, transId, amount, extraData } =
       params;
 
+    const booking = await this.findBooking(orderId, extraData);
+    if (!booking) {
+      this.logger.warn(
+        `[MomoSettlementService ${ts()}] [SETTLE_BOOKING_NOT_FOUND] MoMo ${source} không tìm thấy booking orderId=${orderId}`,
+      );
+      return { status: 'not_found', message: 'Không tìm thấy đơn đặt vé' };
+    }
+
+    this.logger.log(
+      `[MomoSettlementService ${ts()}] [SETTLE_BOOKING_FOUND] BookingId: ${booking._id}, status=${booking.status}, price=${booking.total_price}, momoOrderId=${booking.momo_order_id}`,
+    );
+
+    // Đã ở trạng thái cuối => idempotent, không xử lý lại.
+    // Kiểm tra trước để tránh lỗi lệch chữ ký do URL decode ở redirect callback (GET return).
+    if (booking.status === 'confirmed') {
+      this.logger.log(
+        `[MomoSettlementService ${ts()}] [SETTLE_ALREADY_CONFIRMED] Booking ${booking._id} was already confirmed previously.`,
+      );
+      return {
+        status: 'already_confirmed',
+        booking,
+        transId: booking.momo_trans_id,
+        message: 'Thanh toán thành công! Vé đã được xác nhận.',
+      };
+    }
+    if (FINAL_FAILED_STATUSES.includes(booking.status)) {
+      this.logger.log(
+        `[MomoSettlementService ${ts()}] [SETTLE_ALREADY_FAILED] Booking ${booking._id} is already in final failed status: ${booking.status}`,
+      );
+      return {
+        status: 'already_failed',
+        booking,
+        message: booking.payment_note || 'Giao dịch không thành công',
+      };
+    }
+
     if (!this.momoService.verifySignature(params)) {
-      this.logger.warn(`[MomoSettlementService ${ts()}] [SETTLE_INVALID_SIGNATURE] MoMo ${source} chữ ký không hợp lệ orderId=${orderId}`);
+      this.logger.warn(
+        `[MomoSettlementService ${ts()}] [SETTLE_INVALID_SIGNATURE] MoMo ${source} chữ ký không hợp lệ orderId=${orderId}`,
+      );
       return {
         status: 'invalid_signature',
         message: 'Chữ ký không hợp lệ! Giao dịch có thể bị giả mạo.',
       };
     }
 
-    const booking = await this.findBooking(orderId, extraData);
-    if (!booking) {
-      this.logger.warn(`[MomoSettlementService ${ts()}] [SETTLE_BOOKING_NOT_FOUND] MoMo ${source} không tìm thấy booking orderId=${orderId}`);
-      return { status: 'not_found', message: 'Không tìm thấy đơn đặt vé' };
-    }
-
-    this.logger.log(`[MomoSettlementService ${ts()}] [SETTLE_BOOKING_FOUND] BookingId: ${booking._id}, status=${booking.status}, price=${booking.total_price}, momoOrderId=${booking.momo_order_id}`);
-
     // Đối chiếu định danh giao dịch để chống nhầm/giả mạo đơn hàng.
-    if (booking.momo_order_id !== orderId) {
-      this.logger.warn(`[MomoSettlementService ${ts()}] [SETTLE_ORDER_MISMATCH] booking.momo_order_id (${booking.momo_order_id}) !== orderId (${orderId})`);
+    const bookingIdStr = booking._id.toString();
+    const isOrderMatched =
+      booking.momo_order_id === orderId || orderId.startsWith(bookingIdStr);
+    if (!isOrderMatched) {
+      this.logger.warn(
+        `[MomoSettlementService ${ts()}] [SETTLE_ORDER_MISMATCH] booking.momo_order_id (${booking.momo_order_id}) !== orderId (${orderId}) and does not start with bookingId (${bookingIdStr})`,
+      );
       return {
         status: 'order_mismatch',
         booking,
         message: 'Mã đơn hàng không khớp',
       };
     }
-    if (booking.momo_request_id && booking.momo_request_id !== requestId) {
-      this.logger.warn(`[MomoSettlementService ${ts()}] [SETTLE_REQUEST_MISMATCH] booking.momo_request_id (${booking.momo_request_id}) !== requestId (${requestId})`);
-      return {
-        status: 'request_mismatch',
-        booking,
-        message: 'Mã yêu cầu thanh toán không khớp',
-      };
-    }
+
     if (booking.total_price !== Number(amount)) {
       this.logger.warn(
         `[MomoSettlementService ${ts()}] [SETTLE_AMOUNT_MISMATCH] MoMo ${source} số tiền không khớp booking=${booking._id} expected=${booking.total_price} got=${amount}`,
@@ -132,7 +165,9 @@ export class MomoSettlementService {
 
     // Đã ở trạng thái cuối => idempotent, không xử lý lại.
     if (booking.status === 'confirmed') {
-      this.logger.log(`[MomoSettlementService ${ts()}] [SETTLE_ALREADY_CONFIRMED] Booking ${booking._id} was already confirmed previously.`);
+      this.logger.log(
+        `[MomoSettlementService ${ts()}] [SETTLE_ALREADY_CONFIRMED] Booking ${booking._id} was already confirmed previously.`,
+      );
       return {
         status: 'already_confirmed',
         booking,
@@ -141,7 +176,9 @@ export class MomoSettlementService {
       };
     }
     if (FINAL_FAILED_STATUSES.includes(booking.status)) {
-      this.logger.log(`[MomoSettlementService ${ts()}] [SETTLE_ALREADY_FAILED] Booking ${booking._id} is already in final failed status: ${booking.status}`);
+      this.logger.log(
+        `[MomoSettlementService ${ts()}] [SETTLE_ALREADY_FAILED] Booking ${booking._id} is already in final failed status: ${booking.status}`,
+      );
       return {
         status: 'already_failed',
         booking,
@@ -153,7 +190,9 @@ export class MomoSettlementService {
     const { message: resultMessage } =
       this.momoService.getResultMessage(resultCode);
 
-    this.logger.log(`[MomoSettlementService ${ts()}] [SETTLE_DECISION] Booking ${booking._id} isSuccess=${isSuccess}, resultCode=${resultCode}, message=${resultMessage}`);
+    this.logger.log(
+      `[MomoSettlementService ${ts()}] [SETTLE_DECISION] Booking ${booking._id} isSuccess=${isSuccess}, resultCode=${resultCode}, message=${resultMessage}`,
+    );
 
     return isSuccess
       ? this.confirmBooking(booking, params, resultMessage)
@@ -169,14 +208,18 @@ export class MomoSettlementService {
    */
   async handleReturn(params: MomoCallbackParams): Promise<PaymentResult> {
     const ts = () => new Date().toISOString();
-    this.logger.log(`[MomoSettlementService ${ts()}] [HANDLE_RETURN_START] Received return params`);
+    this.logger.log(
+      `[MomoSettlementService ${ts()}] [HANDLE_RETURN_START] Received return params`,
+    );
     const result = await this.settle(params, 'return');
     const booking = result.booking;
 
     const success =
       result.status === 'confirmed' || result.status === 'already_confirmed';
 
-    this.logger.log(`[MomoSettlementService ${ts()}] [HANDLE_RETURN_END] success=${success}, bookingId=${booking?._id}, status=${booking?.status}, statusResult=${result.status}`);
+    this.logger.log(
+      `[MomoSettlementService ${ts()}] [HANDLE_RETURN_END] success=${success}, bookingId=${booking?._id}, status=${booking?.status}, statusResult=${result.status}`,
+    );
     return {
       success,
       message: result.message,
@@ -195,7 +238,9 @@ export class MomoSettlementService {
     params: MomoCallbackParams,
   ): Promise<{ resultCode: number; message: string }> {
     const ts = () => new Date().toISOString();
-    this.logger.log(`[MomoSettlementService ${ts()}] [HANDLE_IPN_START] Received IPN params`);
+    this.logger.log(
+      `[MomoSettlementService ${ts()}] [HANDLE_IPN_START] Received IPN params`,
+    );
     try {
       const result = await this.settle(params, 'ipn');
 
@@ -209,13 +254,20 @@ export class MomoSettlementService {
       ];
 
       if (rejected.includes(result.status)) {
-        this.logger.warn(`[MomoSettlementService ${ts()}] [HANDLE_IPN_REJECTED] Rejected IPN status: ${result.status}, reason: ${result.message}`);
+        this.logger.warn(
+          `[MomoSettlementService ${ts()}] [HANDLE_IPN_REJECTED] Rejected IPN status: ${result.status}, reason: ${result.message}`,
+        );
         return { resultCode: 1, message: result.message };
       }
-      this.logger.log(`[MomoSettlementService ${ts()}] [HANDLE_IPN_SUCCESS] Successfully processed IPN status: ${result.status}`);
+      this.logger.log(
+        `[MomoSettlementService ${ts()}] [HANDLE_IPN_SUCCESS] Successfully processed IPN status: ${result.status}`,
+      );
       return { resultCode: 0, message: 'Confirm Success' };
     } catch (error) {
-      this.logger.error(`[MomoSettlementService ${ts()}] [HANDLE_IPN_ERROR] Error in handleIpn`, error);
+      this.logger.error(
+        `[MomoSettlementService ${ts()}] [HANDLE_IPN_ERROR] Error in handleIpn`,
+        error,
+      );
       return { resultCode: 1, message: 'Unknown error' };
     }
   }
@@ -227,7 +279,9 @@ export class MomoSettlementService {
     resultMessage: string,
   ): Promise<SettlementResult> {
     const ts = () => new Date().toISOString();
-    this.logger.log(`[MomoSettlementService ${ts()}] [CONFIRM_BOOKING_DB_UPDATE] Updating booking status to confirmed. ID=${booking._id}`);
+    this.logger.log(
+      `[MomoSettlementService ${ts()}] [CONFIRM_BOOKING_DB_UPDATE] Updating booking status to confirmed. ID=${booking._id}`,
+    );
     const updated = await this.bookingModel.findOneAndUpdate(
       { _id: booking._id, status: 'pending' },
       {
@@ -241,7 +295,9 @@ export class MomoSettlementService {
 
     // Update không khớp => một tiến trình khác (IPN/return) đã xử lý trước.
     if (!updated) {
-      this.logger.log(`[MomoSettlementService ${ts()}] [CONFIRM_BOOKING_CONCURRENT] Concurrent update. Booking ${booking._id} status is no longer pending.`);
+      this.logger.log(
+        `[MomoSettlementService ${ts()}] [CONFIRM_BOOKING_CONCURRENT] Concurrent update. Booking ${booking._id} status is no longer pending.`,
+      );
       const fresh = await this.bookingModel.findById(booking._id);
       const confirmed = fresh?.status === 'confirmed';
       return {
@@ -255,15 +311,22 @@ export class MomoSettlementService {
     }
 
     // Chỉ chạy hiệu ứng phụ ĐÚNG MỘT LẦN, ngay sau khi giành được transition.
-    this.logger.log(`[MomoSettlementService ${ts()}] [CONFIRM_BOOKING_POST_EFFECTS] Executing post-payment side effects for booking ${updated._id}`);
+    this.logger.log(
+      `[MomoSettlementService ${ts()}] [CONFIRM_BOOKING_POST_EFFECTS] Executing post-payment side effects for booking ${updated._id}`,
+    );
     await this.runPostPaymentSideEffects(updated);
 
-    const showtimeId = typeof updated.showtime === 'object' && updated.showtime !== null && '_id' in updated.showtime
-      ? (updated.showtime as any)._id.toString()
-      : updated.showtime.toString();
+    const showtimeId =
+      typeof updated.showtime === 'object' &&
+      updated.showtime !== null &&
+      '_id' in updated.showtime
+        ? (updated.showtime as any)._id.toString()
+        : updated.showtime.toString();
     await this.seatReservation.markSeatsBooked(showtimeId, updated.seats);
 
-    this.logger.log(`[MomoSettlementService ${ts()}] [CONFIRM_BOOKING_SUCCESS] Đơn hàng ${updated._id} đã được xác nhận thanh toán`);
+    this.logger.log(
+      `[MomoSettlementService ${ts()}] [CONFIRM_BOOKING_SUCCESS] Đơn hàng ${updated._id} đã được xác nhận thanh toán`,
+    );
     return {
       status: 'confirmed',
       booking: updated,
@@ -279,7 +342,9 @@ export class MomoSettlementService {
     resultMessage: string,
   ): Promise<SettlementResult> {
     const ts = () => new Date().toISOString();
-    this.logger.log(`[MomoSettlementService ${ts()}] [FAIL_BOOKING_DB_UPDATE] Updating booking status to failed. ID=${booking._id}, note=${resultMessage}`);
+    this.logger.log(
+      `[MomoSettlementService ${ts()}] [FAIL_BOOKING_DB_UPDATE] Updating booking status to failed. ID=${booking._id}, note=${resultMessage}`,
+    );
     const updated = await this.bookingModel.findOneAndUpdate(
       { _id: booking._id, status: 'pending' },
       {
@@ -292,13 +357,17 @@ export class MomoSettlementService {
     );
 
     if (updated) {
-      this.logger.log(`[MomoSettlementService ${ts()}] [FAIL_BOOKING_RELEASE_SEATS] Releasing seats in DB and notifying Websocket. ID=${updated._id}, seats=${updated.seats.join(',')}`);
+      this.logger.log(
+        `[MomoSettlementService ${ts()}] [FAIL_BOOKING_RELEASE_SEATS] Releasing seats in DB and notifying Websocket. ID=${updated._id}, seats=${updated.seats.join(',')}`,
+      );
       await this.seatReservation.releaseSeats(updated);
       this.logger.log(
         `[MomoSettlementService ${ts()}] [FAIL_BOOKING_RELEASE_SUCCESS] Đơn hàng ${updated._id} thất bại (resultCode=${params.resultCode}), đã hoàn ghế`,
       );
     } else {
-      this.logger.log(`[MomoSettlementService ${ts()}] [FAIL_BOOKING_CONCURRENT] Concurrent update. Booking ${booking._id} status is no longer pending.`);
+      this.logger.log(
+        `[MomoSettlementService ${ts()}] [FAIL_BOOKING_CONCURRENT] Concurrent update. Booking ${booking._id} status is no longer pending.`,
+      );
     }
 
     return {
@@ -321,11 +390,11 @@ export class MomoSettlementService {
 
     if (bookingId) {
       const byId = await this.bookingModel.findById(bookingId);
-      if (byId) return byId as Booking & { _id: any };
+      if (byId) return byId;
     }
     return this.bookingModel.findOne({
       momo_order_id: orderId,
-    }) as Promise<(Booking & { _id: any }) | null>;
+    });
   }
 
   /**
@@ -339,7 +408,9 @@ export class MomoSettlementService {
       const bookingId = booking._id.toString();
       const userId = this.extractUserId(booking.user);
       if (!userId) {
-        this.logger.warn(`Thiếu userId khi xử lý sau thanh toán booking=${bookingId}`);
+        this.logger.warn(
+          `Thiếu userId khi xử lý sau thanh toán booking=${bookingId}`,
+        );
         return;
       }
 
@@ -381,11 +452,18 @@ export class MomoSettlementService {
     status: string;
   }> {
     const ts = () => new Date().toISOString();
-    this.logger.warn(`[MomoSettlementService ${ts()}] [DEV_SIMULATE_SUCCESS] Simulating success for bookingId=${bookingId}`);
+    this.logger.warn(
+      `[MomoSettlementService ${ts()}] [DEV_SIMULATE_SUCCESS] Simulating success for bookingId=${bookingId}`,
+    );
 
     const booking = await this.bookingModel.findById(bookingId);
     if (!booking) {
-      return { success: false, message: 'Không tìm thấy booking', bookingId, status: 'not_found' };
+      return {
+        success: false,
+        message: 'Không tìm thấy booking',
+        bookingId,
+        status: 'not_found',
+      };
     }
     if (booking.status !== 'pending') {
       return {
@@ -412,10 +490,15 @@ export class MomoSettlementService {
       signature: '',
     };
 
-    const result = await this.confirmBooking(booking as any, mockParams, 'Giao dịch thành công');
+    const result = await this.confirmBooking(
+      booking,
+      mockParams,
+      'Giao dịch thành công',
+    );
 
     return {
-      success: result.status === 'confirmed' || result.status === 'already_confirmed',
+      success:
+        result.status === 'confirmed' || result.status === 'already_confirmed',
       message: result.message,
       bookingId,
       status: result.status,

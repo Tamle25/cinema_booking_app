@@ -8,9 +8,7 @@ import { Booking, BookingSchema } from '../bookings/schemas/booking.schema';
 @Module({
   imports: [
     ShowtimesModule,
-    MongooseModule.forFeature([
-      { name: Booking.name, schema: BookingSchema },
-    ]),
+    MongooseModule.forFeature([{ name: Booking.name, schema: BookingSchema }]),
   ],
   providers: [SeatLockService, SeatGateway],
   exports: [SeatLockService, SeatGateway],

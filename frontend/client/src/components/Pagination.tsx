@@ -10,6 +10,7 @@ interface PaginationProps {
   itemsPerPage: number;
   onLimitChange?: (limit: number) => void;
   limitOptions?: number[];
+  theme?: 'red' | 'purple';
 }
 
 export default function Pagination({
@@ -20,6 +21,7 @@ export default function Pagination({
   itemsPerPage,
   onLimitChange,
   limitOptions = [10, 20, 50, 100],
+  theme = 'purple',
 }: PaginationProps) {
   if (totalItems === 0) {
     return (
@@ -68,7 +70,11 @@ export default function Pagination({
               id="limit-select"
               value={itemsPerPage}
               onChange={(e) => onLimitChange(Number(e.target.value))}
-              className="bg-transparent border border-gray-200 text-gray-700 rounded-lg py-1 px-2 text-sm outline-none transition-all focus:border-purple-500 focus:ring-1 focus:ring-purple-500 hover:border-gray-300 cursor-pointer"
+              className={`bg-transparent border border-gray-200 text-gray-700 rounded-lg py-1 px-2 text-sm outline-none transition-all hover:border-gray-300 cursor-pointer focus:ring-1 ${
+                theme === 'red'
+                  ? 'focus:border-red-500 focus:ring-red-500'
+                  : 'focus:border-purple-500 focus:ring-purple-500'
+              }`}
             >
               {limitOptions.map((limit) => (
                 <option key={limit} value={limit}>
@@ -90,6 +96,8 @@ export default function Pagination({
             className={`flex items-center justify-center p-2 rounded-lg text-sm font-medium transition-all duration-200 ${
               currentPage === 1
                 ? 'text-gray-300 cursor-not-allowed opacity-50'
+                : theme === 'red'
+                ? 'text-gray-500 hover:bg-gray-50 hover:text-red-600 active:scale-95'
                 : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800 active:scale-95'
             }`}
             title="Trang trước"
@@ -117,7 +125,11 @@ export default function Pagination({
                 onClick={() => typeof page === 'number' && onPageChange(page)}
                 className={`min-w-[36px] h-[36px] flex items-center justify-center rounded-lg text-sm transition-all duration-200 ${
                   isCurrent
-                    ? 'bg-purple-600 text-white font-semibold shadow-sm shadow-purple-200'
+                    ? theme === 'red'
+                      ? 'bg-red-600 text-white font-semibold shadow-sm shadow-red-200'
+                      : 'bg-purple-600 text-white font-semibold shadow-sm shadow-purple-200'
+                    : theme === 'red'
+                    ? 'text-gray-600 font-medium hover:bg-gray-50 hover:text-red-600 active:scale-95'
                     : 'text-gray-600 font-medium hover:bg-gray-100 hover:text-gray-900 active:scale-95'
                 }`}
               >
@@ -133,6 +145,8 @@ export default function Pagination({
             className={`flex items-center justify-center p-2 rounded-lg text-sm font-medium transition-all duration-200 ${
               currentPage === totalPages
                 ? 'text-gray-300 cursor-not-allowed opacity-50'
+                : theme === 'red'
+                ? 'text-gray-500 hover:bg-gray-50 hover:text-red-600 active:scale-95'
                 : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800 active:scale-95'
             }`}
             title="Trang sau"

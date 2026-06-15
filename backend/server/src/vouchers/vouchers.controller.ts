@@ -25,9 +25,17 @@ export class VouchersController {
 
   @UseGuards(AuthGuard('jwt'))
   @Get('exchangeable')
-  async getExchangeableVouchers(@Req() req: any) {
+  async getExchangeableVouchers(
+    @Req() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
     const userId = req.user._id || req.user.id;
-    return this.vouchersService.getExchangeableVouchers(userId);
+    return this.vouchersService.getExchangeableVouchers(
+      userId,
+      page ? parseInt(page) : undefined,
+      limit ? parseInt(limit) : undefined,
+    );
   }
 
   @UseGuards(AuthGuard('jwt'))
@@ -42,9 +50,17 @@ export class VouchersController {
 
   @UseGuards(AuthGuard('jwt'))
   @Get('my-vouchers')
-  async getMyVouchers(@Req() req: any) {
+  async getMyVouchers(
+    @Req() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
     const userId = req.user._id || req.user.id;
-    return this.vouchersService.getUserVouchers(userId);
+    return this.vouchersService.getUserVouchers(
+      userId,
+      page ? parseInt(page) : undefined,
+      limit ? parseInt(limit) : undefined,
+    );
   }
 
   @UseGuards(AuthGuard('jwt'))

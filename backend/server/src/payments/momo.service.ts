@@ -50,6 +50,20 @@ export interface MomoCallbackParams {
   signature: string;
 }
 
+export interface MomoQueryResponse {
+  partnerCode: string;
+  orderId: string;
+  requestId: string;
+  extraData: string;
+  amount: number;
+  transId: number;
+  payType: string;
+  resultCode: number;
+  message: string;
+  responseTime: number;
+  signature: string;
+}
+
 /**
  * Các trường tối thiểu mà MoMo BẮT BUỘC gửi kèm trong mọi callback (IPN/return).
  * Dùng để validate dữ liệu đầu vào trước khi xử lý.
@@ -170,6 +184,50 @@ export class MomoService {
       return result;
     } catch (error) {
       this.logger.error('Lỗi gọi MoMo API', error);
+      throw error;
+    }
+  }
+
+  async queryPaymentStatus(
+    orderId: string,
+    requestId: string,
+  ): Promise<MomoQueryResponse> {
+    const rawSignature =
+      `accessKey=${this.config.accessKey}` +
+      `&orderId=${orderId}` +
+      `&partnerCode=${this.config.partnerCode}` +
+      `&requestId=${requestId}`;
+
+    const signature = this.createSignature(rawSignature);
+
+    const requestBody = {
+      partnerCode: this.config.partnerCode,
+      requestId,
+      orderId,
+      signature,
+    };
+
+    const queryEndpoint = this.config.endpoint.replace('/create', '/query');
+
+    try {
+      this.logger.log(
+        `Query MoMo payment status orderId=${orderId} requestId=${requestId}`,
+      );
+      const response = await fetch(queryEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const result = (await response.json()) as MomoQueryResponse;
+      this.logger.log(
+        `MoMo query response orderId=${orderId} resultCode=${result.resultCode} message=${result.message}`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error('Lỗi gọi MoMo Query API', error);
       throw error;
     }
   }

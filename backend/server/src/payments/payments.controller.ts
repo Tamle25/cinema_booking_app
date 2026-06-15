@@ -70,7 +70,10 @@ export class PaymentsController {
       message: result.message ?? '',
       transactionId: result.transactionId ?? '',
     });
-    return res.redirect(303, `${frontendUrl}/payment/momo-return?${params.toString()}`);
+    return res.redirect(
+      303,
+      `${frontendUrl}/payment/momo-return?${params.toString()}`,
+    );
   }
 
   @Post('momo/ipn')

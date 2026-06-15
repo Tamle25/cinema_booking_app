@@ -6,7 +6,9 @@ export class SeatLockService {
   private bookedSeats: Map<string, Set<string>> = new Map();
 
   isCacheSeeded(showtimeId: string): boolean {
-    return this.bookedSeats.has(showtimeId) || this.pendingSeats.has(showtimeId);
+    return (
+      this.bookedSeats.has(showtimeId) || this.pendingSeats.has(showtimeId)
+    );
   }
 
   seedSeats(showtimeId: string, booked: string[], pending: string[]): void {
@@ -21,7 +23,7 @@ export class SeatLockService {
       this.pendingSeats.set(showtimeId, pending);
     }
     seats.forEach((seat) => {
-      pending!.add(seat);
+      pending.add(seat);
       this.bookedSeats.get(showtimeId)?.delete(seat);
     });
   }
@@ -36,7 +38,7 @@ export class SeatLockService {
     const pending = this.pendingSeats.get(showtimeId);
 
     seats.forEach((seat) => {
-      booked!.add(seat);
+      booked.add(seat);
       if (pending) {
         pending.delete(seat);
       }
@@ -54,7 +56,10 @@ export class SeatLockService {
     }
   }
 
-  getShowtimeState(showtimeId: string): { lockedSeats: string[]; bookedSeats: string[] } {
+  getShowtimeState(showtimeId: string): {
+    lockedSeats: string[];
+    bookedSeats: string[];
+  } {
     return {
       lockedSeats: Array.from(this.pendingSeats.get(showtimeId) || []),
       bookedSeats: Array.from(this.bookedSeats.get(showtimeId) || []),

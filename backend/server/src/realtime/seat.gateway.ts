@@ -36,12 +36,16 @@ export class SeatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   handleConnection(client: Socket) {
     const ts = () => new Date().toISOString();
-    console.log(`[SeatGateway ${ts()}] [CONNECTION] Client connected: socketId=${client.id}`);
+    console.log(
+      `[SeatGateway ${ts()}] [CONNECTION] Client connected: socketId=${client.id}`,
+    );
   }
 
   handleDisconnect(client: Socket) {
     const ts = () => new Date().toISOString();
-    console.log(`[SeatGateway ${ts()}] [DISCONNECT] Client disconnected: socketId=${client.id}`);
+    console.log(
+      `[SeatGateway ${ts()}] [DISCONNECT] Client disconnected: socketId=${client.id}`,
+    );
   }
 
   @SubscribeMessage('join_showtime')
@@ -51,7 +55,9 @@ export class SeatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const { showtimeId } = payload;
     const ts = () => new Date().toISOString();
-    console.log(`[SeatGateway ${ts()}] [JOIN_SHOWTIME] Client socketId=${client.id} joins showtimeId=${showtimeId}`);
+    console.log(
+      `[SeatGateway ${ts()}] [JOIN_SHOWTIME] Client socketId=${client.id} joins showtimeId=${showtimeId}`,
+    );
     if (!showtimeId) return;
 
     client.join(`showtime_${showtimeId}`);
@@ -72,16 +78,27 @@ export class SeatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           }, []);
 
           // Ghế confirmed = tất cả booked_seats trong DB trừ đi các ghế đang pending
-          const dbBookedSeats = Array.isArray(showtime.booked_seats) ? showtime.booked_seats : [];
-          const confirmedSeats = dbBookedSeats.filter((seat) => !pendingSeats.includes(seat));
+          const dbBookedSeats = Array.isArray(showtime.booked_seats)
+            ? showtime.booked_seats
+            : [];
+          const confirmedSeats = dbBookedSeats.filter(
+            (seat) => !pendingSeats.includes(seat),
+          );
 
-          this.seatLockService.seedSeats(showtimeId, confirmedSeats, pendingSeats);
+          this.seatLockService.seedSeats(
+            showtimeId,
+            confirmedSeats,
+            pendingSeats,
+          );
           console.log(
             `[SeatGateway ${ts()}] seed ok — showtime=${showtimeId} confirmedCount=${confirmedSeats.length} pendingCount=${pendingSeats.length}`,
           );
         }
       } catch (err) {
-        console.error(`[SeatGateway ${ts()}] Error seeding showtimeId=${showtimeId}:`, err);
+        console.error(
+          `[SeatGateway ${ts()}] Error seeding showtimeId=${showtimeId}:`,
+          err,
+        );
       }
     }
 
@@ -102,6 +119,8 @@ export class SeatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!showtimeId) return;
     client.leave(`showtime_${showtimeId}`);
     const ts = () => new Date().toISOString();
-    console.log(`[SeatGateway ${ts()}] [LEAVE_SHOWTIME] Client socketId=${client.id} left showtimeId=${showtimeId}`);
+    console.log(
+      `[SeatGateway ${ts()}] [LEAVE_SHOWTIME] Client socketId=${client.id} left showtimeId=${showtimeId}`,
+    );
   }
 }

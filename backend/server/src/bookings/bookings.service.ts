@@ -14,7 +14,7 @@ export class BookingsService {
   constructor(
     @InjectModel(Booking.name) private bookingModel: Model<Booking>,
     @InjectModel(Showtime.name) private showtimeModel: Model<Showtime>,
-  ) { }
+  ) {}
 
   private normalizeSeats(seats: string[]): string[] {
     if (!Array.isArray(seats) || seats.length === 0) {
@@ -79,15 +79,52 @@ export class BookingsService {
     }
   }
 
-  async findByUser(userId: string): Promise<Booking[]> {
-    return this.bookingModel
-      .find({ user: userId })
-      .populate({
-        path: 'showtime',
-        populate: [{ path: 'movie' }, { path: 'cinema' }, { path: 'room' }],
-      })
-      .sort({ createdAt: -1 })
-      .exec();
+  async findByUser(
+    userId: string,
+    page?: number,
+    limit?: number,
+    status?: string,
+  ): Promise<any> {
+    const query: any = { user: userId };
+    if (status) {
+      query.status = status;
+    }
+
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      const [bookings, total] = await Promise.all([
+        this.bookingModel
+          .find(query)
+          .populate({
+            path: 'showtime',
+            populate: [{ path: 'movie' }, { path: 'cinema' }, { path: 'room' }],
+          })
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .exec(),
+        this.bookingModel.countDocuments(query),
+      ]);
+
+      return {
+        bookings,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    } else {
+      return this.bookingModel
+        .find(query)
+        .populate({
+          path: 'showtime',
+          populate: [{ path: 'movie' }, { path: 'cinema' }, { path: 'room' }],
+        })
+        .sort({ createdAt: -1 })
+        .exec();
+    }
   }
 
   async findAll(): Promise<Booking[]> {

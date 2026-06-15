@@ -5,6 +5,7 @@ import {
   Get,
   UseGuards,
   Request,
+  Query,
 } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 import { AuthGuard } from '@nestjs/passport';
@@ -32,8 +33,18 @@ export class BookingsController {
 
   @UseGuards(AuthGuard('jwt'))
   @Get('my-bookings')
-  async getMyBookings(@Request() req: any) {
+  async getMyBookings(
+    @Request() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: string,
+  ) {
     const userId = req.user._id || req.user.id;
-    return this.bookingsService.findByUser(userId);
+    return this.bookingsService.findByUser(
+      userId,
+      page ? parseInt(page) : undefined,
+      limit ? parseInt(limit) : undefined,
+      status,
+    );
   }
 }

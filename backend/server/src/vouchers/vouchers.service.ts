@@ -221,34 +221,80 @@ export class VouchersService {
       .exec();
   }
 
-  async getExchangeableVouchers(userId: string) {
+  async getExchangeableVouchers(userId: string, page?: number, limit?: number) {
     const user = await this.userModel
       .findById(userId)
       .select('availablePoints membershipRank');
     if (!user) throw new BadRequestException('Người dùng không tồn tại');
 
-    const templates = await this.voucherModel
-      .find({
-        voucherType: 'POINT_EXCHANGE_TEMPLATE',
-        status: 'active',
-      })
-      .populate('applicableCinemaIds', 'name')
-      .sort({ requiredPoints: 1 })
-      .exec();
+    const query = {
+      voucherType: 'POINT_EXCHANGE_TEMPLATE',
+      status: 'active',
+    };
 
-    return templates.map((t) => {
-      const tObj = t.toObject();
-      const canExchange =
-        user.availablePoints >= t.requiredPoints &&
-        this.isRankSufficient(user.membershipRank, t.requiredMembershipRank) &&
-        (t.exchangeLimit === 0 || t.exchangedCount < t.exchangeLimit);
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      const [templates, total] = await Promise.all([
+        this.voucherModel
+          .find(query)
+          .populate('applicableCinemaIds', 'name')
+          .sort({ requiredPoints: 1 })
+          .skip(skip)
+          .limit(limit)
+          .exec(),
+        this.voucherModel.countDocuments(query),
+      ]);
+
+      const vouchers = templates.map((t) => {
+        const tObj = t.toObject();
+        const canExchange =
+          user.availablePoints >= t.requiredPoints &&
+          this.isRankSufficient(
+            user.membershipRank,
+            t.requiredMembershipRank,
+          ) &&
+          (t.exchangeLimit === 0 || t.exchangedCount < t.exchangeLimit);
+
+        return {
+          ...tObj,
+          canExchange,
+          userPoints: user.availablePoints,
+        };
+      });
 
       return {
-        ...tObj,
-        canExchange,
-        userPoints: user.availablePoints,
+        vouchers,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
       };
-    });
+    } else {
+      const templates = await this.voucherModel
+        .find(query)
+        .populate('applicableCinemaIds', 'name')
+        .sort({ requiredPoints: 1 })
+        .exec();
+
+      return templates.map((t) => {
+        const tObj = t.toObject();
+        const canExchange =
+          user.availablePoints >= t.requiredPoints &&
+          this.isRankSufficient(
+            user.membershipRank,
+            t.requiredMembershipRank,
+          ) &&
+          (t.exchangeLimit === 0 || t.exchangedCount < t.exchangeLimit);
+
+        return {
+          ...tObj,
+          canExchange,
+          userPoints: user.availablePoints,
+        };
+      });
+    }
   }
 
   async exchangeVoucher(userId: string, templateId: string) {
@@ -356,20 +402,49 @@ export class VouchersService {
     });
   }
 
-  async getUserVouchers(userId: string) {
+  async getUserVouchers(userId: string, page?: number, limit?: number) {
     await this.userVoucherModel.updateMany(
       { user: userId, status: 'UNUSED', expiredAt: { $lte: new Date() } },
       { status: 'EXPIRED' },
     );
 
-    return this.userVoucherModel
-      .find({ user: userId })
-      .populate({
-        path: 'voucherTemplate',
-        populate: { path: 'applicableCinemaIds', select: 'name' },
-      })
-      .sort({ createdAt: -1 })
-      .exec();
+    const query = { user: userId };
+
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      const [vouchers, total] = await Promise.all([
+        this.userVoucherModel
+          .find(query)
+          .populate({
+            path: 'voucherTemplate',
+            populate: { path: 'applicableCinemaIds', select: 'name' },
+          })
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .exec(),
+        this.userVoucherModel.countDocuments(query),
+      ]);
+
+      return {
+        vouchers,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    } else {
+      return this.userVoucherModel
+        .find(query)
+        .populate({
+          path: 'voucherTemplate',
+          populate: { path: 'applicableCinemaIds', select: 'name' },
+        })
+        .sort({ createdAt: -1 })
+        .exec();
+    }
   }
 
   async validateVoucher(
