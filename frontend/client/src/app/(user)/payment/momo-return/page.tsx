@@ -1,84 +1,219 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { toastSuccess, toastError, toastWarning } from '@/utils/toast';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { API_URL } from '@/lib/api';
+import { toastError, toastWarning } from '@/utils/toast';
 
 interface PaymentResult {
   success: boolean;
   message: string;
   bookingId?: string;
   transactionId?: string;
+  status?: string;
+}
+
+type ViewState = 'loading' | 'verifying' | 'success' | 'failed' | 'pending';
+
+function statusToViewState(status?: string, fallbackSuccess?: boolean): ViewState {
+  if (status === 'confirmed') return 'success';
+  if (['failed', 'expired', 'cancelled'].includes(status || '')) return 'failed';
+  if (status === 'pending') return 'pending';
+  return fallbackSuccess ? 'success' : 'failed';
 }
 
 function MomoReturnContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [result, setResult] = useState<PaymentResult | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [viewState, setViewState] = useState<ViewState>('loading');
   const [retrying, setRetrying] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
-  const [momoInfo, setMomoInfo] = useState<{
-    amount?: string;
-    orderId?: string;
-    transId?: string;
-    resultCode?: string;
-    message?: string;
-  }>({});
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const momoInfo = useMemo(
+    () => ({
+      amount: searchParams.get('amount') || '',
+      orderId: searchParams.get('orderId') || '',
+      transId: searchParams.get('transId') || '',
+      resultCode: searchParams.get('resultCode') || '',
+      message: searchParams.get('message') || '',
+    }),
+    [searchParams],
+  );
 
   useEffect(() => {
-    const verifyPayment = async () => {
+    let cancelled = false;
+
+    const processResult = async () => {
+      // Dual-mode detection:
+      // NEW MODE  — backend already settled and redirected here with pre-processed params
+      //             (?success=true&bookingId=...&status=confirmed&...). Display immediately.
+      // OLD MODE  — raw MoMo params (?orderId=...&signature=...): call backend to verify
+      //             (backward-compat path for any direct navigation).
+      const successParam = searchParams.get('success');
+      const isNewMode = successParam !== null;
+
+      if (isNewMode) {
+        const success = successParam === 'true';
+        const bookingId = searchParams.get('bookingId') || undefined;
+        const status = searchParams.get('status') || undefined;
+        const message = searchParams.get('message') || 'Xu ly thanh toan hoan tat.';
+        const transactionId = searchParams.get('transactionId') || undefined;
+
+        const preResult: PaymentResult = { success, message, bookingId, transactionId, status };
+        setResult(preResult);
+
+        if (!bookingId) {
+          setViewState(success ? 'success' : 'failed');
+          return;
+        }
+
+        // If status is already final, show immediately — no polling needed.
+        if (status && status !== 'pending') {
+          setViewState(statusToViewState(status, success));
+          return;
+        }
+
+        // Status is pending or missing — poll for IPN confirmation (IPN may arrive
+        // shortly after the return redirect when both run concurrently).
+        setViewState('pending');
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+          setViewState(statusToViewState(status, success));
+          return;
+        }
+
+        for (let attempt = 0; attempt < 8; attempt += 1) {
+          if (cancelled) return;
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          if (cancelled) return;
+
+          try {
+            const statusResponse = await fetch(
+              `${API_URL}/payments/status/${bookingId}`,
+              { headers: { Authorization: `Bearer ${token}` } },
+            );
+            if (statusResponse.ok) {
+              const statusData = await statusResponse.json();
+              const liveStatus = statusData.status as string;
+              if (cancelled) return;
+              setResult((current) => ({
+                ...(current || preResult),
+                status: liveStatus,
+                transactionId: statusData.booking?.momo_trans_id || current?.transactionId,
+                message:
+                  liveStatus === 'confirmed'
+                    ? 'Thanh toan thanh cong. Ve da duoc xac nhan.'
+                    : current?.message || message,
+              }));
+              if (liveStatus !== 'pending') {
+                setViewState(statusToViewState(liveStatus));
+                return;
+              }
+            }
+          } catch {
+            // Non-fatal: keep polling
+          }
+        }
+
+        if (!cancelled) setViewState(statusToViewState(status, success));
+        return;
+      }
+
+      // Old mode: raw MoMo return params — verify via backend (backward compat).
+      setViewState('verifying');
+      const momoQueryString = window.location.search;
+
       try {
-        setMomoInfo({
-          amount: searchParams.get('amount') || undefined,
-          orderId: searchParams.get('orderId') || undefined,
-          transId: searchParams.get('transId') || undefined,
-          resultCode: searchParams.get('resultCode') || undefined,
-          message: searchParams.get('message') || undefined,
-        });
-
-        const params = new URLSearchParams();
-        searchParams.forEach((value, key) => {
-          params.append(key, value);
-        });
-
-        const response = await fetch(
-          `${API_URL}/payments/momo-return?${params.toString()}`
+        const returnResponse = await fetch(
+          `${API_URL}/payments/momo-return${momoQueryString}`,
         );
-        const data = await response.json();
-        setResult(data);
+        const returnData: PaymentResult = await returnResponse.json();
+
+        if (cancelled) return;
+        setResult(returnData);
+
+        if (!returnData.bookingId) {
+          setViewState(returnData.success ? 'success' : 'failed');
+          return;
+        }
+
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+          setViewState(statusToViewState(returnData.status, returnData.success));
+          return;
+        }
+
+        for (let attempt = 0; attempt < 8; attempt += 1) {
+          const statusResponse = await fetch(
+            `${API_URL}/payments/status/${returnData.bookingId}`,
+            { headers: { Authorization: `Bearer ${token}` } },
+          );
+
+          if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            const status = statusData.status as string;
+
+            if (cancelled) return;
+            setResult((current) => ({
+              ...(current || returnData),
+              status,
+              transactionId:
+                statusData.booking?.momo_trans_id ||
+                current?.transactionId ||
+                returnData.transactionId,
+              message:
+                status === 'confirmed'
+                  ? 'Thanh toan thanh cong. Ve da duoc xac nhan.'
+                  : current?.message || returnData.message,
+            }));
+
+            if (status !== 'pending') {
+              setViewState(statusToViewState(status));
+              return;
+            }
+          }
+
+          setViewState('pending');
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+
+        if (!cancelled) {
+          setViewState('pending');
+        }
       } catch (error) {
-        console.error('Lỗi xác thực thanh toán:', error);
-        setResult({
-          success: false,
-          message: 'Không thể xác thực thanh toán. Vui lòng liên hệ hỗ trợ.',
-        });
-      } finally {
-        setLoading(false);
+        console.error('MoMo return verify error:', error);
+        if (!cancelled) {
+          setResult({
+            success: false,
+            message: 'Khong the xac minh thanh toan. Vui long lien he ho tro.',
+          });
+          setViewState('failed');
+        }
       }
     };
 
-    verifyPayment();
-  }, [searchParams, API_URL]);
+    processResult();
 
-  const formatAmount = (amount?: string) => {
-    if (!amount) return '0';
-    const num = parseInt(amount);
-    return num.toLocaleString('vi-VN');
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams]);
+
+  const formatAmount = (amount: string) => {
+    const value = Number.parseInt(amount || '0', 10);
+    return Number.isNaN(value) ? '0' : value.toLocaleString('vi-VN');
   };
 
   const handleRetryPayment = async () => {
     if (!result?.bookingId) {
-      toastWarning('Không tìm thấy mã đặt vé để thử lại.');
+      toastWarning('Khong tim thay ma dat ve de thanh toan lai.');
       return;
     }
 
     const token = localStorage.getItem('access_token');
     if (!token) {
-      toastWarning('Bạn cần đăng nhập để thực hiện thanh toán.');
+      toastWarning('Ban can dang nhap de thanh toan.');
       router.push('/login');
       return;
     }
@@ -89,79 +224,38 @@ function MomoReturnContent() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          bookingId: result.bookingId,
-        }),
+        body: JSON.stringify({ bookingId: result.bookingId }),
       });
-
       const data = await response.json();
 
       if (response.ok && data.payUrl) {
         window.location.href = data.payUrl;
-      } else {
-        toastError(data.message || 'Không thể tạo lại thanh toán. Vui lòng đặt vé mới.');
-        setRetrying(false);
+        return;
       }
+
+      toastError(data.message || 'Khong the tao lai thanh toan.');
+      setRetrying(false);
     } catch (error) {
-      console.error('Lỗi retry payment:', error);
-      toastError('Có lỗi xảy ra, vui lòng thử lại.');
+      console.error('Retry MoMo payment error:', error);
+      toastError('Co loi xay ra, vui long thu lai.');
       setRetrying(false);
     }
   };
 
-  const handleCancelBooking = async () => {
-    if (!result?.bookingId) {
-      router.push('/');
-      return;
-    }
+  const isSuccess = viewState === 'success';
+  const isPending = viewState === 'loading' || viewState === 'verifying' || viewState === 'pending';
 
-    const token = localStorage.getItem('access_token');
-    if (!token) {
-      router.push('/');
-      return;
-    }
-
-    if (!confirm('Bạn có chắc muốn hủy đơn hàng này? Ghế sẽ được mở lại cho người khác.')) {
-      return;
-    }
-
-    setCancelling(true);
-    try {
-      const response = await fetch(`${API_URL}/payments/cancel-booking`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          bookingId: result.bookingId,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        toastSuccess('Đã hủy đơn hàng. Bạn có thể đặt vé mới.');
-        router.push('/');
-      } else {
-        toastError(data.message || 'Không thể hủy đơn hàng.');
-        setCancelling(false);
-      }
-    } catch (error) {
-      console.error('Lỗi cancel booking:', error);
-      toastError('Có lỗi xảy ra.');
-      setCancelling(false);
-    }
-  };
-
-  if (loading) {
+  if (isPending) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-pink-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 text-lg">Đang xác thực thanh toán...</p>
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 text-center max-w-md w-full">
+          <div className="animate-spin rounded-full h-14 w-14 border-t-4 border-b-4 border-pink-600 mx-auto mb-5" />
+          <h1 className="text-xl font-bold text-gray-900 mb-2">Dang xac minh thanh toan</h1>
+          <p className="text-gray-600">
+            He thong dang cho IPN tu MoMo va kiem tra trang thai ve moi nhat.
+          </p>
         </div>
       </div>
     );
@@ -169,140 +263,91 @@ function MomoReturnContent() {
 
   return (
     <div className="min-h-screen bg-gray-100 py-12 px-4">
-      <div className="max-w-lg mx-auto">
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-          
-          <div className={`px-6 py-8 text-center ${result?.success ? 'bg-gradient-to-r from-green-500 to-green-600' : 'bg-gradient-to-r from-red-500 to-red-600'}`}>
-            {result?.success ? (
-              <div className="w-20 h-20 bg-white rounded-full mx-auto flex items-center justify-center mb-4">
-                <svg className="w-12 h-12 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-            ) : (
-              <div className="w-20 h-20 bg-white rounded-full mx-auto flex items-center justify-center mb-4">
-                <svg className="w-12 h-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+      <div className="max-w-lg mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div className={`px-6 py-8 text-center ${isSuccess ? 'bg-green-600' : 'bg-red-600'}`}>
+          <div className="w-20 h-20 bg-white rounded-full mx-auto flex items-center justify-center mb-4">
+            <span className={`text-5xl font-bold ${isSuccess ? 'text-green-600' : 'text-red-600'}`}>
+              {isSuccess ? 'OK' : 'X'}
+            </span>
+          </div>
+          <h1 className="text-2xl font-bold text-white">
+            {isSuccess ? 'Thanh Toan Thanh Cong' : 'Thanh Toan Chua Hoan Tat'}
+          </h1>
+        </div>
+
+        <div className="px-6 py-8">
+          <p className="text-center text-gray-600 mb-6">{result?.message}</p>
+
+          <div className="bg-gray-50 rounded-xl p-4 mb-6 space-y-3">
+            {result?.bookingId && (
+              <div className="flex justify-between gap-4 py-2 border-b border-gray-200">
+                <span className="text-gray-500">Ma dat ve:</span>
+                <span className="font-semibold text-gray-900 text-right break-all">{result.bookingId}</span>
               </div>
             )}
-            <h1 className="text-2xl font-bold text-white">
-              {result?.success ? 'Thanh Toán Thành Công!' : 'Thanh Toán Thất Bại'}
-            </h1>
+            {(result?.transactionId || momoInfo.transId) && (
+              <div className="flex justify-between gap-4 py-2 border-b border-gray-200">
+                <span className="text-gray-500">Ma giao dich:</span>
+                <span className="font-semibold text-gray-900 text-right break-all">
+                  {result?.transactionId || momoInfo.transId}
+                </span>
+              </div>
+            )}
+            {momoInfo.orderId && (
+              <div className="flex justify-between gap-4 py-2 border-b border-gray-200">
+                <span className="text-gray-500">OrderId:</span>
+                <span className="font-semibold text-gray-900 text-right break-all">{momoInfo.orderId}</span>
+              </div>
+            )}
+            {momoInfo.amount && (
+              <div className="flex justify-between gap-4 py-2 border-b border-gray-200">
+                <span className="text-gray-500">So tien:</span>
+                <span className="font-semibold text-pink-600">{formatAmount(momoInfo.amount)} VND</span>
+              </div>
+            )}
+            {result?.status && (
+              <div className="flex justify-between gap-4 py-2">
+                <span className="text-gray-500">Trang thai:</span>
+                <span className="font-semibold text-gray-900">{result.status}</span>
+              </div>
+            )}
           </div>
 
-          
-          <div className="px-6 py-8">
-            <p className="text-center text-gray-600 mb-6">{result?.message}</p>
-
-            
-            <div className="bg-gray-50 rounded-xl p-4 mb-6 space-y-3">
-              {result?.bookingId && (
-                <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                  <span className="text-gray-500">Mã đặt vé:</span>
-                  <span className="font-semibold text-gray-900">{result.bookingId}</span>
-                </div>
-              )}
-              {(result?.transactionId || momoInfo.transId) && (
-                <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                  <span className="text-gray-500">Mã giao dịch MoMo:</span>
-                  <span className="font-semibold text-gray-900">{result?.transactionId || momoInfo.transId}</span>
-                </div>
-              )}
-              {momoInfo.orderId && (
-                <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                  <span className="text-gray-500">Mã đơn hàng:</span>
-                  <span className="font-semibold text-gray-900">{momoInfo.orderId}</span>
-                </div>
-              )}
-              {momoInfo.amount && (
-                <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                  <span className="text-gray-500">Số tiền:</span>
-                  <span className="font-semibold text-pink-600">{formatAmount(momoInfo.amount)} VNĐ</span>
-                </div>
-              )}
-              {momoInfo.resultCode && (
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-gray-500">Mã kết quả:</span>
-                  <span className={`font-semibold ${momoInfo.resultCode === '0' ? 'text-green-600' : 'text-red-600'}`}>
-                    {momoInfo.resultCode}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            
-            <div className="space-y-3">
-              {result?.success ? (
-                <>
-                  <Link
-                    href="/my-tickets"
-                    className="block w-full bg-pink-600 text-white text-center py-3 rounded-xl font-semibold hover:bg-pink-700 transition-colors"
+          <div className="space-y-3">
+            {isSuccess ? (
+              <>
+                <Link
+                  href="/my-tickets"
+                  className="block w-full bg-pink-600 text-white text-center py-3 rounded-xl font-semibold hover:bg-pink-700 transition-colors"
+                >
+                  Xem Ve Cua Toi
+                </Link>
+                <Link
+                  href="/"
+                  className="block w-full bg-gray-100 text-gray-700 text-center py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
+                >
+                  Ve Trang Chu
+                </Link>
+              </>
+            ) : (
+              <>
+                {result?.bookingId && (
+                  <button
+                    onClick={handleRetryPayment}
+                    disabled={retrying}
+                    className="block w-full bg-pink-600 text-white text-center py-3 rounded-xl font-semibold hover:bg-pink-700 transition-colors disabled:opacity-50"
                   >
-                    Xem Vé Của Tôi
-                  </Link>
-                  <Link
-                    href="/"
-                    className="block w-full bg-gray-100 text-gray-700 text-center py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
-                  >
-                    Về Trang Chủ
-                  </Link>
-                </>
-              ) : (
-                <>
-                  
-                  {result?.bookingId && (
-                    <button
-                      onClick={handleRetryPayment}
-                      disabled={retrying || cancelling}
-                      className="block w-full bg-pink-600 text-white text-center py-3 rounded-xl font-semibold hover:bg-pink-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                      {retrying ? (
-                        <>
-                          <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                          </svg>
-                          Đang tạo thanh toán mới...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                          </svg>
-                          Thanh Toán Lại
-                        </>
-                      )}
-                    </button>
-                  )}
-
-                  
-                  {result?.bookingId && (
-                    <button
-                      onClick={handleCancelBooking}
-                      disabled={retrying || cancelling}
-                      className="block w-full bg-orange-500 text-white text-center py-3 rounded-xl font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50"
-                    >
-                      {cancelling ? 'Đang hủy đơn...' : 'Hủy Đơn & Đặt Vé Mới'}
-                    </button>
-                  )}
-
-                  <Link
-                    href="/"
-                    className="block w-full bg-gray-100 text-gray-700 text-center py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
-                  >
-                    Về Trang Chủ
-                  </Link>
-                </>
-              )}
-            </div>
-          </div>
-
-          
-          <div className="px-6 py-4 bg-gray-50 border-t">
-            <p className="text-xs text-gray-500 text-center">
-              Nếu có vấn đề về thanh toán, vui lòng liên hệ hotline: <span className="font-semibold">1900 1234</span>
-            </p>
+                    {retrying ? 'Dang tao thanh toan moi...' : 'Thanh Toan Lai'}
+                  </button>
+                )}
+                <Link
+                  href="/"
+                  className="block w-full bg-gray-100 text-gray-700 text-center py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
+                >
+                  Ve Trang Chu
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -312,16 +357,14 @@ function MomoReturnContent() {
 
 export default function MomoReturnPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-pink-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 text-lg">Đang tải...</p>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-14 w-14 border-t-4 border-b-4 border-pink-600" />
         </div>
-      </div>
-    }>
+      }
+    >
       <MomoReturnContent />
     </Suspense>
   );
 }
-

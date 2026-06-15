@@ -5,18 +5,26 @@ import {
   Get,
   Query,
   Req,
+  Res,
   UseGuards,
   Param,
+  ForbiddenException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
 import { PaymentsService, CreatePaymentDto } from './payments.service';
+import { MomoSettlementService } from './momo-settlement.service';
 import type { MomoCallbackParams } from './momo.service';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
 
 @Controller('payments')
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) {}
+  constructor(
+    private readonly paymentsService: PaymentsService,
+    private readonly settlementService: MomoSettlementService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @UseGuards(AuthGuard('jwt'))
   @Post('create-momo')
@@ -45,17 +53,29 @@ export class PaymentsController {
     return this.paymentsService.createMomoPayment(createDto);
   }
 
-  @Get('momo-return')
-  async momoReturn(@Query() query: Record<string, string>) {
-    const result = await this.paymentsService.handleMomoReturn(
+  @Get('momo/return')
+  async momoReturn(
+    @Query() query: Record<string, string>,
+    @Res() res: Response,
+  ) {
+    const result = await this.settlementService.handleReturn(
       query as unknown as MomoCallbackParams,
     );
-    return result;
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    const params = new URLSearchParams({
+      success: String(result.success),
+      bookingId: result.bookingId ?? '',
+      status: result.status ?? '',
+      message: result.message ?? '',
+      transactionId: result.transactionId ?? '',
+    });
+    return res.redirect(303, `${frontendUrl}/payment/momo-return?${params.toString()}`);
   }
 
-  @Post('momo-ipn')
+  @Post('momo/ipn')
   async momoIPN(@Body() body: MomoCallbackParams) {
-    return this.paymentsService.handleMomoIPN(body);
+    return this.settlementService.handleIpn(body);
   }
 
   @UseGuards(AuthGuard('jwt'))
@@ -94,5 +114,13 @@ export class PaymentsController {
   ) {
     const userId = req.user._id || req.user.id;
     return this.paymentsService.cancelPendingBooking(body.bookingId, userId);
+  }
+
+  @Post('dev/simulate-momo-success')
+  async devSimulateMomoSuccess(@Body() body: { bookingId: string }) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new ForbiddenException('Không khả dụng trong production');
+    }
+    return this.settlementService.simulateSuccess(body.bookingId);
   }
 }

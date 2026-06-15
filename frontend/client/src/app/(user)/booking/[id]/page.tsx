@@ -9,12 +9,6 @@ import { toast } from 'react-toastify';
 import { useSocket } from '@/context/SocketContext';
 import { useAuth } from '@/context/AuthContext';
 
-interface ILockedSeat {
-  userId?: string;
-  expiresAt: number;
-  socketId: string;
-}
-
 const getRowLabel = (index: number) => {
   return String.fromCharCode(65 + index);
 };
@@ -24,14 +18,12 @@ export default function BookingPage() {
   const router = useRouter();
   const showtimeId = params.id as string;
 
-  const { socket, isConnected, hasEverConnected } = useSocket();
-  const { user } = useAuth();
+  const { socket, isConnected, hasEverConnected, lockedSeats, bookedSeats, joinShowtime, leaveShowtime } = useSocket();
+  const { user, loading: authLoading } = useAuth();
   const userId = user?._id || user?.id;
 
   const [showtime, setShowtime] = useState<IShowtime | null>(null);
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
-  const [lockedSeats, setLockedSeats] = useState<Record<string, ILockedSeat>>({});
-  const [pendingLockSeats, setPendingLockSeats] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -57,176 +49,31 @@ export default function BookingPage() {
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
+  // Quản lý vòng đời join / leave showtime room
   useEffect(() => {
-    if (!socket || !showtimeId) return;
-
-    if (socket.connected) {
-      socket.emit('join_showtime', { showtimeId, userId });
+    if (authLoading) return;
+    if (showtimeId) {
+      joinShowtime(showtimeId);
     }
-
-    const handleSeatStateSync = (data: { showtimeId: string; lockedSeats: Record<string, ILockedSeat> }) => {
-      if (data.showtimeId === showtimeId) {
-        setLockedSeats(data.lockedSeats || {});
-
-        if (userId) {
-          const mySeats: string[] = [];
-          Object.entries(data.lockedSeats || {}).forEach(([seatName, lock]) => {
-            if (lock.userId === userId) {
-              mySeats.push(seatName);
-            }
-          });
-          if (mySeats.length > 0) {
-            setSelectedSeats(prev => {
-              const merged = [...new Set([...prev, ...mySeats])];
-              return merged;
-            });
-          }
-        }
-      }
-    };
-
-    const handleSeatLocked = (data: { showtimeId: string; seatName: string; lockedBy: string; userId?: string; expiresAt: number }) => {
-      if (data.showtimeId === showtimeId) {
-        setLockedSeats(prev => ({
-          ...prev,
-          [data.seatName]: {
-            userId: data.userId,
-            expiresAt: data.expiresAt,
-            socketId: data.lockedBy
-          }
-        }));
-
-        const isMyLock = (userId && data.userId === userId) || (data.lockedBy === socket.id);
-
-        setPendingLockSeats(prev => {
-          if (prev.has(data.seatName) && isMyLock) {
-            const next = new Set(prev);
-            next.delete(data.seatName);
-            return next;
-          }
-          return prev;
-        });
-
-        if (isMyLock) {
-          setSelectedSeats(prev => {
-            if (!prev.includes(data.seatName)) {
-              return [...prev, data.seatName];
-            }
-            return prev;
-          });
-        }
-      }
-    };
-
-    const handleSeatUnlocked = (data: { showtimeId: string; seatName: string }) => {
-      if (data.showtimeId === showtimeId) {
-        setLockedSeats(prev => {
-          const next = { ...prev };
-          delete next[data.seatName];
-          return next;
-        });
-
-        setShowtime(prev => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            booked_seats: (prev.booked_seats || []).filter(s => s !== data.seatName)
-          };
-        });
-      }
-    };
-
-    const handleSeatLockExpired = (data: { showtimeId: string; seatName: string }) => {
-      if (data.showtimeId === showtimeId) {
-        setLockedSeats(prev => {
-          const next = { ...prev };
-          delete next[data.seatName];
-          return next;
-        });
-
-        setSelectedSeats(prev => {
-          if (prev.includes(data.seatName)) {
-            toastWarning(`Ghế ${data.seatName} đã hết thời gian giữ và tự động giải phóng!`);
-            return prev.filter(s => s !== data.seatName);
-          }
-          return prev;
-        });
-      }
-    };
-
-    const handleSeatBooked = (data: { showtimeId: string; seats: string[] }) => {
-      if (data.showtimeId === showtimeId) {
-        setShowtime(prev => {
-          if (!prev) return null;
-          const updatedBooked = [...new Set([...(prev.booked_seats || []), ...data.seats])];
-          return {
-            ...prev,
-            booked_seats: updatedBooked,
-          };
-        });
-
-        setLockedSeats(prev => {
-          const next = { ...prev };
-          data.seats.forEach(seat => delete next[seat]);
-          return next;
-        });
-
-        setSelectedSeats(prev => {
-          const filtered = prev.filter(seat => !data.seats.includes(seat));
-          if (prev.length !== filtered.length) {
-            toastWarning("Một hoặc nhiều ghế bạn chọn vừa được thanh toán thành công bởi người khác!");
-          }
-          return filtered;
-        });
-
-        setPendingLockSeats(prev => {
-          const next = new Set(prev);
-          data.seats.forEach(seat => next.delete(seat));
-          return next;
-        });
-      }
-    };
-
-    const handleSeatLockError = (data: { seatName: string; message: string }) => {
-      toastError(data.message);
-      setSelectedSeats(prev => prev.filter(s => s !== data.seatName));
-      setPendingLockSeats(prev => {
-        const next = new Set(prev);
-        next.delete(data.seatName);
-        return next;
-      });
-    };
-
-    socket.on('seat_state_sync', handleSeatStateSync);
-    socket.on('seat_locked', handleSeatLocked);
-    socket.on('seat_unlocked', handleSeatUnlocked);
-    socket.on('seat_lock_expired', handleSeatLockExpired);
-    socket.on('seat_booked', handleSeatBooked);
-    socket.on('seat_lock_error', handleSeatLockError);
-
     return () => {
-      socket.off('seat_state_sync', handleSeatStateSync);
-      socket.off('seat_locked', handleSeatLocked);
-      socket.off('seat_unlocked', handleSeatUnlocked);
-      socket.off('seat_lock_expired', handleSeatLockExpired);
-      socket.off('seat_booked', handleSeatBooked);
-      socket.off('seat_lock_error', handleSeatLockError);
-      toast.dismiss(DISCONNECT_TOAST_ID);
-      disconnectToastShownRef.current = false;
+      if (showtimeId) {
+        leaveShowtime(showtimeId);
+      }
     };
-  }, [socket, showtimeId, userId]);
+  }, [showtimeId, authLoading, joinShowtime, leaveShowtime]);
 
-  const selectedSeatsRef = useRef(selectedSeats);
-  selectedSeatsRef.current = selectedSeats;
-  const userIdRef = useRef(userId);
-  userIdRef.current = userId;
-  const pendingLockSeatsRef = useRef(pendingLockSeats);
-  pendingLockSeatsRef.current = pendingLockSeats;
-  const showtimeIdRef = useRef(showtimeId);
-  showtimeIdRef.current = showtimeId;
-  const socketRef = useRef(socket);
-  socketRef.current = socket;
+  // Đồng bộ selectedSeats với lockedSeats & bookedSeats từ SocketContext
+  useEffect(() => {
+    setSelectedSeats((prev) => {
+      const filtered = prev.filter((seat) => !lockedSeats.includes(seat) && !bookedSeats.includes(seat));
+      if (filtered.length !== prev.length) {
+        toastWarning('Một hoặc nhiều ghế bạn chọn vừa được người khác giữ hoặc thanh toán!');
+      }
+      return filtered;
+    });
+  }, [lockedSeats, bookedSeats]);
 
+  // Quản lý thông báo mất kết nối
   useEffect(() => {
     if (!hasEverConnected) return;
 
@@ -253,55 +100,6 @@ export default function BookingPage() {
       }
     }
   }, [isConnected, hasEverConnected]);
-
-  useEffect(() => {
-    if (socket && isConnected && showtimeId) {
-      socket.emit('join_showtime', { showtimeId, userId });
-
-      const seatsToLock = [...new Set([...selectedSeatsRef.current, ...pendingLockSeatsRef.current])];
-      if (seatsToLock.length > 0) {
-        setPendingLockSeats(new Set(seatsToLock));
-        seatsToLock.forEach(seatName => {
-          socket.emit('lock_seat', { showtimeId, seatName, userId });
-        });
-      }
-    }
-  }, [socket, isConnected, showtimeId, userId]);
-
-  useEffect(() => {
-    return () => {
-      const currentSocket = socketRef.current;
-      const currentShowtimeId = showtimeIdRef.current;
-      const currentSeats = selectedSeatsRef.current;
-
-      if (currentSocket && currentSocket.connected && currentShowtimeId) {
-        if (currentSeats.length > 0) {
-          currentSeats.forEach(seatName => {
-            currentSocket.emit('unlock_seat', { showtimeId: currentShowtimeId, seatName });
-          });
-        }
-        currentSocket.emit('leave_showtime', { showtimeId: currentShowtimeId });
-      }
-    };
-  }, [showtimeId]);
-
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      const currentSocket = socketRef.current;
-      const currentShowtimeId = showtimeIdRef.current;
-      const currentSeats = selectedSeatsRef.current;
-
-      if (currentSocket && currentSocket.connected && currentShowtimeId) {
-        currentSeats.forEach(seatName => {
-          currentSocket.emit('unlock_seat', { showtimeId: currentShowtimeId, seatName });
-        });
-        currentSocket.emit('leave_showtime', { showtimeId: currentShowtimeId });
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []);
 
   useEffect(() => {
     const fetchShowtime = async () => {
@@ -435,39 +233,21 @@ export default function BookingPage() {
   const handleSeatClick = (seatName: string, isBooked: boolean) => {
     if (isBooked) return;
 
-    const isLockedByOthers = lockedSeats[seatName] && 
-      (userId 
-        ? lockedSeats[seatName].userId !== userId 
-        : lockedSeats[seatName].socketId !== socket?.id);
+    const isLockedByOthers = lockedSeats.includes(seatName);
     if (isLockedByOthers) {
-      toastWarning("Ghế này đang được giữ bởi người dùng khác!");
+      toastWarning('Ghế này đang được giữ bởi người dùng khác!');
       return;
     }
 
     if (selectedSeats.includes(seatName)) {
-      setSelectedSeats(prev => prev.filter(s => s !== seatName));
-      setPendingLockSeats(prev => {
-        const next = new Set(prev);
-        next.delete(seatName);
-        return next;
-      });
-      if (socket && isConnected) {
-        socket.emit('unlock_seat', { showtimeId, seatName });
-      }
+      setSelectedSeats((prev) => prev.filter((s) => s !== seatName));
     } else {
       if (selectedSeats.length >= 8) {
-        toastWarning("Bạn chỉ được chọn tối đa 8 ghế!");
+        toastWarning('Bạn chỉ được chọn tối đa 8 ghế!');
         return;
       }
 
-      setSelectedSeats(prev => [...prev, seatName]);
-
-      if (socket && isConnected) {
-        setPendingLockSeats(prev => new Set(prev).add(seatName));
-        socket.emit('lock_seat', { showtimeId, seatName, userId });
-      } else {
-        setPendingLockSeats(prev => new Set(prev).add(seatName));
-      }
+      setSelectedSeats((prev) => [...prev, seatName]);
     }
   };
 
@@ -674,13 +454,9 @@ export default function BookingPage() {
                 const seatNumber = colIndex + 1;
                 const seatName = `${rowLabel}${seatNumber}`;
 
-                const isBooked = booked_seats.includes(seatName);
+                const isBooked = (booked_seats || []).includes(seatName) || bookedSeats.includes(seatName);
                 const isSelected = selectedSeats.includes(seatName);
-                const isLockedByOthers = lockedSeats[seatName] && 
-                  (userId 
-                    ? lockedSeats[seatName].userId !== userId 
-                    : lockedSeats[seatName].socketId !== socket?.id);
-                const isPendingLock = pendingLockSeats.has(seatName);
+                const isLockedByOthers = lockedSeats.includes(seatName);
 
                 return (
                   <button
@@ -692,13 +468,11 @@ export default function BookingPage() {
                       flex items-center justify-center
                       ${isBooked
                         ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                        : isSelected && isPendingLock
-                          ? 'bg-green-400 text-white shadow-[0_0_10px_#4ade80] transform scale-110 animate-pulse'
-                          : isSelected
-                            ? 'bg-green-500 text-white shadow-[0_0_10px_#22c55e] transform scale-110'
-                            : isLockedByOthers
-                              ? 'bg-amber-500 text-white cursor-not-allowed shadow-[0_0_10px_#f59e0b]'
-                              : 'bg-gray-200 text-gray-900 hover:bg-white'
+                        : isSelected
+                          ? 'bg-green-500 text-white shadow-[0_0_10px_#22c55e] transform scale-110'
+                          : isLockedByOthers
+                            ? 'bg-amber-500 text-white cursor-not-allowed shadow-[0_0_10px_#f59e0b]'
+                            : 'bg-gray-200 text-gray-900 hover:bg-white'
                       }
                     `}
                   >

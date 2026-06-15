@@ -7,76 +7,75 @@ export type VoucherDocument = HydratedDocument<Voucher>;
 @Schema({ timestamps: true })
 export class Voucher {
   @Prop({ required: true })
-  name: string;
+  name!: string;
 
-  @Prop({ sparse: true })
-  code: string;
+  @Prop({ sparse: true, unique: true })
+  code!: string;
 
   @Prop()
-  description: string;
+  description!: string;
 
   @Prop({ required: true, enum: ['ADMIN_CODE', 'POINT_EXCHANGE_TEMPLATE'] })
-  voucherType: string;
+  voucherType!: string;
 
   @Prop({ required: true, enum: ['PERCENT', 'FIXED_AMOUNT'] })
-  discountType: string;
+  discountType!: string;
 
   @Prop({ required: true })
-  discountValue: number;
+  discountValue!: number;
 
   @Prop({ default: 0 })
-  maxDiscountAmount: number;
+  maxDiscountAmount!: number;
 
   @Prop({ default: 0 })
-  minOrderAmount: number;
+  minOrderAmount!: number;
 
   @Prop()
-  startDate: Date;
+  startDate!: Date;
 
   @Prop()
-  endDate: Date;
+  endDate!: Date;
 
   @Prop({ default: 0 })
-  usageLimit: number;
+  usageLimit!: number;
 
   @Prop({ default: 0 })
-  usedCount: number;
+  usedCount!: number;
 
   @Prop({ default: false })
-  isUnlimited: boolean;
+  isUnlimited!: boolean;
 
   @Prop({ default: 'active', enum: ['active', 'inactive'] })
-  status: string;
+  status!: string;
 
   @Prop({
     type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Cinema' }],
     default: [],
   })
-  applicableCinemaIds: Cinema[];
+  applicableCinemaIds!: Cinema[];
 
   @Prop({ default: true })
-  isAllCinemas: boolean;
+  isAllCinemas!: boolean;
 
   @Prop({
     default: 'Member',
     enum: ['Member', 'Silver', 'Gold', 'Platinum', 'Diamond'],
   })
-  requiredMembershipRank: string;
+  requiredMembershipRank!: string;
 
   @Prop({ default: 0 })
-  requiredPoints: number;
+  requiredPoints!: number;
 
   @Prop({ default: 30 })
-  validDaysAfterExchange: number;
+  validDaysAfterExchange!: number;
 
   @Prop({ default: 0 })
-  exchangeLimit: number;
+  exchangeLimit!: number;
 
   @Prop({ default: 0 })
-  exchangedCount: number;
+  exchangedCount!: number;
 }
 
 export const VoucherSchema = SchemaFactory.createForClass(Voucher);
 
-VoucherSchema.index({ code: 1 }, { unique: true, sparse: true });
 VoucherSchema.index({ voucherType: 1, status: 1 });

@@ -13,26 +13,26 @@ export class UserVoucher {
     required: true,
     index: true,
   })
-  user: User;
+  user!: User;
 
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Voucher',
     required: true,
   })
-  voucherTemplate: Voucher;
-
-  @Prop({ required: true, unique: true })
-  code: string;
-
-  @Prop({ default: 'UNUSED', enum: ['UNUSED', 'USED', 'EXPIRED'] })
-  status: string;
-
-  @Prop()
-  usedAt: Date;
+  voucherTemplate!: Voucher;
 
   @Prop({ required: true })
-  expiredAt: Date;
+  code!: string;
+
+  @Prop({ default: 'UNUSED', enum: ['UNUSED', 'USED', 'EXPIRED'] })
+  status!: string;
+
+  @Prop()
+  usedAt!: Date;
+
+  @Prop({ required: true })
+  expiredAt!: Date;
 }
 
 export const UserVoucherSchema = SchemaFactory.createForClass(UserVoucher);

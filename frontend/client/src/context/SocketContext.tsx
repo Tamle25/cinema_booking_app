@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 
 interface SocketContextProps {
@@ -8,6 +8,10 @@ interface SocketContextProps {
   isConnected: boolean;
   hasEverConnected: boolean;
   disconnectSocket: () => void;
+  lockedSeats: string[];
+  bookedSeats: string[];
+  joinShowtime: (showtimeId: string) => void;
+  leaveShowtime: (showtimeId: string) => void;
 }
 
 const SocketContext = createContext<SocketContextProps>({
@@ -15,6 +19,10 @@ const SocketContext = createContext<SocketContextProps>({
   isConnected: false,
   hasEverConnected: false,
   disconnectSocket: () => {},
+  lockedSeats: [],
+  bookedSeats: [],
+  joinShowtime: () => {},
+  leaveShowtime: () => {},
 });
 
 export const useSocket = () => useContext(SocketContext);
@@ -61,10 +69,9 @@ function getOrCreateSocket(): Socket | null {
   }
   setSocketDestroyed(false);
 
-  const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'http://localhost:4001';
+  const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'http://localhost:4000';
 
   const newSocket = io(wsUrl, {
-    transports: ['websocket'],
     autoConnect: true,
     reconnection: true,
     reconnectionAttempts: Infinity,
@@ -79,8 +86,16 @@ function getOrCreateSocket(): Socket | null {
 
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [socket, setSocket] = useState<Socket | null>(() => getOrCreateSocket());
-  const [isConnected, setIsConnected] = useState(() => socket ? socket.connected : false);
+  const [isConnected, setIsConnected] = useState(() => (socket ? socket.connected : false));
   const [hasEverConnected, setHasEverConnected] = useState(() => Boolean(socket?.connected));
+
+  const [currentShowtimeId, setCurrentShowtimeId] = useState<string | null>(null);
+  const [lockedSeats, setLockedSeats] = useState<string[]>([]);
+  const [bookedSeats, setBookedSeats] = useState<string[]>([]);
+
+  // Sử dụng ref để listener luôn đọc được giá trị mới nhất của showtimeId hiện tại
+  const currentShowtimeIdRef = useRef<string | null>(null);
+  currentShowtimeIdRef.current = currentShowtimeId;
 
   const disconnectSocket = useCallback(() => {
     if (socket) {
@@ -91,6 +106,32 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setSocketDestroyed(true);
       setIsConnected(false);
       setHasEverConnected(false);
+      setLockedSeats([]);
+      setBookedSeats([]);
+      setCurrentShowtimeId(null);
+    }
+  }, [socket]);
+
+  const joinShowtime = useCallback((showtimeId: string) => {
+    if (!socket) return;
+    setCurrentShowtimeId(showtimeId);
+    setLockedSeats([]);
+    setBookedSeats([]);
+    
+    if (socket.connected) {
+      console.log(`[SocketContext] Emitting join_showtime: ${showtimeId}`);
+      socket.emit('join_showtime', { showtimeId });
+    }
+  }, [socket]);
+
+  const leaveShowtime = useCallback((showtimeId: string) => {
+    if (!socket) return;
+    console.log(`[SocketContext] Emitting leave_showtime: ${showtimeId}`);
+    socket.emit('leave_showtime', { showtimeId });
+    if (currentShowtimeIdRef.current === showtimeId) {
+      setCurrentShowtimeId(null);
+      setLockedSeats([]);
+      setBookedSeats([]);
     }
   }, [socket]);
 
@@ -100,6 +141,11 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const handleConnect = () => {
       setIsConnected(true);
       setHasEverConnected(true);
+      // Re-join showtime nếu kết nối lại thành công
+      if (currentShowtimeIdRef.current) {
+        console.log(`[SocketContext] Re-connected. Re-joining showtime: ${currentShowtimeIdRef.current}`);
+        socket.emit('join_showtime', { showtimeId: currentShowtimeIdRef.current });
+      }
     };
 
     const handleDisconnect = () => {
@@ -110,11 +156,56 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setIsConnected(false);
     };
 
+    // Định nghĩa các event listener
+    const handleSeatStateSync = (data: { showtimeId: string; lockedSeats: string[]; bookedSeats: string[] }) => {
+      if (data.showtimeId !== currentShowtimeIdRef.current) return;
+      console.log(`[SocketContext] seat_state_sync: showtimeId=${data.showtimeId}`, data);
+      setLockedSeats(data.lockedSeats || []);
+      setBookedSeats(data.bookedSeats || []);
+    };
+
+    const handleSeatLocked = (data: { showtimeId: string; seats: string[] }) => {
+      if (data.showtimeId !== currentShowtimeIdRef.current) return;
+      console.log(`[SocketContext] seat_locked: showtimeId=${data.showtimeId}`, data);
+      
+      setLockedSeats((prev) => {
+        const next = new Set([...prev, ...data.seats]);
+        return Array.from(next);
+      });
+      setBookedSeats((prev) => prev.filter((seat) => !data.seats.includes(seat)));
+    };
+
+    const handleSeatBooked = (data: { showtimeId: string; seats: string[] }) => {
+      if (data.showtimeId !== currentShowtimeIdRef.current) return;
+      console.log(`[SocketContext] seat_booked: showtimeId=${data.showtimeId}`, data);
+
+      setBookedSeats((prev) => {
+        const next = new Set([...prev, ...data.seats]);
+        return Array.from(next);
+      });
+      setLockedSeats((prev) => prev.filter((seat) => !data.seats.includes(seat)));
+    };
+
+    const handleSeatReleased = (data: { showtimeId: string; seats: string[] }) => {
+      if (data.showtimeId !== currentShowtimeIdRef.current) return;
+      console.log(`[SocketContext] seat_released: showtimeId=${data.showtimeId}`, data);
+
+      setLockedSeats((prev) => prev.filter((seat) => !data.seats.includes(seat)));
+      setBookedSeats((prev) => prev.filter((seat) => !data.seats.includes(seat)));
+    };
+
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
     socket.on('connect_error', handleConnectError);
+    socket.on('seat_state_sync', handleSeatStateSync);
+    socket.on('seat_locked', handleSeatLocked);
+    socket.on('seat_booked', handleSeatBooked);
+    socket.on('seat_released', handleSeatReleased);
 
     const handleBeforeUnload = () => {
+      if (currentShowtimeIdRef.current) {
+        socket.emit('leave_showtime', { showtimeId: currentShowtimeIdRef.current });
+      }
       socket.disconnect();
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -123,12 +214,27 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
       socket.off('connect_error', handleConnectError);
+      socket.off('seat_state_sync', handleSeatStateSync);
+      socket.off('seat_locked', handleSeatLocked);
+      socket.off('seat_booked', handleSeatBooked);
+      socket.off('seat_released', handleSeatReleased);
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [socket]);
 
   return (
-    <SocketContext.Provider value={{ socket, isConnected, hasEverConnected, disconnectSocket }}>
+    <SocketContext.Provider
+      value={{
+        socket,
+        isConnected,
+        hasEverConnected,
+        disconnectSocket,
+        lockedSeats,
+        bookedSeats,
+        joinShowtime,
+        leaveShowtime,
+      }}
+    >
       {children}
     </SocketContext.Provider>
   );

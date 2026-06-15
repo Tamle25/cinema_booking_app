@@ -35,6 +35,9 @@ export class Booking {
   @Prop({ index: true })
   momo_order_id: string;
 
+  @Prop({ index: true })
+  momo_request_id: string;
+
   @Prop()
   momo_trans_id: string;
 

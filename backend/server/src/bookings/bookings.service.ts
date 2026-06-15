@@ -14,20 +14,20 @@ export class BookingsService {
   constructor(
     @InjectModel(Booking.name) private bookingModel: Model<Booking>,
     @InjectModel(Showtime.name) private showtimeModel: Model<Showtime>,
-  ) {}
+  ) { }
 
   private normalizeSeats(seats: string[]): string[] {
     if (!Array.isArray(seats) || seats.length === 0) {
-      throw new BadRequestException('Vui long chon it nhat mot ghe!');
+      throw new BadRequestException('Vui lòng chọn ít nhất một ghế!');
     }
 
     const normalized = seats.map((seat) => String(seat).trim()).filter(Boolean);
     if (normalized.length !== seats.length) {
-      throw new BadRequestException('Danh sach ghe khong hop le!');
+      throw new BadRequestException('Danh sách ghế không hợp lệ!');
     }
 
     if (new Set(normalized).size !== normalized.length) {
-      throw new BadRequestException('Danh sach ghe bi trung lap!');
+      throw new BadRequestException('Danh sách ghế bị trùng lặp!');
     }
 
     return normalized;
@@ -47,7 +47,7 @@ export class BookingsService {
     const seats = this.normalizeSeats(createDto.seats);
 
     if (!user_id) {
-      throw new BadRequestException('Ban can dang nhap de dat ve!');
+      throw new BadRequestException('Bạn cần đăng nhập để đặt vé!');
     }
 
     const showtime = await this.showtimeModel.findOneAndUpdate(
@@ -59,9 +59,9 @@ export class BookingsService {
     if (!showtime) {
       const existingShowtime = await this.showtimeModel.findById(showtime_id);
       if (!existingShowtime) {
-        throw new NotFoundException('Suat chieu khong ton tai');
+        throw new NotFoundException('Suat chieu không tồn tại');
       }
-      throw new BadRequestException('Ghe da co nguoi dat!');
+      throw new BadRequestException('Ghế đã có người đặt!');
     }
 
     const newBooking = new this.bookingModel({

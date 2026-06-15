@@ -20,6 +20,7 @@ import { GenresModule } from './genres/genres.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { LoyaltyModule } from './loyalty/loyalty.module';
 import { VouchersModule } from './vouchers/vouchers.module';
+import { RealtimeModule } from './realtime/realtime.module';
 
 const envFilePaths = [
   join(process.cwd(), '.env'),
@@ -62,6 +63,7 @@ const envFilePaths = [
     UploadsModule,
     LoyaltyModule,
     VouchersModule,
+    RealtimeModule,
   ],
   controllers: [AppController],
   providers: [AppService],

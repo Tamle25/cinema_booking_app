@@ -50,6 +50,20 @@ export interface MomoCallbackParams {
   signature: string;
 }
 
+/**
+ * Các trường tối thiểu mà MoMo BẮT BUỘC gửi kèm trong mọi callback (IPN/return).
+ * Dùng để validate dữ liệu đầu vào trước khi xử lý.
+ */
+const REQUIRED_CALLBACK_FIELDS: Array<keyof MomoCallbackParams> = [
+  'partnerCode',
+  'orderId',
+  'requestId',
+  'amount',
+  'resultCode',
+  'transId',
+  'signature',
+];
+
 @Injectable()
 export class MomoService {
   private readonly logger = new Logger(MomoService.name);
@@ -65,10 +79,10 @@ export class MomoService {
         'https://test-payment.momo.vn/v2/gateway/api/create',
       returnUrl:
         this.configService.get<string>('MOMO_RETURN_URL') ||
-        'http://localhost:3000/payment/momo-return',
+        'http://localhost:3000/payment/momo/return',
       ipnUrl:
         this.configService.get<string>('MOMO_IPN_URL') ||
-        'http://localhost:4000/payments/momo-ipn',
+        'http://localhost:4000/payments/momo/ipn',
     };
   }
 
@@ -137,6 +151,10 @@ export class MomoService {
     };
 
     try {
+      this.logger.log(
+        `Create MoMo payment orderId=${orderId} requestId=${requestId} requestType=${requestType} redirectUrl=${this.config.returnUrl} ipnUrl=${this.config.ipnUrl}`,
+      );
+
       const response = await fetch(this.config.endpoint, {
         method: 'POST',
         headers: {
@@ -146,6 +164,9 @@ export class MomoService {
       });
 
       const result = (await response.json()) as MomoPaymentResponse;
+      this.logger.log(
+        `MoMo create response orderId=${orderId} requestId=${requestId} resultCode=${result.resultCode} message=${result.message}`,
+      );
       return result;
     } catch (error) {
       this.logger.error('Lỗi gọi MoMo API', error);
@@ -154,21 +175,20 @@ export class MomoService {
   }
 
   verifySignature(params: MomoCallbackParams): boolean {
-    const {
-      partnerCode,
-      orderId,
-      requestId,
-      amount,
-      orderInfo,
-      orderType,
-      transId,
-      resultCode,
-      message,
-      payType,
-      responseTime,
-      extraData,
-      signature,
-    } = params;
+    // Phòng thủ chống chèn chữ "undefined" hoặc "null" vào chuỗi tính chữ ký khi có trường bị thiếu trong callback
+    const partnerCode = params.partnerCode ?? '';
+    const orderId = params.orderId ?? '';
+    const requestId = params.requestId ?? '';
+    const amount = params.amount ?? '';
+    const orderInfo = params.orderInfo ?? '';
+    const orderType = params.orderType ?? '';
+    const transId = params.transId ?? '';
+    const resultCode = params.resultCode ?? '';
+    const message = params.message ?? '';
+    const payType = params.payType ?? '';
+    const responseTime = params.responseTime ?? '';
+    const extraData = params.extraData ?? '';
+    const signature = params.signature ?? '';
 
     const rawSignature =
       `accessKey=${this.config.accessKey}` +
@@ -187,7 +207,17 @@ export class MomoService {
 
     const calculatedSignature = this.createSignature(rawSignature);
 
-    return signature === calculatedSignature;
+    if (!signature) {
+      return false;
+    }
+
+    const signatureBuffer = Buffer.from(signature, 'utf8');
+    const calculatedBuffer = Buffer.from(calculatedSignature, 'utf8');
+
+    return (
+      signatureBuffer.length === calculatedBuffer.length &&
+      crypto.timingSafeEqual(signatureBuffer, calculatedBuffer)
+    );
   }
 
   isPaymentSuccess(resultCode: string | number): boolean {
@@ -256,6 +286,43 @@ export class MomoService {
         message: `Giao dịch thất bại. Mã lỗi: ${code}`,
       }
     );
+  }
+
+  /**
+   * Kiểm tra callback có đầy đủ các trường bắt buộc không. Trả về danh sách
+   * trường bị thiếu (rỗng nghĩa là hợp lệ về mặt cấu trúc).
+   */
+  validateCallbackShape(params: Partial<MomoCallbackParams>): string[] {
+    return REQUIRED_CALLBACK_FIELDS.filter(
+      (field) =>
+        params[field] === undefined ||
+        params[field] === null ||
+        params[field] === '',
+    );
+  }
+
+  /**
+   * Giải mã extraData (base64 JSON) để lấy bookingId. An toàn với dữ liệu lỗi.
+   */
+  parseExtraData(extraData?: string): { bookingId?: string } {
+    if (!extraData) {
+      return {};
+    }
+    try {
+      const decoded = Buffer.from(extraData, 'base64').toString('utf-8');
+      const parsed = JSON.parse(decoded) as { bookingId?: string };
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      this.logger.warn('Không đọc được extraData từ MoMo callback');
+      return {};
+    }
+  }
+
+  /**
+   * Mã hoá extraData (bookingId) thành base64 JSON.
+   */
+  buildExtraData(payload: { bookingId: string }): string {
+    return Buffer.from(JSON.stringify(payload)).toString('base64');
   }
 
   getConfig(): Omit<MomoConfig, 'secretKey' | 'accessKey'> {
