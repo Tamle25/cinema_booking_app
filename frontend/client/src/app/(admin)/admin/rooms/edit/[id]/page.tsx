@@ -27,8 +27,8 @@ export default function EditRoomPage() {
         name: '',
         cinema_id: '',
         type: '2D',
-        rows: 10,
-        columns: 12,
+        rows: 10 as number | '',
+        columns: 12 as number | '',
         is_active: true,
     });
 
@@ -71,7 +71,7 @@ export default function EditRoomPage() {
         } else {
             setFormData(prev => ({
                 ...prev,
-                [name]: ['rows', 'columns'].includes(name) ? Number(value) : value
+                [name]: ['rows', 'columns'].includes(name) ? (value === '' ? '' : Number(value)) : value
             }));
         }
     };
@@ -94,7 +94,11 @@ export default function EditRoomPage() {
             const res = await fetch(`${API_URL}/rooms/${roomId}`, {
                 method: 'PUT',
                 headers: authHeaders({ 'Content-Type': 'application/json' }),
-                body: JSON.stringify(formData),
+                body: JSON.stringify({
+                    ...formData,
+                    rows: Number(formData.rows) || 0,
+                    columns: Number(formData.columns) || 0,
+                }),
             });
 
             if (res.ok) {
@@ -111,7 +115,7 @@ export default function EditRoomPage() {
         }
     };
 
-    const totalSeats = formData.rows * formData.columns;
+    const totalSeats = (Number(formData.rows) || 0) * (Number(formData.columns) || 0);
 
     if (isLoading) {
         return (

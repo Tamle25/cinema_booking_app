@@ -30,7 +30,7 @@ export default function AdminCombosPage() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    price: 0,
+    price: 0 as number | '',
     image_url: '',
     image_public_id: '',
     category: 'combo',
@@ -76,7 +76,7 @@ export default function AdminCombosPage() {
         [name]: (e.target as HTMLInputElement).checked,
       }));
     } else if (name === 'price') {
-      setFormData(prev => ({ ...prev, [name]: Number(value) }));
+      setFormData(prev => ({ ...prev, [name]: value === '' ? '' : Number(value) }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
@@ -162,7 +162,7 @@ export default function AdminCombosPage() {
       toastWarning('Vui lòng chọn hệ thống rạp!');
       return;
     }
-    if (!formData.price || formData.price <= 0) {
+    if (!formData.price || Number(formData.price) <= 0) {
       toastWarning('Vui lòng nhập giá hợp lệ!');
       return;
     }

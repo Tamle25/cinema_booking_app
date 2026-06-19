@@ -17,7 +17,7 @@ export class CombosService {
     @InjectModel(Combo.name) private comboModel: Model<Combo>,
     @InjectModel(Cinema.name) private cinemaModel: Model<Cinema>,
     private readonly cloudinaryService: CloudinaryService,
-  ) {}
+  ) { }
 
   async create(createComboDto: CreateComboDto): Promise<Combo> {
     const data: Record<string, unknown> = {
@@ -38,7 +38,7 @@ export class CombosService {
 
     if (cinemaId) {
       const cinema = await this.cinemaModel.findById(cinemaId).exec();
-      if (!cinema) throw new NotFoundException('Khong tim thay rap nay');
+      if (!cinema) throw new NotFoundException('Không tìm thấy rạp này');
       query.cinema_system = cinema.cinema_system;
     } else if (cinemaSystemId) {
       query.cinema_system = cinemaSystemId;
@@ -66,7 +66,7 @@ export class CombosService {
   async findOne(id: string): Promise<Combo> {
     const combo = await this.comboModel.findById(id).exec();
     if (!combo) {
-      throw new NotFoundException('Khong tim thay combo');
+      throw new NotFoundException('Không tìm thấy combo');
     }
     return combo;
   }
@@ -84,7 +84,7 @@ export class CombosService {
       .findByIdAndUpdate(id, data, { new: true })
       .exec();
     if (!updated) {
-      throw new NotFoundException('Khong tim thay combo');
+      throw new NotFoundException('Không tìm thấy combo');
     }
 
     await this.deleteReplacedComboImage(existing, updateComboDto);
@@ -94,10 +94,10 @@ export class CombosService {
   async remove(id: string): Promise<{ message: string }> {
     const result = await this.comboModel.findByIdAndDelete(id).exec();
     if (!result) {
-      throw new NotFoundException('Khong tim thay combo');
+      throw new NotFoundException('Không tìm thấy combo');
     }
     await this.deleteComboImage(result);
-    return { message: 'Xoa combo thanh cong' };
+    return { message: 'Xóa combo thành công' };
   }
 
   private async deleteReplacedComboImage(
@@ -116,7 +116,7 @@ export class CombosService {
   private async deleteComboImage(combo: Combo) {
     await this.cloudinaryService.destroyImage(
       combo.image_public_id ||
-        this.cloudinaryService.extractPublicIdFromUrl(combo.image_url),
+      this.cloudinaryService.extractPublicIdFromUrl(combo.image_url),
     );
   }
 
@@ -143,17 +143,17 @@ export class CombosService {
 
     for (const item of combos) {
       if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
-        throw new BadRequestException('So luong combo khong hop le');
+        throw new BadRequestException(`Số lượng combo không hợp lệ`);
       }
 
       const combo = await this.comboModel.findById(item.combo_id).exec();
       if (!combo) {
         throw new NotFoundException(
-          `Combo voi ID ${item.combo_id} khong ton tai`,
+          `Combo với ID ${item.combo_id} không tồn tại`,
         );
       }
       if (!combo.is_active) {
-        throw new NotFoundException(`Combo "${combo.name}" hien khong con ban`);
+        throw new NotFoundException(`Combo "${combo.name}" hiện không còn bán`);
       }
 
       if (
@@ -161,7 +161,7 @@ export class CombosService {
         this.getCinemaSystemId(combo.cinema_system) !== cinemaSystemId
       ) {
         throw new NotFoundException(
-          `Combo "${combo.name}" khong thuoc he thong rap nay`,
+          `Combo "${combo.name}" không thuộc hệ thống rạp này`,
         );
       }
 

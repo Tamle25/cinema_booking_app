@@ -52,7 +52,7 @@ export default function CreateShowtimePage() {
         cinema_id: '',
         room_id: '',
         start_time: '',
-        price: 75000,
+        price: 75000 as number | '',
     });
 
     useEffect(() => {
@@ -114,7 +114,7 @@ export default function CreateShowtimePage() {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
-            [name]: name === 'price' ? Number(value) : value
+            [name]: name === 'price' ? (value === '' ? '' : Number(value)) : value
         }));
     };
 
@@ -137,7 +137,7 @@ export default function CreateShowtimePage() {
             toastWarning('Vui lòng chọn thời gian chiếu!');
             return;
         }
-        if (!formData.price || formData.price <= 0) {
+        if (!formData.price || Number(formData.price) <= 0) {
             toastWarning('Vui lòng nhập giá vé hợp lệ!');
             return;
         }

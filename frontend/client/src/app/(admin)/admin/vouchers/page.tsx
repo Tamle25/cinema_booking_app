@@ -71,19 +71,19 @@ export default function AdminVouchersPage() {
   const [code, setCode] = useState('');
   const [description, setDescription] = useState('');
   const [discountType, setDiscountType] = useState<DiscountType>('PERCENT');
-  const [discountValue, setDiscountValue] = useState(0);
-  const [maxDiscountAmount, setMaxDiscountAmount] = useState(0);
-  const [minOrderAmount, setMinOrderAmount] = useState(0);
+  const [discountValue, setDiscountValue] = useState<number | ''>(0);
+  const [maxDiscountAmount, setMaxDiscountAmount] = useState<number | ''>(0);
+  const [minOrderAmount, setMinOrderAmount] = useState<number | ''>(0);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [usageLimit, setUsageLimit] = useState(0);
+  const [usageLimit, setUsageLimit] = useState<number | ''>(0);
   const [isUnlimited, setIsUnlimited] = useState(true);
   const [status, setStatus] = useState('active');
   const [isAllCinemas, setIsAllCinemas] = useState(true);
   const [applicableCinemaIds, setApplicableCinemaIds] = useState<string[]>([]);
   const [requiredMembershipRank, setRequiredMembershipRank] = useState('Member');
-  const [requiredPoints, setRequiredPoints] = useState(0);
-  const [validDaysAfterExchange, setValidDaysAfterExchange] = useState(30);
+  const [requiredPoints, setRequiredPoints] = useState<number | ''>(0);
+  const [validDaysAfterExchange, setValidDaysAfterExchange] = useState<number | ''>(30);
   const [exchangeLimit, setExchangeLimit] = useState(0);
 
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -268,10 +268,10 @@ export default function AdminVouchersPage() {
       description,
       voucherType: activeTab,
       discountType,
-      discountValue,
-      minOrderAmount,
+      discountValue: Number(discountValue) || 0,
+      minOrderAmount: Number(minOrderAmount) || 0,
       isUnlimited,
-      usageLimit: isUnlimited ? 0 : usageLimit,
+      usageLimit: isUnlimited ? 0 : (Number(usageLimit) || 0),
       isAllCinemas,
       applicableCinemaIds: isAllCinemas ? [] : applicableCinemaIds,
       requiredMembershipRank,
@@ -286,13 +286,13 @@ export default function AdminVouchersPage() {
       if (startDate) payload.startDate = new Date(startDate).toISOString();
       if (endDate) payload.endDate = new Date(endDate).toISOString();
     } else {
-      payload.requiredPoints = requiredPoints;
-      payload.validDaysAfterExchange = validDaysAfterExchange;
+      payload.requiredPoints = Number(requiredPoints) || 0;
+      payload.validDaysAfterExchange = Number(validDaysAfterExchange) || 0;
       payload.exchangeLimit = exchangeLimit;
     }
 
     if (discountType === 'PERCENT') {
-      payload.maxDiscountAmount = maxDiscountAmount;
+      payload.maxDiscountAmount = Number(maxDiscountAmount) || 0;
     }
 
     try {
@@ -695,7 +695,7 @@ export default function AdminVouchersPage() {
                     required
                     min={1}
                     value={discountValue}
-                    onChange={(e) => setDiscountValue(Number(e.target.value))}
+                    onChange={(e) => setDiscountValue(e.target.value === '' ? '' : Number(e.target.value))}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   />
                 </div>
@@ -708,7 +708,7 @@ export default function AdminVouchersPage() {
                       type="number"
                       min={0}
                       value={maxDiscountAmount}
-                      onChange={(e) => setMaxDiscountAmount(Number(e.target.value))}
+                      onChange={(e) => setMaxDiscountAmount(e.target.value === '' ? '' : Number(e.target.value))}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                     />
                   </div>
@@ -721,7 +721,7 @@ export default function AdminVouchersPage() {
                     type="number"
                     min={0}
                     value={minOrderAmount}
-                    onChange={(e) => setMinOrderAmount(Number(e.target.value))}
+                    onChange={(e) => setMinOrderAmount(e.target.value === '' ? '' : Number(e.target.value))}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   />
                 </div>
@@ -760,7 +760,7 @@ export default function AdminVouchersPage() {
                         required
                         min={10}
                         value={requiredPoints}
-                        onChange={(e) => setRequiredPoints(Number(e.target.value))}
+                        onChange={(e) => setRequiredPoints(e.target.value === '' ? '' : Number(e.target.value))}
                         className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                       />
                     </div>
@@ -771,7 +771,7 @@ export default function AdminVouchersPage() {
                         required
                         min={1}
                         value={validDaysAfterExchange}
-                        onChange={(e) => setValidDaysAfterExchange(Number(e.target.value))}
+                        onChange={(e) => setValidDaysAfterExchange(e.target.value === '' ? '' : Number(e.target.value))}
                         className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                       />
                     </div>
@@ -813,7 +813,7 @@ export default function AdminVouchersPage() {
                         required
                         min={1}
                         value={usageLimit}
-                        onChange={(e) => setUsageLimit(Number(e.target.value))}
+                        onChange={(e) => setUsageLimit(e.target.value === '' ? '' : Number(e.target.value))}
                         className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                       />
                     </div>

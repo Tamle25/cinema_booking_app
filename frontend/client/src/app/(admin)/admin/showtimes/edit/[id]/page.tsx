@@ -43,7 +43,7 @@ export default function EditShowtimePage() {
         cinema_id: '',
         room_id: '',
         start_time: '',
-        price: 0,
+        price: 0 as number | '',
         is_active: true,
     });
 
@@ -110,7 +110,7 @@ export default function EditShowtimePage() {
         } else {
             setFormData(prev => ({
                 ...prev,
-                [name]: name === 'price' ? Number(value) : value
+                [name]: name === 'price' ? (value === '' ? '' : Number(value)) : value
             }));
         }
     };
@@ -134,7 +134,7 @@ export default function EditShowtimePage() {
             toastWarning('Vui lòng chọn thời gian chiếu!');
             return;
         }
-        if (!formData.price || formData.price <= 0) {
+        if (!formData.price || Number(formData.price) <= 0) {
             toastWarning('Vui lòng nhập giá vé hợp lệ!');
             return;
         }

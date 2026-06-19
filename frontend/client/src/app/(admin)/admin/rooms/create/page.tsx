@@ -24,8 +24,8 @@ export default function CreateRoomPage() {
         name: '',
         cinema_id: '',
         type: '2D',
-        rows: 10,
-        columns: 12,
+        rows: 10 as number | '',
+        columns: 12 as number | '',
     });
 
     useEffect(() => {
@@ -44,7 +44,7 @@ export default function CreateRoomPage() {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
-            [name]: ['rows', 'columns'].includes(name) ? Number(value) : value
+            [name]: ['rows', 'columns'].includes(name) ? (value === '' ? '' : Number(value)) : value
         }));
     };
 
@@ -59,7 +59,7 @@ export default function CreateRoomPage() {
             toastWarning('Vui lòng chọn rạp!');
             return;
         }
-        if (formData.rows < 1 || formData.columns < 1) {
+        if (Number(formData.rows) < 1 || Number(formData.columns) < 1) {
             toastWarning('Số hàng và số cột phải lớn hơn 0!');
             return;
         }
@@ -87,7 +87,7 @@ export default function CreateRoomPage() {
         }
     };
 
-    const totalSeats = formData.rows * formData.columns;
+    const totalSeats = (Number(formData.rows) || 0) * (Number(formData.columns) || 0);
 
     return (
         <div className="max-w-2xl mx-auto">

@@ -17,7 +17,7 @@ interface MovieFormData {
   banner_public_id: string;
   trailer_url: string;
   genres: string[];
-  duration: number;
+  duration: number | '';
   release_date: string;
   is_active: boolean;
 }
@@ -118,7 +118,7 @@ export default function EditMoviePage() {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'duration' ? Number(value) : value
+      [name]: name === 'duration' ? (value === '' ? '' : Number(value)) : value
     }));
   };
 
@@ -179,7 +179,7 @@ export default function EditMoviePage() {
       toastWarning('Vui lòng chọn ít nhất một thể loại phim!');
       return;
     }
-    if (!formData.duration || formData.duration <= 0) {
+    if (!formData.duration || Number(formData.duration) <= 0) {
       toastWarning('Vui lòng nhập thời lượng phim hợp lệ!');
       return;
     }
