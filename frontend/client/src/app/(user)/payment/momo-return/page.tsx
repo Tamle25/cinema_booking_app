@@ -57,7 +57,7 @@ function MomoReturnContent() {
         const success = successParam === 'true';
         const bookingId = searchParams.get('bookingId') || undefined;
         const status = searchParams.get('status') || undefined;
-        const message = searchParams.get('message') || 'Xu ly thanh toan hoan tat.';
+        const message = searchParams.get('message') || 'Xử lý thanh toán hoàn tất.';
         const transactionId = searchParams.get('transactionId') || undefined;
 
         const preResult: PaymentResult = { success, message, bookingId, transactionId, status };
@@ -103,7 +103,7 @@ function MomoReturnContent() {
                 transactionId: statusData.booking?.momo_trans_id || current?.transactionId,
                 message:
                   liveStatus === 'confirmed'
-                    ? 'Thanh toan thanh cong. Ve da duoc xac nhan.'
+                    ? 'Thanh toán thành công. Vé đã được xác nhận.'
                     : current?.message || message,
               }));
               if (liveStatus !== 'pending') {
@@ -164,7 +164,7 @@ function MomoReturnContent() {
                 returnData.transactionId,
               message:
                 status === 'confirmed'
-                  ? 'Thanh toan thanh cong. Ve da duoc xac nhan.'
+                  ? 'Thanh toán thành công. Vé đã được xác nhận.'
                   : current?.message || returnData.message,
             }));
 
@@ -186,7 +186,7 @@ function MomoReturnContent() {
         if (!cancelled) {
           setResult({
             success: false,
-            message: 'Khong the xac minh thanh toan. Vui long lien he ho tro.',
+            message: 'Không thể xác minh thanh toán. Vui lòng liên hệ hỗ trợ.',
           });
           setViewState('failed');
         }
@@ -207,13 +207,13 @@ function MomoReturnContent() {
 
   const handleRetryPayment = async () => {
     if (!result?.bookingId) {
-      toastWarning('Khong tim thay ma dat ve de thanh toan lai.');
+      toastWarning('Không tìm thấy mã đặt vé để thanh toán lại.');
       return;
     }
 
     const token = localStorage.getItem('access_token');
     if (!token) {
-      toastWarning('Ban can dang nhap de thanh toan.');
+      toastWarning('Bạn cần đăng nhập để thanh toán.');
       router.push('/login');
       return;
     }
@@ -235,11 +235,11 @@ function MomoReturnContent() {
         return;
       }
 
-      toastError(data.message || 'Khong the tao lai thanh toan.');
+      toastError(data.message || 'Không thể tạo lại thanh toán.');
       setRetrying(false);
     } catch (error) {
       console.error('Retry MoMo payment error:', error);
-      toastError('Co loi xay ra, vui long thu lai.');
+      toastError('Có lỗi xảy ra, vui lòng thử lại.');
       setRetrying(false);
     }
   };
@@ -252,9 +252,9 @@ function MomoReturnContent() {
       <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 text-center max-w-md w-full">
           <div className="animate-spin rounded-full h-14 w-14 border-t-4 border-b-4 border-pink-600 mx-auto mb-5" />
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Dang xac minh thanh toan</h1>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">Đang xác minh thanh toán</h1>
           <p className="text-gray-600">
-            He thong dang cho IPN tu MoMo va kiem tra trang thai ve moi nhat.
+            Hệ thống đang chờ IPN từ MoMo và kiểm tra trạng thái vé mới nhất.
           </p>
         </div>
       </div>
@@ -271,7 +271,7 @@ function MomoReturnContent() {
             </span>
           </div>
           <h1 className="text-2xl font-bold text-white">
-            {isSuccess ? 'Thanh Toan Thanh Cong' : 'Thanh Toan Chua Hoan Tat'}
+            {isSuccess ? 'Thanh Toán Thành Công' : 'Thanh Toán Chưa Hoàn Tất'}
           </h1>
         </div>
 
@@ -281,13 +281,13 @@ function MomoReturnContent() {
           <div className="bg-gray-50 rounded-xl p-4 mb-6 space-y-3">
             {result?.bookingId && (
               <div className="flex justify-between gap-4 py-2 border-b border-gray-200">
-                <span className="text-gray-500">Ma dat ve:</span>
+                <span className="text-gray-500">Mã đặt vé:</span>
                 <span className="font-semibold text-gray-900 text-right break-all">{result.bookingId}</span>
               </div>
             )}
             {(result?.transactionId || momoInfo.transId) && (
               <div className="flex justify-between gap-4 py-2 border-b border-gray-200">
-                <span className="text-gray-500">Ma giao dich:</span>
+                <span className="text-gray-500">Mã giao dịch:</span>
                 <span className="font-semibold text-gray-900 text-right break-all">
                   {result?.transactionId || momoInfo.transId}
                 </span>
@@ -295,19 +295,19 @@ function MomoReturnContent() {
             )}
             {momoInfo.orderId && (
               <div className="flex justify-between gap-4 py-2 border-b border-gray-200">
-                <span className="text-gray-500">OrderId:</span>
+                <span className="text-gray-500">Mã đơn hàng:</span>
                 <span className="font-semibold text-gray-900 text-right break-all">{momoInfo.orderId}</span>
               </div>
             )}
             {momoInfo.amount && (
               <div className="flex justify-between gap-4 py-2 border-b border-gray-200">
-                <span className="text-gray-500">So tien:</span>
+                <span className="text-gray-500">Số tiền:</span>
                 <span className="font-semibold text-pink-600">{formatAmount(momoInfo.amount)} VND</span>
               </div>
             )}
             {result?.status && (
               <div className="flex justify-between gap-4 py-2">
-                <span className="text-gray-500">Trang thai:</span>
+                <span className="text-gray-500">Trạng thái:</span>
                 <span className="font-semibold text-gray-900">{result.status}</span>
               </div>
             )}
@@ -320,13 +320,13 @@ function MomoReturnContent() {
                   href="/my-tickets"
                   className="block w-full bg-pink-600 text-white text-center py-3 rounded-xl font-semibold hover:bg-pink-700 transition-colors"
                 >
-                  Xem Ve Cua Toi
+                  Xem vé của tôi
                 </Link>
                 <Link
                   href="/"
                   className="block w-full bg-gray-100 text-gray-700 text-center py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
                 >
-                  Ve Trang Chu
+                  Về Trang Chủ
                 </Link>
               </>
             ) : (
@@ -337,14 +337,14 @@ function MomoReturnContent() {
                     disabled={retrying}
                     className="block w-full bg-pink-600 text-white text-center py-3 rounded-xl font-semibold hover:bg-pink-700 transition-colors disabled:opacity-50"
                   >
-                    {retrying ? 'Dang tao thanh toan moi...' : 'Thanh Toan Lai'}
+                    {retrying ? 'Đang tạo thanh toán mới...' : 'Thanh Toán Lại'}
                   </button>
                 )}
                 <Link
                   href="/"
                   className="block w-full bg-gray-100 text-gray-700 text-center py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
                 >
-                  Ve Trang Chu
+                  Về Trang Chủ
                 </Link>
               </>
             )}

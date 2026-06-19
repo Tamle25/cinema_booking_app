@@ -11,7 +11,14 @@ export interface MomoConfig {
   ipnUrl: string;
 }
 
-export type MomoPaymentType = 'captureWallet' | 'payWithATM' | 'payWithCC';
+// `payWithMethod` là requestType "vạn năng" trong sample chính thức (CollectionLink.js):
+// MoMo tự render trang chọn phương thức (Ví/QR + ATM nội địa + Thẻ quốc tế) tùy theo
+// phương thức đang được kích hoạt trên merchant. Đây là giá trị mặc định nên dùng.
+export type MomoPaymentType =
+  | 'payWithMethod'
+  | 'captureWallet'
+  | 'payWithATM'
+  | 'payWithCC';
 
 export interface CreateMomoPaymentParams {
   orderId: string;
@@ -63,6 +70,7 @@ export interface MomoQueryResponse {
   responseTime: number;
   signature: string;
 }
+
 
 /**
  * Các trường tối thiểu mà MoMo BẮT BUỘC gửi kèm trong mọi callback (IPN/return).
@@ -127,11 +135,13 @@ export class MomoService {
       amount,
       orderInfo,
       extraData = '',
-      paymentType = 'captureWallet',
+      // Mặc định payWithMethod: để MoMo render trang chọn phương thức (đúng sample mới nhất).
+      paymentType = 'payWithMethod',
     } = params;
 
     const requestId = this.generateRequestId();
     const requestType = paymentType;
+    const orderGroupId = '';
 
     const rawSignature =
       `accessKey=${this.config.accessKey}` +
@@ -158,10 +168,11 @@ export class MomoService {
       redirectUrl: this.config.returnUrl,
       ipnUrl: this.config.ipnUrl,
       lang: 'vi',
-      extraData: extraData,
       requestType: requestType,
-      signature: signature,
       autoCapture: true,
+      extraData: extraData,
+      orderGroupId: orderGroupId,
+      signature: signature,
     };
 
     try {
@@ -178,6 +189,7 @@ export class MomoService {
       });
 
       const result = (await response.json()) as MomoPaymentResponse;
+
       this.logger.log(
         `MoMo create response orderId=${orderId} requestId=${requestId} resultCode=${result.resultCode} message=${result.message}`,
       );

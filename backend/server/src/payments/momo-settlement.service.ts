@@ -6,6 +6,8 @@ import { SeatReservationService } from './seat-reservation.service';
 import { Booking } from '../bookings/schemas/booking.schema';
 import { LoyaltyService } from '../loyalty/loyalty.service';
 import { VouchersService } from '../vouchers/vouchers.service';
+import * as fs from 'fs';
+import * as path from 'path';
 
 /**
  * Kết quả chuẩn hoá sau khi đối soát một callback của MoMo với đơn hàng.
@@ -70,12 +72,17 @@ export class MomoSettlementService {
    */
   async settle(
     params: MomoCallbackParams,
-    source: 'ipn' | 'return',
+    source: 'ipn' | 'return' | 'query',
   ): Promise<SettlementResult> {
     const ts = () => new Date().toISOString();
     this.logger.log(
       `[MomoSettlementService ${ts()}] [SETTLE_START] Source: ${source}, Params: ${JSON.stringify(params)}`,
     );
+
+    const logFilePath = path.join(process.cwd(), 'momo_debug.log');
+    const logData = `[${new Date().toISOString()}] CALLBACK RECEIVE (${source})\n` +
+      `Params: ${JSON.stringify(params, null, 2)}\n\n`;
+    fs.appendFileSync(logFilePath, logData);
 
     const missing = this.momoService.validateCallbackShape(params);
     if (missing.length > 0) {
@@ -88,8 +95,7 @@ export class MomoSettlementService {
       };
     }
 
-    const { orderId, requestId, resultCode, transId, amount, extraData } =
-      params;
+    const { orderId, resultCode, amount, extraData } = params;
 
     const booking = await this.findBooking(orderId, extraData);
     if (!booking) {
@@ -127,7 +133,10 @@ export class MomoSettlementService {
       };
     }
 
-    if (!this.momoService.verifySignature(params)) {
+    // Nguồn 'query' là kết quả gọi trực tiếp tới MoMo (server-to-server qua HTTPS),
+    // không phải callback inbound nên không thể bị giả mạo và cũng không mang chữ ký
+    // theo định dạng callback => bỏ qua verifySignature cho riêng nguồn này.
+    if (source !== 'query' && !this.momoService.verifySignature(params)) {
       this.logger.warn(
         `[MomoSettlementService ${ts()}] [SETTLE_INVALID_SIGNATURE] MoMo ${source} chữ ký không hợp lệ orderId=${orderId}`,
       );
@@ -160,29 +169,6 @@ export class MomoSettlementService {
         status: 'amount_mismatch',
         booking,
         message: 'Số tiền thanh toán không khớp với đơn hàng',
-      };
-    }
-
-    // Đã ở trạng thái cuối => idempotent, không xử lý lại.
-    if (booking.status === 'confirmed') {
-      this.logger.log(
-        `[MomoSettlementService ${ts()}] [SETTLE_ALREADY_CONFIRMED] Booking ${booking._id} was already confirmed previously.`,
-      );
-      return {
-        status: 'already_confirmed',
-        booking,
-        transId: booking.momo_trans_id,
-        message: 'Thanh toán thành công! Vé đã được xác nhận.',
-      };
-    }
-    if (FINAL_FAILED_STATUSES.includes(booking.status)) {
-      this.logger.log(
-        `[MomoSettlementService ${ts()}] [SETTLE_ALREADY_FAILED] Booking ${booking._id} is already in final failed status: ${booking.status}`,
-      );
-      return {
-        status: 'already_failed',
-        booking,
-        message: booking.payment_note || 'Giao dịch không thành công',
       };
     }
 

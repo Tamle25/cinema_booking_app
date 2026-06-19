@@ -27,7 +27,10 @@ export default function BookingPage() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [selectedPaymentType, setSelectedPaymentType] = useState<'captureWallet' | 'payWithATM' | 'payWithCC'>('captureWallet');
+  // payWithMethod: MoMo tự hiển thị trang chọn phương thức (Ví/QR, ATM nội địa, thẻ quốc tế)
+  // theo đúng sample chính thức. Tránh gọi thẳng payWithCC/captureWallet vốn không hoàn tất
+  // được trên sandbox (CC chưa cấp cổng, QR desktop cần app test).
+  const [selectedPaymentType] = useState<'payWithMethod'>('payWithMethod');
   const [selectedCombos, setSelectedCombos] = useState<ISelectedCombo[]>([]);
   const [pendingBooking, setPendingBooking] = useState<IBooking | null>(null);
   const [showPendingModal, setShowPendingModal] = useState(false);
@@ -786,78 +789,19 @@ export default function BookingPage() {
               </div>
 
               <div className="space-y-3 mb-4">
-                <h3 className="text-sm font-semibold text-gray-700">Chọn phương thức thanh toán</h3>
+                <h3 className="text-sm font-semibold text-gray-700">Phương thức thanh toán</h3>
 
-                <label
-                  className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedPaymentType === 'captureWallet'
-                    ? 'border-pink-500 bg-pink-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                >
-                  <input
-                    type="radio"
-                    name="paymentType"
-                    value="captureWallet"
-                    checked={selectedPaymentType === 'captureWallet'}
-                    onChange={() => setSelectedPaymentType('captureWallet')}
-                    className="w-5 h-5 text-pink-600"
-                  />
+                <div className="flex items-center gap-4 p-4 border-2 border-pink-500 bg-pink-50 rounded-xl">
                   <div className="w-12 h-12 bg-pink-600 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0">
                     MoMo
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm">Ví MoMo hoặc QR</p>
-                    <p className="text-xs text-gray-500">Quét QR hoặc mở app MoMo</p>
+                    <p className="font-semibold text-gray-900 text-sm">Thanh toán qua MoMo</p>
+                    <p className="text-xs text-gray-500">
+                      Ví/QR, thẻ ATM nội địa hoặc thẻ quốc tế — chọn ở bước tiếp theo
+                    </p>
                   </div>
-                </label>
-
-                <label
-                  className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedPaymentType === 'payWithATM'
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                >
-                  <input
-                    type="radio"
-                    name="paymentType"
-                    value="payWithATM"
-                    checked={selectedPaymentType === 'payWithATM'}
-                    onChange={() => setSelectedPaymentType('payWithATM')}
-                    className="w-5 h-5 text-blue-600"
-                  />
-                  <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xs shrink-0">
-                    ATM
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm">Thẻ ATM nội địa</p>
-                    <p className="text-xs text-gray-500">Vietcombank, BIDV, Techcombank...</p>
-                  </div>
-                </label>
-
-                <label
-                  className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedPaymentType === 'payWithCC'
-                    ? 'border-purple-500 bg-purple-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                >
-                  <input
-                    type="radio"
-                    name="paymentType"
-                    value="payWithCC"
-                    checked={selectedPaymentType === 'payWithCC'}
-                    onChange={() => setSelectedPaymentType('payWithCC')}
-                    className="w-5 h-5 text-purple-600"
-                  />
-                  <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl flex items-center justify-center shrink-0">
-                    <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm">Thẻ quốc tế</p>
-                    <p className="text-xs text-gray-500">Visa, Mastercard, JCB</p>
-                  </div>
-                </label>
+                </div>
               </div>
             </div>
 

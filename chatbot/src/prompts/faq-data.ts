@@ -24,7 +24,7 @@ export const FAQ_DATA: FAQItem[] = [
   {
     keywords: ['thanh toán', 'thanh toan', 'momo', 'vnpay', 'thẻ', 'atm', 'credit card'],
     question: 'Các phương thức thanh toán được hỗ trợ là gì?',
-    answer: 'CineMax hỗ trợ nhiều phương thức thanh toán trực tuyến linh hoạt bao gồm: Ví điện tử MoMo, Cổng VNPAY, Thẻ ATM nội địa và Thẻ tín dụng quốc tế (Visa/Mastercard/JCB). Mọi giao dịch đều được bảo mật tuyệt đối.',
+    answer: 'CineMax hỗ trợ nhiều phương thức thanh toán trực tuyến linh hoạt bao gồm: Ví điện tử MoMo, Thẻ ATM nội địa và Thẻ tín dụng quốc tế (Visa/Mastercard/JCB). Mọi giao dịch đều được bảo mật tuyệt đối.',
     url: '/booking',
     label: 'Xem lịch chiếu'
   },

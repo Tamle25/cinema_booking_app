@@ -58,7 +58,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     private readonly loyaltyService: LoyaltyService,
     private readonly vouchersService: VouchersService,
     private readonly momoSettlementService: MomoSettlementService,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.cleanupInterval = setInterval(
@@ -89,15 +89,15 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
 
   private normalizeSeats(seats: string[]): string[] {
     if (!Array.isArray(seats) || seats.length === 0) {
-      throw new BadRequestException('Vui long chon it nhat mot ghe!');
+      throw new BadRequestException('Vui lòng chọn ít nhất một ghế!');
     }
 
     const normalized = seats.map((seat) => String(seat).trim()).filter(Boolean);
     if (normalized.length !== seats.length) {
-      throw new BadRequestException('Danh sach ghe khong hop le!');
+      throw new BadRequestException('Danh sách ghế không hợp lệ!');
     }
     if (new Set(normalized).size !== normalized.length) {
-      throw new BadRequestException('Danh sach ghe bi trung lap!');
+      throw new BadRequestException('Danh sách ghế bị trùng lặp!');
     }
     return normalized;
   }
@@ -223,7 +223,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
 
   private buildOrderInfo(seatCount: number, comboCount: number): string {
     const comboPart = comboCount > 0 ? ` + ${comboCount} combo` : '';
-    return `Thanh toan ve xem phim - ${seatCount} ghe${comboPart}`;
+    return `Thanh toán vé xem phim - ${seatCount} ghế${comboPart}`;
   }
 
   private async lockSeatsOrThrow(
@@ -234,10 +234,10 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       await this.seatReservation.lockSeats(showtimeId, seats);
     } catch (error) {
       if (error instanceof Error && error.message === 'SHOWTIME_NOT_FOUND') {
-        throw new NotFoundException('Suat chieu khong ton tai');
+        throw new NotFoundException('Suất chiếu không tồn tại');
       }
       if (error instanceof Error && error.message === 'SEATS_ALREADY_TAKEN') {
-        throw new BadRequestException('Ghe da co nguoi dat!');
+        throw new BadRequestException('Ghế đã có người đặt!');
       }
       throw error;
     }
@@ -359,7 +359,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
 
     const newMomoOrderId = `${bookingId}-${Date.now()}`;
     this.logger.log(
-      `[PaymentsService ${ts()}] [RETRY_PAYMENT_NEW_ORDER_ID] Generated new momoOrderId=${newMomoOrderId} for bookingId=${bookingId}`,
+      `[PaymentsService ${ts()}] [RETRY_PAYMENT_NEW_ORDER_ID] Tạo mới momoOrderId=${newMomoOrderId} cho bookingId=${bookingId}`,
     );
     await this.bookingModel.findByIdAndUpdate(bookingId, {
       momo_order_id: newMomoOrderId,
@@ -437,7 +437,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     }
 
     if (role !== 'admin' && booking.user.toString() !== userId) {
-      throw new BadRequestException('Ban khong co quyen xem don dat ve nay');
+      throw new BadRequestException('Bạn không có quyền xem đơn đặt vé này');
     }
 
     if (booking.status === 'pending') {
@@ -466,7 +466,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
               extraData: queryResult.extraData || '',
               signature: queryResult.signature,
             };
-            await this.momoSettlementService.settle(callbackParams, 'ipn');
+            await this.momoSettlementService.settle(callbackParams, 'query');
 
             // Re-fetch fresh booking status
             const fresh = await this.bookingModel
@@ -542,7 +542,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
                   extraData: queryResult.extraData || '',
                   signature: queryResult.signature,
                 };
-                await this.momoSettlementService.settle(callbackParams, 'ipn');
+                await this.momoSettlementService.settle(callbackParams, 'query');
                 return;
               }
             } catch (queryErr) {
