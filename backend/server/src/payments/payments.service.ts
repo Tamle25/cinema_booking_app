@@ -10,6 +10,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { MomoService, MomoPaymentType } from './momo.service';
 import { MomoSettlementService } from './momo-settlement.service';
+import { VnpayService } from './vnpay.service';
 import { SeatReservationService } from './seat-reservation.service';
 import { Booking } from '../bookings/schemas/booking.schema';
 import { Showtime } from '../showtimes/schemas/showtime.schema';
@@ -33,6 +34,16 @@ export interface CreatePaymentResult {
   orderId: string;
 }
 
+export interface CreateVnpayPaymentDto {
+  showtime_id: string;
+  seats: string[];
+  user_id: string;
+  ipAddr: string;
+  bankCode?: string;
+  combos?: Array<{ combo_id: string; quantity: number }>;
+  voucherCode?: string;
+}
+
 const BOOKING_TTL_MS = 15 * 60 * 1000;
 
 /**
@@ -53,6 +64,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     @InjectModel(Showtime.name) private showtimeModel: Model<Showtime>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private readonly momoService: MomoService,
+    private readonly vnpayService: VnpayService,
     private readonly seatReservation: SeatReservationService,
     private readonly combosService: CombosService,
     private readonly loyaltyService: LoyaltyService,
@@ -224,6 +236,158 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
   private buildOrderInfo(seatCount: number, comboCount: number): string {
     const comboPart = comboCount > 0 ? ` + ${comboCount} combo` : '';
     return `Thanh toán vé xem phim - ${seatCount} ghế${comboPart}`;
+  }
+
+  /**
+   * Nội dung thanh toán cho VNPAY: phải là tiếng Việt KHÔNG dấu và không có ký
+   * tự đặc biệt (theo yêu cầu của vnp_OrderInfo).
+   */
+  private buildVnpayOrderInfo(seatCount: number, comboCount: number): string {
+    const comboPart = comboCount > 0 ? ` + ${comboCount} combo` : '';
+    return `Thanh toan ve xem phim - ${seatCount} ghe${comboPart}`;
+  }
+
+  /**
+   * Tạo đơn hàng + URL thanh toán VNPAY. Khác MoMo ở chỗ KHÔNG gọi API cổng
+   * thanh toán mà tự build URL (có chữ ký) rồi để client redirect sang VNPAY.
+   */
+  async createVnpayPayment(
+    createDto: CreateVnpayPaymentDto,
+  ): Promise<CreatePaymentResult> {
+    const ts = () => new Date().toISOString();
+    this.logger.log(
+      `[PaymentsService ${ts()}] [CREATE_VNPAY_START] showtime=${createDto.showtime_id} user=${createDto.user_id}`,
+    );
+    const { showtime_id, user_id, ipAddr } = createDto;
+    const seats = this.normalizeSeats(createDto.seats);
+
+    if (!user_id) {
+      throw new BadRequestException('Bạn cần đăng nhập để đặt vé!');
+    }
+
+    const showtime = await this.showtimeModel.findById(showtime_id);
+    if (!showtime) {
+      throw new NotFoundException('Suất chiếu không tồn tại');
+    }
+
+    const pricing = await this.calculatePricing(
+      // calculatePricing chỉ dùng các trường này; ép kiểu cho khớp chữ ký.
+      createDto as unknown as CreatePaymentDto,
+      showtime,
+      user_id,
+    );
+
+    const newBooking = new this.bookingModel({
+      showtime: showtime_id,
+      user: user_id,
+      seats,
+      total_price: pricing.totalPrice,
+      originalPrice: pricing.originalPrice,
+      membershipDiscount: pricing.membershipDiscount,
+      voucherDiscount: pricing.voucherDiscount,
+      appliedVoucherCode: pricing.appliedVoucherCode,
+      combos: pricing.combos,
+      status: 'pending',
+      payment_method: 'vnpay',
+    });
+
+    const bookingId = newBooking._id.toString();
+    const txnRef = `${bookingId}-${Date.now()}`;
+    newBooking.vnpay_txn_ref = txnRef;
+
+    await this.lockSeatsOrThrow(showtime_id, seats);
+
+    try {
+      await newBooking.save();
+    } catch (error) {
+      this.logger.error(
+        `[PaymentsService ${ts()}] [CREATE_VNPAY_SAVE_ERROR] ${error.message}`,
+      );
+      await this.seatReservation.releaseSeats({ showtime: showtime_id, seats });
+      throw error;
+    }
+
+    await this.seatReservation.lockSeatsPending(showtime_id, seats);
+
+    const orderInfo = this.buildVnpayOrderInfo(
+      seats.length,
+      pricing.combos.length,
+    );
+
+    const payUrl = this.vnpayService.buildPaymentUrl({
+      txnRef,
+      amount: pricing.totalPrice,
+      orderInfo,
+      ipAddr,
+      bankCode: createDto.bankCode,
+    });
+
+    this.logger.log(
+      `[PaymentsService ${ts()}] [CREATE_VNPAY_SUCCESS] booking=${bookingId} txnRef=${txnRef}`,
+    );
+
+    return { payUrl, bookingId, orderId: txnRef };
+  }
+
+  /**
+   * Khởi tạo lại URL thanh toán VNPAY cho một booking pending (thanh toán lại).
+   */
+  async retryVnpayPayment(
+    bookingId: string,
+    userId: string,
+    ipAddr: string,
+    bankCode?: string,
+  ): Promise<CreatePaymentResult> {
+    const ts = () => new Date().toISOString();
+    const booking = await this.bookingModel.findOne({
+      _id: bookingId,
+      user: userId,
+      status: 'pending',
+    });
+
+    if (!booking) {
+      throw new BadRequestException(
+        'Đơn hàng không tồn tại hoặc đã được xử lý',
+      );
+    }
+
+    const createdAt = (booking as any).createdAt;
+    if (
+      createdAt &&
+      Date.now() - new Date(createdAt).getTime() > BOOKING_TTL_MS
+    ) {
+      await this.seatReservation.releaseSeats(booking);
+      await this.bookingModel.findByIdAndUpdate(bookingId, {
+        status: 'expired',
+        payment_note: 'Hết thời gian thanh toán',
+      });
+      throw new BadRequestException(
+        'Đơn hàng đã hết hạn thanh toán. Vui lòng đặt vé mới.',
+      );
+    }
+
+    const newTxnRef = `${bookingId}-${Date.now()}`;
+    await this.bookingModel.findByIdAndUpdate(bookingId, {
+      vnpay_txn_ref: newTxnRef,
+    });
+
+    const orderInfo = this.buildVnpayOrderInfo(
+      booking.seats.length,
+      booking.combos?.length || 0,
+    );
+
+    const payUrl = this.vnpayService.buildPaymentUrl({
+      txnRef: newTxnRef,
+      amount: booking.total_price,
+      orderInfo,
+      ipAddr,
+      bankCode,
+    });
+
+    this.logger.log(
+      `[PaymentsService ${ts()}] [RETRY_VNPAY_SUCCESS] booking=${bookingId} txnRef=${newTxnRef}`,
+    );
+    return { payUrl, bookingId, orderId: newTxnRef };
   }
 
   private async lockSeatsOrThrow(

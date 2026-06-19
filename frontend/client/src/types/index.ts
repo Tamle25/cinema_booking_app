@@ -79,6 +79,7 @@ export interface IBooking {
   status: string;
   createdAt: string;
   combos?: IBookingCombo[];
+  payment_method?: 'momo' | 'vnpay';
 }
 
 export interface ICombo {

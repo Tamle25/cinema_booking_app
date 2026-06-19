@@ -31,6 +31,8 @@ export default function BookingPage() {
   // theo đúng sample chính thức. Tránh gọi thẳng payWithCC/captureWallet vốn không hoàn tất
   // được trên sandbox (CC chưa cấp cổng, QR desktop cần app test).
   const [selectedPaymentType] = useState<'payWithMethod'>('payWithMethod');
+  // Cổng thanh toán đang chọn trong modal: MoMo hoặc VNPAY.
+  const [selectedGateway, setSelectedGateway] = useState<'momo' | 'vnpay'>('momo');
   const [selectedCombos, setSelectedCombos] = useState<ISelectedCombo[]>([]);
   const [pendingBooking, setPendingBooking] = useState<IBooking | null>(null);
   const [showPendingModal, setShowPendingModal] = useState(false);
@@ -160,7 +162,12 @@ export default function BookingPage() {
 
     setPendingAction(true);
     try {
-      const res = await fetch(`${API_URL}/payments/retry`, {
+      // Thanh toán lại đúng cổng đã chọn ban đầu của đơn pending.
+      const retryEndpoint =
+        pendingBooking.payment_method === 'vnpay'
+          ? 'retry-vnpay'
+          : 'retry';
+      const res = await fetch(`${API_URL}/payments/${retryEndpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -411,6 +418,59 @@ export default function BookingPage() {
       console.error("Lỗi tạo thanh toán MoMo:", error);
       toastError("Có lỗi xảy ra, vui lòng thử lại.");
       setProcessing(false);
+    }
+  };
+
+  const handleVnpayPayment = async () => {
+    const token = localStorage.getItem('access_token');
+    setProcessing(true);
+    setShowPaymentModal(false);
+
+    try {
+      const res = await fetch(`${API_URL}/payments/create-vnpay`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          showtime_id: showtimeId,
+          seats: selectedSeats,
+          combos: selectedCombos.map(sc => ({
+            combo_id: sc.combo._id,
+            quantity: sc.quantity,
+          })),
+          voucherCode: appliedVoucherCode || undefined,
+        })
+      });
+
+      const data = await res.json();
+
+      if (res.status === 401) {
+        toastWarning('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!');
+        localStorage.removeItem('access_token');
+        router.push('/login');
+        return;
+      }
+
+      if (res.ok && data.payUrl) {
+        window.location.href = data.payUrl;
+      } else {
+        toastError(`Lỗi: ${data.message || 'Không thể tạo thanh toán VNPAY'}`);
+        setProcessing(false);
+      }
+    } catch (error) {
+      console.error("Lỗi tạo thanh toán VNPAY:", error);
+      toastError("Có lỗi xảy ra, vui lòng thử lại.");
+      setProcessing(false);
+    }
+  };
+
+  const handlePay = () => {
+    if (selectedGateway === 'vnpay') {
+      handleVnpayPayment();
+    } else {
+      handleMomoPayment();
     }
   };
 
@@ -791,7 +851,15 @@ export default function BookingPage() {
               <div className="space-y-3 mb-4">
                 <h3 className="text-sm font-semibold text-gray-700">Phương thức thanh toán</h3>
 
-                <div className="flex items-center gap-4 p-4 border-2 border-pink-500 bg-pink-50 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setSelectedGateway('momo')}
+                  className={`w-full flex items-center gap-4 p-4 border-2 rounded-xl text-left transition-colors ${
+                    selectedGateway === 'momo'
+                      ? 'border-pink-500 bg-pink-50'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
+                >
                   <div className="w-12 h-12 bg-pink-600 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0">
                     MoMo
                   </div>
@@ -801,7 +869,41 @@ export default function BookingPage() {
                       Ví/QR, thẻ ATM nội địa hoặc thẻ quốc tế — chọn ở bước tiếp theo
                     </p>
                   </div>
-                </div>
+                  {selectedGateway === 'momo' && (
+                    <div className="w-5 h-5 rounded-full bg-pink-600 flex items-center justify-center shrink-0">
+                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedGateway('vnpay')}
+                  className={`w-full flex items-center gap-4 p-4 border-2 rounded-xl text-left transition-colors ${
+                    selectedGateway === 'vnpay'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
+                >
+                  <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xs shrink-0">
+                    VNPAY
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm">Thanh toán qua VNPAY</p>
+                    <p className="text-xs text-gray-500">
+                      QR, thẻ ATM nội địa hoặc thẻ quốc tế — chọn ngân hàng tại VNPAY
+                    </p>
+                  </div>
+                  {selectedGateway === 'vnpay' && (
+                    <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
+                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                </button>
               </div>
             </div>
 
@@ -813,9 +915,13 @@ export default function BookingPage() {
                 Quay lại
               </button>
               <button
-                onClick={handleMomoPayment}
+                onClick={handlePay}
                 disabled={processing}
-                className="flex-1 px-4 py-3 bg-pink-600 text-white rounded-xl font-semibold hover:bg-pink-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                className={`flex-1 px-4 py-3 text-white rounded-xl font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${
+                  selectedGateway === 'vnpay'
+                    ? 'bg-blue-600 hover:bg-blue-700'
+                    : 'bg-pink-600 hover:bg-pink-700'
+                }`}
               >
                 {processing ? (
                   <>

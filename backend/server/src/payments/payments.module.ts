@@ -4,8 +4,10 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { MomoService } from './momo.service';
+import { VnpayService } from './vnpay.service';
 import { SeatReservationService } from './seat-reservation.service';
 import { MomoSettlementService } from './momo-settlement.service';
+import { VnpaySettlementService } from './vnpay-settlement.service';
 import { Booking, BookingSchema } from '../bookings/schemas/booking.schema';
 import { Showtime, ShowtimeSchema } from '../showtimes/schemas/showtime.schema';
 import { User, UserSchema } from '../users/user.schema';
@@ -31,9 +33,11 @@ import { RealtimeModule } from '../realtime/realtime.module';
   providers: [
     PaymentsService,
     MomoService,
+    VnpayService,
     SeatReservationService,
     MomoSettlementService,
+    VnpaySettlementService,
   ],
-  exports: [PaymentsService, MomoService],
+  exports: [PaymentsService, MomoService, VnpayService],
 })
 export class PaymentsModule {}

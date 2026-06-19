@@ -29,7 +29,7 @@ export class Booking {
   })
   status: string;
 
-  @Prop({ default: 'momo', enum: ['momo'] })
+  @Prop({ default: 'momo', enum: ['momo', 'vnpay'] })
   payment_method: string;
 
   @Prop({ index: true })
@@ -43,6 +43,23 @@ export class Booking {
 
   @Prop()
   momo_result_code: string;
+
+  // ===== VNPAY =====
+  // vnp_TxnRef gửi sang VNPAY (duy nhất trong ngày), dùng để đối soát callback.
+  @Prop({ index: true })
+  vnpay_txn_ref: string;
+
+  // vnp_TransactionNo — mã giao dịch ghi nhận tại hệ thống VNPAY.
+  @Prop()
+  vnpay_trans_no: string;
+
+  // vnp_BankCode — mã ngân hàng/phương thức khách hàng đã dùng.
+  @Prop()
+  vnpay_bank_code: string;
+
+  // vnp_ResponseCode — mã kết quả thanh toán VNPAY phản hồi.
+  @Prop()
+  vnpay_response_code: string;
 
   @Prop()
   payment_note: string;
