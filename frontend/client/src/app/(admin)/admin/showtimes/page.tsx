@@ -301,17 +301,18 @@ export default function AdminShowtimesPage() {
                         <p className="mt-1">Thử thay đổi bộ lọc hoặc thêm suất chiếu mới.</p>
                     </div>
                 ) : (
-                    <table className="w-full">
+                    <div className="overflow-x-auto">
+                    <table className="w-full min-w-[1100px]">
                         <thead className="bg-gray-50 border-b border-gray-200">
                             <tr>
                                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Phim</th>
                                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Rạp</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Phòng</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Thời gian</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Giá vé</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Đã đặt</th>
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Trạng thái</th>
-                                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-600">Thao tác</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 whitespace-nowrap">Phòng</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 whitespace-nowrap">Thời gian</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 whitespace-nowrap">Giá vé</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 whitespace-nowrap">Đã đặt</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 whitespace-nowrap">Trạng thái</th>
+                                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-600 whitespace-nowrap">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -332,33 +333,37 @@ export default function AdminShowtimesPage() {
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-4 py-3 text-gray-700">{showtime.cinema?.name || 'N/A'}</td>
-                                    <td className="px-4 py-3">
+                                    <td className="px-4 py-3 text-gray-700">
+                                        <p className="max-w-[180px] break-words" title={showtime.cinema?.name || 'N/A'}>
+                                            {showtime.cinema?.name || 'N/A'}
+                                        </p>
+                                    </td>
+                                    <td className="px-4 py-3 whitespace-nowrap">
                                         <span className="text-gray-700">{showtime.room?.name || 'N/A'}</span>
                                         <span className="text-xs text-gray-500 ml-1">({showtime.room?.type || 'N/A'})</span>
                                     </td>
-                                    <td className="px-4 py-3">
+                                    <td className="px-4 py-3 whitespace-nowrap">
                                         <p className="text-gray-900 font-medium">{formatDateTime(showtime.start_time)}</p>
                                         <p className="text-xs text-gray-500">→ {formatDateTime(showtime.end_time)}</p>
                                     </td>
-                                    <td className="px-4 py-3 text-gray-900 font-medium">{formatCurrency(showtime.price)}</td>
-                                    <td className="px-4 py-3">
-                                        <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium">
+                                    <td className="px-4 py-3 text-gray-900 font-medium whitespace-nowrap">{formatCurrency(showtime.price)}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap">
+                                        <span className="inline-block bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium">
                                             {showtime.booked_seats?.length || 0} ghế
                                         </span>
                                     </td>
-                                    <td className="px-4 py-3">
+                                    <td className="px-4 py-3 whitespace-nowrap">
                                         {showtime.is_active ? (
-                                            <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-medium">
+                                            <span className="inline-block bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-medium">
                                                 Hoạt động
                                             </span>
                                         ) : (
-                                            <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-medium">
+                                            <span className="inline-block bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-medium">
                                                 Đã xóa
                                             </span>
                                         )}
                                     </td>
-                                    <td className="px-4 py-3 text-right">
+                                    <td className="px-4 py-3 text-right whitespace-nowrap">
                                         <div className="flex items-center justify-end gap-2">
                                             <Link
                                                 href={`/admin/showtimes/edit/${showtime._id}`}
@@ -384,6 +389,7 @@ export default function AdminShowtimesPage() {
                             ))}
                         </tbody>
                     </table>
+                    </div>
                 )}
             </div>
 
