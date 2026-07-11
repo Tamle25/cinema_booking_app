@@ -73,8 +73,9 @@ export default function RegisterPage() {
           return prev - 1;
         });
       }, 1000);
-    } catch (err: any) {
-      toastError(err.message || 'Không thể gửi lại email xác thực.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '';
+      toastError(message || 'Không thể gửi lại email xác thực.');
     } finally {
       setResendLoading(false);
     }

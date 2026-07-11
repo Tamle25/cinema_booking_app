@@ -20,7 +20,10 @@ import { MailModule } from '../mail/mail.module';
       useFactory: (configService: ConfigService) => ({
         global: true,
         secret: configService.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '30m' },
+        signOptions: {
+          expiresIn: (configService.get<string>('JWT_EXPIRES_IN') ||
+            '1h') as import('ms').StringValue,
+        },
       }),
       inject: [ConfigService],
     }),
@@ -28,4 +31,4 @@ import { MailModule } from '../mail/mail.module';
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],
 })
-export class AuthModule {}
+export class AuthModule { }

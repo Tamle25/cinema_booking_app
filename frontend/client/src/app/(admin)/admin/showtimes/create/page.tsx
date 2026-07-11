@@ -192,7 +192,7 @@ export default function CreateShowtimePage() {
             </div>
 
             <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-md space-y-5">
-                
+
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Chọn phim <span className="text-red-500">*</span>
@@ -219,7 +219,7 @@ export default function CreateShowtimePage() {
 
                 <hr className="border-gray-200" />
 
-                
+
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Hệ thống rạp <span className="text-red-500">*</span>
@@ -239,7 +239,7 @@ export default function CreateShowtimePage() {
                     </select>
                 </div>
 
-                
+
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Chọn rạp <span className="text-red-500">*</span>
@@ -262,7 +262,7 @@ export default function CreateShowtimePage() {
                     </select>
                 </div>
 
-                
+
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Chọn phòng chiếu <span className="text-red-500">*</span>
@@ -290,7 +290,7 @@ export default function CreateShowtimePage() {
 
                 <hr className="border-gray-200" />
 
-                
+
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Thời gian bắt đầu <span className="text-red-500">*</span>
@@ -305,7 +305,7 @@ export default function CreateShowtimePage() {
                     />
                 </div>
 
-                
+
                 {estimatedEndTime && (
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                         <p className="text-sm text-blue-800">
@@ -324,7 +324,7 @@ export default function CreateShowtimePage() {
                     </div>
                 )}
 
-                
+
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Giá vé (VNĐ) <span className="text-red-500">*</span>
@@ -340,19 +340,6 @@ export default function CreateShowtimePage() {
                     />
                 </div>
 
-                
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                    <p className="text-sm text-yellow-800">
-                        <span className="font-medium">Lưu ý:</span> Hệ thống sẽ tự động kiểm tra:
-                    </p>
-                    <ul className="text-xs text-yellow-700 mt-1 list-disc list-inside space-y-0.5">
-                        <li>Không trùng lấp với suất chiếu khác trong cùng phòng</li>
-                        <li>Không tạo suất chiếu trong quá khứ</li>
-                        <li>Phim phải đang hoạt động (is_active = true)</li>
-                    </ul>
-                </div>
-
-                
                 <div className="flex justify-end gap-3 pt-4">
                     <button
                         type="button"

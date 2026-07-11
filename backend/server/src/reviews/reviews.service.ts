@@ -98,7 +98,7 @@ export class ReviewsService {
       try {
         const decoded = this.jwtService.verify(token);
         userId = decoded.sub || decoded.id || decoded._id;
-      } catch (error) {
+      } catch {
         // Token expired or invalid, ignore
       }
     }

@@ -19,7 +19,7 @@ export default function MovieInfoSidebar({ movie }: MovieInfoSidebarProps) {
       const month = String(date.getMonth() + 1).padStart(2, "0");
       const year = date.getFullYear();
       return `${day}/${month}/${year}`;
-    } catch (error) {
+    } catch {
       return dateStr;
     }
   };

@@ -71,7 +71,6 @@ export interface MomoQueryResponse {
   signature: string;
 }
 
-
 /**
  * Các trường tối thiểu mà MoMo BẮT BUỘC gửi kèm trong mọi callback (IPN/return).
  * Dùng để validate dữ liệu đầu vào trước khi xử lý.

@@ -191,7 +191,10 @@ export class VnpayService {
   }
 
   /** Map vnp_ResponseCode -> thông điệp tiếng Việt (theo bảng mã lỗi VNPAY). */
-  getResultMessage(responseCode: string): { success: boolean; message: string } {
+  getResultMessage(responseCode: string): {
+    success: boolean;
+    message: string;
+  } {
     const messages: Record<string, { success: boolean; message: string }> = {
       '00': { success: true, message: 'Giao dịch thành công' },
       '07': {

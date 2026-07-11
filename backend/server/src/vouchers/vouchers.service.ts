@@ -44,7 +44,9 @@ export class VouchersService {
       if (session && session.inTransaction()) {
         try {
           await session.abortTransaction();
-        } catch {}
+        } catch {
+          // Bỏ qua lỗi khi hủy transaction (session có thể đã kết thúc)
+        }
       }
 
       const errorMsg = error.message || '';
@@ -347,7 +349,7 @@ export class VouchersService {
         expiredAt.getDate() + (template.validDaysAfterExchange || 30),
       );
 
-      const [userVoucher] = await this.userVoucherModel.create(
+      await this.userVoucherModel.create(
         [
           {
             user: userId,

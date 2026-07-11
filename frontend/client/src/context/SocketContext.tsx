@@ -95,7 +95,9 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Sử dụng ref để listener luôn đọc được giá trị mới nhất của showtimeId hiện tại
   const currentShowtimeIdRef = useRef<string | null>(null);
-  currentShowtimeIdRef.current = currentShowtimeId;
+  useEffect(() => {
+    currentShowtimeIdRef.current = currentShowtimeId;
+  }, [currentShowtimeId]);
 
   const disconnectSocket = useCallback(() => {
     if (socket) {

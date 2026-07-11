@@ -225,10 +225,7 @@ export class VnpaySettlementService {
           return { RspCode: '99', Message: 'Invalid data' };
       }
     } catch (error) {
-      this.logger.error(
-        `[VnpaySettlement ${ts()}] [HANDLE_IPN_ERROR]`,
-        error,
-      );
+      this.logger.error(`[VnpaySettlement ${ts()}] [HANDLE_IPN_ERROR]`, error);
       return { RspCode: '99', Message: 'Unknown error' };
     }
   }
@@ -333,7 +330,9 @@ export class VnpaySettlementService {
 
     const bookingId = txnRef.split('-')[0];
     if (bookingId) {
-      const byId = await this.bookingModel.findById(bookingId).catch(() => null);
+      const byId = await this.bookingModel
+        .findById(bookingId)
+        .catch(() => null);
       if (byId) return byId;
     }
     return null;

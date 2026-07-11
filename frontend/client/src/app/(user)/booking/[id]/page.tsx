@@ -18,7 +18,7 @@ export default function BookingPage() {
   const router = useRouter();
   const showtimeId = params.id as string;
 
-  const { socket, isConnected, hasEverConnected, lockedSeats, bookedSeats, joinShowtime, leaveShowtime } = useSocket();
+  const { isConnected, hasEverConnected, lockedSeats, bookedSeats, joinShowtime, leaveShowtime } = useSocket();
   const { user, loading: authLoading } = useAuth();
   const userId = user?._id || user?.id;
 
@@ -72,7 +72,8 @@ export default function BookingPage() {
     setSelectedSeats((prev) => {
       const filtered = prev.filter((seat) => !lockedSeats.includes(seat) && !bookedSeats.includes(seat));
       if (filtered.length !== prev.length) {
-        toastWarning('Một hoặc nhiều ghế bạn chọn vừa được người khác giữ hoặc thanh toán!');
+        // Xử lý timeout 5p nếu cần
+        // 
       }
       return filtered;
     });
@@ -626,7 +627,7 @@ export default function BookingPage() {
                 <h2 className="text-2xl font-bold text-yellow-500 leading-tight">Thêm bắp nước?</h2>
                 <p className="text-gray-400 text-sm mt-1">Hoàn thiện trải nghiệm xem phim của bạn.</p>
               </div>
-              <button 
+              <button
                 onClick={handleProceedFromComboToPayment}
                 className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 hover:bg-gray-700 hover:text-white transition"
               >
@@ -635,7 +636,7 @@ export default function BookingPage() {
                 </svg>
               </button>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto custom-scrollbar">
               <ComboSelector
                 selectedCombos={selectedCombos}
@@ -651,21 +652,21 @@ export default function BookingPage() {
               >
                 Bỏ qua và thanh toán
               </button>
-              
+
               <div className="w-full sm:w-auto flex items-center gap-4 relative order-1 sm:order-2">
-                 <div className="hidden sm:block text-right">
-                   <div className="text-xs text-gray-400 font-medium">Tổng vé và combo</div>
-                   <div className="text-xl font-bold text-green-400">{grandTotal.toLocaleString()} đ</div>
-                 </div>
-                 <button
-                   onClick={handleProceedFromComboToPayment}
-                   className="w-full sm:w-auto px-8 py-3 bg-red-600 text-white rounded-xl font-bold text-lg hover:bg-red-700 hover:shadow-lg hover:shadow-red-500/30 transition-all flex items-center justify-center gap-2"
-                 >
-                   Tiếp tục 
-                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                   </svg>
-                 </button>
+                <div className="hidden sm:block text-right">
+                  <div className="text-xs text-gray-400 font-medium">Tổng vé và combo</div>
+                  <div className="text-xl font-bold text-green-400">{grandTotal.toLocaleString()} đ</div>
+                </div>
+                <button
+                  onClick={handleProceedFromComboToPayment}
+                  className="w-full sm:w-auto px-8 py-3 bg-red-600 text-white rounded-xl font-bold text-lg hover:bg-red-700 hover:shadow-lg hover:shadow-red-500/30 transition-all flex items-center justify-center gap-2"
+                >
+                  Tiếp tục
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
@@ -719,7 +720,7 @@ export default function BookingPage() {
                       </div>
                     </>
                   )}
-                  
+
                   <div className="border-t pt-2 mt-2 space-y-1.5">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Tiền vé:</span>
@@ -735,7 +736,7 @@ export default function BookingPage() {
                         </span>
                       </div>
                     )}
-                    
+
                     {membershipDiscountPercent > 0 && (
                       <div className="flex justify-between text-sm text-green-600 font-medium">
                         <span>Thành viên ({membershipRank} -{membershipDiscountPercent}%):</span>
@@ -807,7 +808,7 @@ export default function BookingPage() {
                   )}
                 </div>
                 {voucherError && <p className="text-xs text-red-500 mt-1">{voucherError}</p>}
-                
+
                 {myVouchers.filter(v => v.status === 'UNUSED' && new Date(v.expiredAt) > new Date()).length > 0 && !appliedVoucherCode && (
                   <div className="mt-2">
                     <button
@@ -819,14 +820,14 @@ export default function BookingPage() {
                       </svg>
                       Chọn từ voucher của bạn ({myVouchers.filter(v => v.status === 'UNUSED' && new Date(v.expiredAt) > new Date()).length})
                     </button>
-                    
+
                     {showVoucherDropdown && (
                       <div className="absolute z-20 mt-1 w-full left-0 bg-white border border-gray-200 rounded-xl shadow-xl p-3 max-h-48 overflow-y-auto space-y-2 text-gray-700 custom-scrollbar">
                         {myVouchers
                           .filter(v => v.status === 'UNUSED' && new Date(v.expiredAt) > new Date())
                           .map((uv) => (
-                            <div 
-                              key={uv._id} 
+                            <div
+                              key={uv._id}
                               onClick={() => {
                                 setVoucherCode(uv.code);
                                 handleApplyVoucher(uv.code);
@@ -854,11 +855,10 @@ export default function BookingPage() {
                 <button
                   type="button"
                   onClick={() => setSelectedGateway('momo')}
-                  className={`w-full flex items-center gap-4 p-4 border-2 rounded-xl text-left transition-colors ${
-                    selectedGateway === 'momo'
+                  className={`w-full flex items-center gap-4 p-4 border-2 rounded-xl text-left transition-colors ${selectedGateway === 'momo'
                       ? 'border-pink-500 bg-pink-50'
                       : 'border-gray-200 bg-white hover:border-gray-300'
-                  }`}
+                    }`}
                 >
                   <div className="w-12 h-12 bg-pink-600 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0">
                     MoMo
@@ -881,11 +881,10 @@ export default function BookingPage() {
                 <button
                   type="button"
                   onClick={() => setSelectedGateway('vnpay')}
-                  className={`w-full flex items-center gap-4 p-4 border-2 rounded-xl text-left transition-colors ${
-                    selectedGateway === 'vnpay'
+                  className={`w-full flex items-center gap-4 p-4 border-2 rounded-xl text-left transition-colors ${selectedGateway === 'vnpay'
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 bg-white hover:border-gray-300'
-                  }`}
+                    }`}
                 >
                   <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xs shrink-0">
                     VNPAY
@@ -917,11 +916,10 @@ export default function BookingPage() {
               <button
                 onClick={handlePay}
                 disabled={processing}
-                className={`flex-1 px-4 py-3 text-white rounded-xl font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${
-                  selectedGateway === 'vnpay'
+                className={`flex-1 px-4 py-3 text-white rounded-xl font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${selectedGateway === 'vnpay'
                     ? 'bg-blue-600 hover:bg-blue-700'
                     : 'bg-pink-600 hover:bg-pink-700'
-                }`}
+                  }`}
               >
                 {processing ? (
                   <>

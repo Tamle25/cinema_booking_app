@@ -80,7 +80,8 @@ export class MomoSettlementService {
     );
 
     const logFilePath = path.join(process.cwd(), 'momo_debug.log');
-    const logData = `[${new Date().toISOString()}] CALLBACK RECEIVE (${source})\n` +
+    const logData =
+      `[${new Date().toISOString()}] CALLBACK RECEIVE (${source})\n` +
       `Params: ${JSON.stringify(params, null, 2)}\n\n`;
     fs.appendFileSync(logFilePath, logData);
 

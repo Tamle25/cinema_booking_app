@@ -70,7 +70,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     private readonly loyaltyService: LoyaltyService,
     private readonly vouchersService: VouchersService,
     private readonly momoSettlementService: MomoSettlementService,
-  ) { }
+  ) {}
 
   onModuleInit() {
     this.cleanupInterval = setInterval(
@@ -706,7 +706,10 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
                   extraData: queryResult.extraData || '',
                   signature: queryResult.signature,
                 };
-                await this.momoSettlementService.settle(callbackParams, 'query');
+                await this.momoSettlementService.settle(
+                  callbackParams,
+                  'query',
+                );
                 return;
               }
             } catch (queryErr) {

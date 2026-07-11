@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model, UpdateQuery } from 'mongoose';
+import { FilterQuery, Model, Types, UpdateQuery } from 'mongoose';
 import { Cinema } from '../cinemas/schemas/cinema.schema';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { CreateComboDto } from './dto/create-combo.dto';
@@ -17,15 +17,16 @@ export class CombosService {
     @InjectModel(Combo.name) private comboModel: Model<Combo>,
     @InjectModel(Cinema.name) private cinemaModel: Model<Cinema>,
     private readonly cloudinaryService: CloudinaryService,
-  ) { }
+  ) {}
 
   async create(createComboDto: CreateComboDto): Promise<Combo> {
     const data: Record<string, unknown> = {
       ...createComboDto,
     };
     if (createComboDto.cinema_system_id) {
-      data.cinema_system = createComboDto.cinema_system_id;
+      data.cinema_system = new Types.ObjectId(createComboDto.cinema_system_id);
     }
+    delete data.cinema_system_id;
     const newCombo = new this.comboModel(data);
     return newCombo.save();
   }
@@ -39,9 +40,18 @@ export class CombosService {
     if (cinemaId) {
       const cinema = await this.cinemaModel.findById(cinemaId).exec();
       if (!cinema) throw new NotFoundException('Không tìm thấy rạp này');
-      query.cinema_system = cinema.cinema_system;
+      const systemId = this.getCinemaSystemId(cinema.cinema_system);
+      if (systemId) {
+        query.$or = [
+          { cinema_system: systemId },
+          { cinema_system: new Types.ObjectId(systemId) },
+        ];
+      }
     } else if (cinemaSystemId) {
-      query.cinema_system = cinemaSystemId;
+      query.$or = [
+        { cinema_system: cinemaSystemId },
+        { cinema_system: new Types.ObjectId(cinemaSystemId) },
+      ];
     }
 
     return this.comboModel
@@ -54,7 +64,10 @@ export class CombosService {
   async findAll(cinemaSystemId?: string): Promise<Combo[]> {
     const query: FilterQuery<Combo> = {};
     if (cinemaSystemId) {
-      query.cinema_system = cinemaSystemId;
+      query.$or = [
+        { cinema_system: cinemaSystemId },
+        { cinema_system: new Types.ObjectId(cinemaSystemId) },
+      ];
     }
     return this.comboModel
       .find(query)
@@ -77,8 +90,9 @@ export class CombosService {
       ...updateComboDto,
     };
     if (updateComboDto.cinema_system_id) {
-      data.cinema_system = updateComboDto.cinema_system_id;
+      data.cinema_system = new Types.ObjectId(updateComboDto.cinema_system_id);
     }
+    delete data.cinema_system_id;
 
     const updated = await this.comboModel
       .findByIdAndUpdate(id, data, { new: true })
@@ -116,7 +130,7 @@ export class CombosService {
   private async deleteComboImage(combo: Combo) {
     await this.cloudinaryService.destroyImage(
       combo.image_public_id ||
-      this.cloudinaryService.extractPublicIdFromUrl(combo.image_url),
+        this.cloudinaryService.extractPublicIdFromUrl(combo.image_url),
     );
   }
 

@@ -115,7 +115,9 @@ export class LoyaltyService implements OnModuleInit, OnModuleDestroy {
       if (session && session.inTransaction()) {
         try {
           await session.abortTransaction();
-        } catch {}
+        } catch {
+          // Bỏ qua lỗi khi hủy transaction (session có thể đã kết thúc)
+        }
       }
 
       const errorMsg = error.message || '';
